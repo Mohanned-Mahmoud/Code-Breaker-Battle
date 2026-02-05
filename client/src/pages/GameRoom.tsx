@@ -1,16 +1,17 @@
 import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, buildUrl } from "@shared/routes";
-import { type GameStateResponse, type GameLog } from "@shared/schema";
-import { motion, AnimatePresence } from "framer-motion";
+// Ensure you have these icons installed in lucide-react
 import { 
   Loader2, EyeOff, AlertTriangle, Trophy, 
-  Terminal, Share2, Copy, Keyboard, Play, Lock
+  Terminal, Share2, Copy, Keyboard, Play, Lock,
+  Shield, Zap // Added for Powerups
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { type GameStateResponse, type GameLog } from "@shared/schema";
 
 // --- SFX HOOK ---
 const useSFX = () => {
@@ -104,7 +105,7 @@ function DigitInput({ value, onChange, disabled, variant = 'default' }: {
           onKeyDown={(e) => handleKeyDown(i, e)}
           className={cn(
             "w-12 h-12 md:w-16 md:h-16 bg-black text-center text-2xl font-bold rounded-sm border-2 transition-all outline-none",
-            "neon-border focus:scale-105 disabled:opacity-50",
+            "neon-border focus:scale-105 disabled:opacity-50 disabled:cursor-not-allowed",
             variant === 'p1' ? 'border-primary' : 'border-primary'
           )}
         />
@@ -127,6 +128,12 @@ export default function GameRoom() {
   const [setupCode, setSetupCode] = useState("");
   const [showTransition, setShowTransition] = useState(false);
 
+  // 1. IDENTITY SYSTEM: Retrieve saved role from LocalStorage
+  const [myRole, setMyRole] = useState<'p1' | 'p2' | null>(() => {
+    const saved = localStorage.getItem(`role_${id}`);
+    return (saved === 'p1' || saved === 'p2') ? saved : null;
+  });
+
   // Queries & Mutations
   const { data: game, isLoading, error } = useQuery<GameStateResponse>({
     queryKey: ['game', id],
@@ -146,7 +153,12 @@ export default function GameRoom() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     }).then(res => res.json()),
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      // SAVE IDENTITY
+      const role = variables.player;
+      setMyRole(role);
+      localStorage.setItem(`role_${id}`, role);
+
       setSetupCode("");
       setShowTransition(true);
       setTimeout(() => setShowTransition(false), 3000);
@@ -165,6 +177,19 @@ export default function GameRoom() {
       playBeep();
       queryClient.invalidateQueries({ queryKey: ['game', id] });
       queryClient.invalidateQueries({ queryKey: ['logs', id] });
+    }
+  });
+
+  // 4. POWERUPS MUTATION
+  const powerupMutation = useMutation({
+    mutationFn: (type: 'firewall' | 'bruteforce') => fetch(`/api/games/${id}/powerup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player: myRole, type })
+    }).then(res => res.json()),
+    onSuccess: () => {
+       toast({ title: "SYSTEM UPDATE", description: "Powerup Activated Successfully" });
+       queryClient.invalidateQueries({ queryKey: ['game', id] });
     }
   });
 
@@ -214,13 +239,25 @@ export default function GameRoom() {
 
   // --- SETUP ---
   if (!game.p1Setup || !game.p2Setup) {
-    const isP1 = !game.p1Setup;
+    // Determine who needs to setup next
+    const targetRole = !game.p1Setup ? 'p1' : 'p2';
     
+    // 3. WAITING SCREEN: If I already have a role, but it's not my turn to setup (e.g. I am P1, waiting for P2)
+    if (myRole && myRole !== targetRole) {
+       return (
+         <div className="h-screen flex flex-col items-center justify-center bg-background p-4 text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
+            <h2 className="text-xl font-mono tracking-widest text-primary">WAITING FOR OPPONENT...</h2>
+            <p className="text-sm opacity-50 mt-2">Target system is configuring encryption keys.</p>
+         </div>
+       );
+    }
+
     if (showTransition) return (
       <div className="h-screen flex flex-col items-center justify-center text-center p-8 space-y-8 bg-black">
         <EyeOff className="w-20 h-20 text-primary/20 animate-pulse" />
         <h1 className="text-3xl font-bold tracking-widest">ENCRYPTION LOCKED</h1>
-        <p className="text-primary/40 font-mono">Hand the terminal to PLAYER {isP1 ? '02' : '01'}.</p>
+        <p className="text-primary/40 font-mono">Hand the terminal to PLAYER {targetRole === 'p1' ? '02' : '01'}.</p>
         <div className="w-64 h-1 bg-primary/10 rounded-full overflow-hidden">
           <motion.div initial={{ width: "100%" }} animate={{ width: "0%" }} transition={{ duration: 3 }} className="h-full bg-primary" />
         </div>
@@ -232,14 +269,14 @@ export default function GameRoom() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-sm p-8 bg-black/40 border border-primary/30 rounded-sm space-y-10">
           <div className="text-center space-y-2">
             <Lock className="w-10 h-10 mx-auto text-primary opacity-50" />
-            <h1 className="text-2xl font-bold tracking-widest uppercase">PLAYER {isP1 ? '01' : '02'}</h1>
+            <h1 className="text-2xl font-bold tracking-widest uppercase">PLAYER {targetRole === 'p1' ? '01' : '02'}</h1>
             <p className="text-xs font-mono opacity-50">DEFINE YOUR 4-DIGIT MASTER KEY</p>
           </div>
           <DigitInput value={setupCode} onChange={setSetupCode} />
           <Button 
             className="w-full h-12 neon-border bg-primary/10 hover:bg-primary/20"
             disabled={setupCode.length < 4 || setupMutation.isPending}
-            onClick={() => setupMutation.mutate({ player: isP1 ? 'p1' : 'p2', code: setupCode })}
+            onClick={() => setupMutation.mutate({ player: targetRole, code: setupCode })}
           >
             {setupMutation.isPending ? "ENCRYPTING..." : "INITIALIZE KEY"}
           </Button>
@@ -250,7 +287,14 @@ export default function GameRoom() {
 
   // --- BATTLE ---
   const activeP = game.turn;
-  const isMyTurn = true; // Local PvP, so always allow interaction if it's the right phase
+  
+  // 2. ONLINE PVP CHECK: Are you the active player?
+  const isMyTurn = myRole === activeP;
+
+  // Powerup Usage Checks (Safeguard for nulls)
+  const p1Powerups = { firewall: game.p1FirewallUsed ?? false, bruteforce: game.p1BruteforceUsed ?? false };
+  const p2Powerups = { firewall: game.p2FirewallUsed ?? false, bruteforce: game.p2BruteforceUsed ?? false };
+  const myPowerups = myRole === 'p1' ? p1Powerups : p2Powerups;
 
   return (
     <div className="h-screen flex flex-col md:flex-row relative">
@@ -271,10 +315,10 @@ export default function GameRoom() {
           </div>
           <div className="text-center">
             <div className={cn(
-              "px-4 py-1 border rounded-full text-[10px] font-bold tracking-widest animate-pulse",
-              activeP === 'p1' ? 'border-primary text-primary' : 'border-primary text-primary'
+              "px-4 py-1 border rounded-full text-[10px] font-bold tracking-widest transition-all",
+              isMyTurn ? "border-primary text-primary animate-pulse" : "border-primary/30 text-primary/30"
             )}>
-              PLAYER {activeP === 'p1' ? '01' : '02'} ACTIVE
+              {isMyTurn ? "YOUR TURN // ACTION REQUIRED" : `WAITING FOR OPPONENT...`}
             </div>
           </div>
           <div className="flex gap-2">
@@ -290,20 +334,56 @@ export default function GameRoom() {
 
         <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 min-h-0">
           {/* Action Center */}
-          <div className="flex flex-col space-y-6 justify-center items-center bg-black/20 p-8 border border-primary/10 rounded-sm">
+          <div className="flex flex-col space-y-6 justify-center items-center bg-black/20 p-8 border border-primary/10 rounded-sm relative">
+            
+            {/* Identity Badge */}
+            <div className="absolute top-2 left-2 text-[10px] font-mono opacity-30">
+              IDENTITY: {myRole === 'p1' ? 'PLAYER 01' : 'PLAYER 02'}
+            </div>
+
             <div className="space-y-2 text-center">
               <h3 className="text-sm font-mono opacity-40 uppercase tracking-[0.3em]">Neural Input Required</h3>
               <p className="text-xs opacity-20 italic">"Guess the enemy encryption to compromise system."</p>
             </div>
             
-            <DigitInput value={guessVal} onChange={setGuessVal} variant={activeP === 'p1' ? 'p1' : 'p2'} />
+            <DigitInput 
+              value={guessVal} 
+              onChange={setGuessVal} 
+              disabled={!isMyTurn} // Lock input if not my turn
+              variant={activeP === 'p1' ? 'p1' : 'p2'} 
+            />
+
+            {/* POWERUPS UI */}
+            <div className="flex gap-4 w-full max-w-xs">
+                <Button 
+                    variant="outline" 
+                    className="flex-1 border-yellow-500/50 text-yellow-500 hover:bg-yellow-500/10 text-[10px]"
+                    disabled={!isMyTurn || myPowerups.firewall || powerupMutation.isPending}
+                    onClick={() => powerupMutation.mutate('firewall')}
+                    title="Block opponent's next turn"
+                >
+                    <Shield className="w-3 h-3 mr-1" /> FIREWALL
+                </Button>
+                <Button 
+                    variant="outline" 
+                    className="flex-1 border-red-500/50 text-red-500 hover:bg-red-500/10 text-[10px]"
+                    disabled={!isMyTurn || myPowerups.bruteforce || powerupMutation.isPending}
+                    onClick={() => powerupMutation.mutate('bruteforce')}
+                    title="Reveal one digit (Simulation)"
+                >
+                    <Zap className="w-3 h-3 mr-1" /> BRUTEFORCE
+                </Button>
+            </div>
 
             <Button 
-              className="w-full max-w-xs h-14 neon-border text-lg tracking-widest font-black"
-              disabled={guessVal.length < 4 || guessMutation.isPending}
+              className={cn(
+                "w-full max-w-xs h-14 neon-border text-lg tracking-widest font-black transition-all",
+                !isMyTurn && "opacity-50 grayscale cursor-not-allowed"
+              )}
+              disabled={guessVal.length < 4 || guessMutation.isPending || !isMyTurn}
               onClick={() => guessMutation.mutate({ player: activeP, guess: guessVal })}
             >
-              {guessMutation.isPending ? "LAUNCHING..." : "EXECUTE ATTACK"}
+              {guessMutation.isPending ? "LAUNCHING..." : !isMyTurn ? "OPPONENT TURN..." : "EXECUTE ATTACK"}
             </Button>
           </div>
 
