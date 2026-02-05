@@ -1,0 +1,56 @@
+"I want to develop a high-performance, PvP Turn-Based web game titled 'Encryption War.' The game is a cybersecurity-themed take on the classic Mastermind logic. I need the project to use a modern web stack (React/Next.js or Vite) with a focus on 'Hacker' aesthetics and real-time multiplayer functionality via Firebase.
+
+1. Tech Stack Requirements:
+Frontend: React 18+ with TypeScript (for type safety) and Tailwind CSS (for styling).
+
+State Management: React Hooks (Context API or Zustand).
+
+Backend/Real-time: Firebase Realtime Database (for instant synchronization between players).
+
+Hosting: Optimized for Vercel or Netlify.
+
+2. Visual Identity (UI/UX) - 'Hacker Terminal x Pencil Art':
+Theme: Deep Dark Mode (#0A0A0A).
+
+Typography: Monospace fonts (e.g., 'JetBrains Mono' or 'Fira Code') in Neon Green (#00FF00).
+
+Components:
+
+Input Fields: 4 discrete square cells with neon borders. They should auto-focus on the next field after a digit is entered.
+
+The Console (Log): A terminal-style scrollable area. Crucially, new entries must appear at the top. Every entry needs a timestamp: [14:20:05] > ATTEMPT: 5821 | D:1 N:2.
+
+Art Accents: Integrate low-opacity digital pencil sketches (Pencil Art style) of broken locks or circuit skulls in the background corners to give it a unique, handcrafted feel.
+
+3. PvP & Room System (The 'Room Link' Logic):
+Lobby Flow: A clean landing page with a 'Create Private Room' button.
+
+Room Generation: When a room is created, generate a 5-character alphanumeric ID (e.g., xK9p2).
+
+URL Invitation: Update the URL to domain.com/?room=xK9p2. Provide a 'Copy Invite Link' button.
+
+Auto-Join: If a user opens a link with a room parameter, they should automatically join that session as 'Player 2'.
+
+Secret Code Phase:
+
+Player 1 sets a 4-digit secret code.
+
+Player 2 waits until the code is set, then begins the guessing phase.
+
+The secret code must be stored securely in Firebase and never exposed to the opponent's client.
+
+4. Core Gameplay Logic:
+The Match: Compare the 4-digit guess against the secret code.
+
+Deadly Hits (D): Correct digit in the correct position.
+
+Near Hits (N): Correct digit in the wrong position.
+
+Turn Management: Disable inputs for the player whose turn it isn't. Show a 'Waiting for Opponent...' status.
+
+5. Advanced Features:
+SFX: Mechanical keyboard typing sounds for inputs and a 'digital beep' for the attack button.
+
+Animations: Use Framer Motion for smooth screen transitions and a 'Glitch' effect when a system is successfully hacked (Win condition).
+
+Responsive Design: The UI must be perfectly centered and usable on both mobile browsers and desktop."

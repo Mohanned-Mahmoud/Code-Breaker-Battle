@@ -1,0 +1,96 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@400;500;700;900&family=Roboto+Mono:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 4%; /* #0A0A0A */
+  --foreground: 120 100% 50%; /* #00FF00 */
+  --primary: 120 100% 50%;
+  --primary-foreground: 0 0% 4%;
+  --border: 120 100% 50% / 0.3;
+  --card: 0 0% 6%;
+  --card-foreground: 120 100% 50%;
+  --accent: 120 100% 50% / 0.1;
+  --accent-foreground: 120 100% 50%;
+  --muted: 120 10% 10%;
+  --muted-foreground: 120 100% 50% / 0.5;
+  --scanline-color: rgba(0, 255, 0, 0.05);
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground font-mono antialiased overflow-hidden relative;
+    background-image: 
+      linear-gradient(rgba(0, 255, 0, 0.02) 50%, rgba(0, 0, 0, 0.25) 50%),
+      linear-gradient(90deg, rgba(0, 255, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 255, 0, 0.03));
+    background-size: 100% 2px, 3px 100%;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 10L90 90M90 10L10 90' stroke='%2300FF00' stroke-width='0.5' stroke-opacity='0.05'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-mono tracking-widest uppercase;
+    text-shadow: 0 0 10px currentColor;
+  }
+}
+
+@layer components {
+  .neon-border {
+    @apply border border-primary;
+    box-shadow: 0 0 10px hsla(120, 100%, 50%, 0.3), inset 0 0 5px hsla(120, 100%, 50%, 0.1);
+  }
+  .terminal-text {
+    @apply text-primary;
+    text-shadow: 0 0 5px hsla(120, 100%, 50%, 0.5);
+  }
+
+  .glitch-effect {
+    position: relative;
+  }
+  
+  .glitch-effect::before,
+  .glitch-effect::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .glitch-effect::before {
+    left: 2px;
+    text-shadow: -1px 0 #ff00c1;
+    clip: rect(44px, 450px, 56px, 0);
+    animation: glitch-anim-1 5s infinite linear alternate-reverse;
+  }
+
+  .glitch-effect::after {
+    left: -2px;
+    text-shadow: -1px 0 #00fff9;
+    clip: rect(44px, 450px, 56px, 0);
+    animation: glitch-anim-2 5s infinite linear alternate-reverse;
+  }
+
+  @keyframes glitch-anim-1 {
+    0% { clip: rect(20px, 9999px, 10px, 0); }
+    100% { clip: rect(40px, 9999px, 80px, 0); }
+  }
+
+  @keyframes glitch-anim-2 {
+    0% { clip: rect(80px, 9999px, 10px, 0); }
+    100% { clip: rect(10px, 9999px, 100px, 0); }
+  }
+}
