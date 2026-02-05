@@ -6,6 +6,8 @@ import { z } from "zod";
 
 export const games = pgTable("games", {
   id: serial("id").primaryKey(),
+  // Added roomId here
+  roomId: text("room_id").notNull(), 
   status: text("status").notNull().default("waiting"), // waiting, setup, playing, finished
   turn: text("turn").notNull().default("p1"), // p1, p2
   winner: text("winner"),
@@ -57,9 +59,8 @@ export type InsertGuess = typeof guesses.$inferInsert;
 
 export type GameLog = typeof logs.$inferSelect;
 
-// --- API TYPES (This was missing) ---
+// --- API TYPES ---
 
-// This type combines the Game state with the list of guesses
 export type GameStateResponse = Game & {
   guesses: Guess[];
 };

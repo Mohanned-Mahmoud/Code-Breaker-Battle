@@ -59,16 +59,17 @@ export async function registerRoutes(
     }
     const guesses = await storage.getGuesses(id);
 
-    // هنا كان الخطأ: ضفنا p1Code و p2Code بـ null عشان نرضي الـ TypeScript ونحافظ على السرية
+    // FIXED: Added roomId here to satisfy the interface
     const response: GameStateResponse = {
       id: game.id,
-      status: game.status as 'setup' | 'playing' | 'finished',
+      roomId: game.roomId, // <--- This was missing!
+      status: game.status as 'waiting' | 'setup' | 'playing' | 'finished',
       turn: game.turn as 'p1' | 'p2',
       winner: game.winner as 'p1' | 'p2' | null,
-      p1Setup: !!game.p1Code,
-      p2Setup: !!game.p2Code,
-      p1Code: null, // SECURITY: Always send null to client
-      p2Code: null, // SECURITY: Always send null to client
+      p1Setup: game.p1Setup ?? false,
+      p2Setup: game.p2Setup ?? false,
+      p1Code: null, // SECURITY: Always send null
+      p2Code: null, // SECURITY: Always send null
       p1FirewallUsed: game.p1FirewallUsed ?? false,
       p1BruteforceUsed: game.p1BruteforceUsed ?? false,
       p2FirewallUsed: game.p2FirewallUsed ?? false,
@@ -87,14 +88,20 @@ export async function registerRoutes(
       
       const game = await storage.getGame(id);
       if (!game) return res.status(404).json({ message: 'Game not found' });
-      if (game.status !== 'setup') return res.status(400).json({ message: 'Game already started' });
-
+      
       const updates: any = {};
-      if (player === 'p1') updates.p1Code = code;
-      else updates.p2Code = code;
+      if (player === 'p1') {
+        updates.p1Code = code;
+        updates.p1Setup = true;
+      } else {
+        updates.p2Code = code;
+        updates.p2Setup = true;
+      }
 
-      const isP1Ready = player === 'p1' ? true : !!game.p1Code;
-      const isP2Ready = player === 'p2' ? true : !!game.p2Code;
+      // Check if both players are ready
+      // We check the DB for the OTHER player's status
+      const isP1Ready = player === 'p1' ? true : game.p1Setup;
+      const isP2Ready = player === 'p2' ? true : game.p2Setup;
 
       if (isP1Ready && isP2Ready) {
         updates.status = 'playing';

@@ -1,10 +1,12 @@
 import { db } from "./db";
-import { games, guesses, type Game, type Guess, type CreateGameRequest, type SetupGameRequest, type MakeGuessRequest, type UsePowerupRequest } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+// Corrected imports: removed unused types and renamed gameLogs to logs
+import { games, guesses, logs, type Game, type Guess } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   createGame(): Promise<Game>;
   getGame(id: number): Promise<Game | undefined>;
+  getGameByRoomId(roomId: string): Promise<Game | undefined>;
   updateGame(id: number, updates: Partial<Game>): Promise<Game>;
   
   createGuess(guess: Omit<Guess, "id" | "createdAt">): Promise<Guess>;
@@ -16,6 +18,7 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   async createGame(): Promise<Game> {
     const roomId = Math.random().toString(36).substring(2, 7).toUpperCase();
+    // Now roomId exists in schema, so this will work
     const [game] = await db.insert(games).values({ roomId }).returning();
     return game;
   }
@@ -48,12 +51,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createLog(log: any): Promise<any> {
-    const [newLog] = await db.insert(gameLogs).values(log).returning();
+    // Corrected table name: logs instead of gameLogs
+    const [newLog] = await db.insert(logs).values(log).returning();
     return newLog;
   }
 
   async getLogs(gameId: number): Promise<any[]> {
-    return await db.select().from(gameLogs).where(eq(gameLogs.gameId, gameId)).orderBy(gameLogs.timestamp);
+    // Corrected table name: logs instead of gameLogs
+    return await db.select().from(logs).where(eq(logs.gameId, gameId)).orderBy(logs.timestamp);
   }
 }
 
