@@ -1,24 +1,22 @@
 import { db } from "./db";
-// Corrected imports: removed unused types and renamed gameLogs to logs
 import { games, guesses, logs, type Game, type Guess } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, lt, inArray } from "drizzle-orm";
 
 export interface IStorage {
   createGame(): Promise<Game>;
   getGame(id: number): Promise<Game | undefined>;
   getGameByRoomId(roomId: string): Promise<Game | undefined>;
   updateGame(id: number, updates: Partial<Game>): Promise<Game>;
-  
   createGuess(guess: Omit<Guess, "id" | "createdAt">): Promise<Guess>;
   getGuesses(gameId: number): Promise<Guess[]>;
   createLog(log: any): Promise<any>;
   getLogs(gameId: number): Promise<any[]>;
+  cleanupOldGames(): Promise<void>; // Added function definition
 }
 
 export class DatabaseStorage implements IStorage {
   async createGame(): Promise<Game> {
     const roomId = Math.random().toString(36).substring(2, 7).toUpperCase();
-    // Now roomId exists in schema, so this will work
     const [game] = await db.insert(games).values({ roomId }).returning();
     return game;
   }
@@ -34,10 +32,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateGame(id: number, updates: Partial<Game>): Promise<Game> {
-    const [updated] = await db.update(games)
-      .set(updates)
-      .where(eq(games.id, id))
-      .returning();
+    const [updated] = await db.update(games).set(updates).where(eq(games.id, id)).returning();
     return updated;
   }
 
@@ -51,14 +46,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createLog(log: any): Promise<any> {
-    // Corrected table name: logs instead of gameLogs
     const [newLog] = await db.insert(logs).values(log).returning();
     return newLog;
   }
 
   async getLogs(gameId: number): Promise<any[]> {
-    // Corrected table name: logs instead of gameLogs
     return await db.select().from(logs).where(eq(logs.gameId, gameId)).orderBy(logs.timestamp);
+  }
+
+  // --- CLEANUP FUNCTION ---
+  async cleanupOldGames(): Promise<void> {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 Hours
+    
+    // 1. Find old games
+    const oldGames = await db.select({ id: games.id }).from(games).where(lt(games.createdAt, oneDayAgo));
+    const ids = oldGames.map(g => g.id);
+
+    if (ids.length > 0) {
+      console.log(`[CLEANUP] Deleting ${ids.length} old games...`);
+      // 2. Delete related data first
+      await db.delete(logs).where(inArray(logs.gameId, ids));
+      await db.delete(guesses).where(inArray(guesses.gameId, ids));
+      // 3. Delete the games
+      await db.delete(games).where(inArray(games.id, ids));
+      console.log(`[CLEANUP] Done.`);
+    }
   }
 }
 

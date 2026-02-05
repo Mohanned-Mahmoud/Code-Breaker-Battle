@@ -10,7 +10,6 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
-  // Helper to calculate hits and blips
   function calculateFeedback(secret: string, guess: string) {
     let hits = 0;
     let blips = 0;
@@ -19,7 +18,6 @@ export async function registerRoutes(
     const secretUsed = new Array(4).fill(false);
     const guessUsed = new Array(4).fill(false);
 
-    // Calculate Hits (Correct number, correct spot)
     for (let i = 0; i < 4; i++) {
       if (guessArr[i] === secretArr[i]) {
         hits++;
@@ -28,7 +26,6 @@ export async function registerRoutes(
       }
     }
 
-    // Calculate Blips (Correct number, wrong spot)
     for (let i = 0; i < 4; i++) {
       if (!guessUsed[i]) {
         for (let j = 0; j < 4; j++) {
@@ -59,17 +56,21 @@ export async function registerRoutes(
     }
     const guesses = await storage.getGuesses(id);
 
-    // FIXED: Added roomId here to satisfy the interface
     const response: GameStateResponse = {
       id: game.id,
-      roomId: game.roomId, // <--- This was missing!
+      roomId: game.roomId,
       status: game.status as 'waiting' | 'setup' | 'playing' | 'finished',
       turn: game.turn as 'p1' | 'p2',
       winner: game.winner as 'p1' | 'p2' | null,
+      isFirewallActive: game.isFirewallActive ?? false,
+      
+      // --- ADDED THIS LINE TO FIX THE ERROR ---
+      createdAt: game.createdAt, 
+      
       p1Setup: game.p1Setup ?? false,
       p2Setup: game.p2Setup ?? false,
-      p1Code: null, // SECURITY: Always send null
-      p2Code: null, // SECURITY: Always send null
+      p1Code: null,
+      p2Code: null,
       p1FirewallUsed: game.p1FirewallUsed ?? false,
       p1BruteforceUsed: game.p1BruteforceUsed ?? false,
       p2FirewallUsed: game.p2FirewallUsed ?? false,
@@ -80,7 +81,7 @@ export async function registerRoutes(
     res.json(response);
   });
 
-  // 3. Setup Game (Choose Code)
+  // 3. Setup Game
   app.post(api.games.setup.path, async (req, res) => {
     try {
       const id = Number(req.params.id);
@@ -98,8 +99,6 @@ export async function registerRoutes(
         updates.p2Setup = true;
       }
 
-      // Check if both players are ready
-      // We check the DB for the OTHER player's status
       const isP1Ready = player === 'p1' ? true : game.p1Setup;
       const isP2Ready = player === 'p2' ? true : game.p2Setup;
 
@@ -140,19 +139,28 @@ export async function registerRoutes(
         timestamp: new Date()
       });
 
+      const playerLabel = player === 'p1' ? '[P1]' : '[P2]';
       await storage.createLog({
         gameId: id,
-        message: `ATTEMPT: ${guess} | D:${hits} N:${blips}`,
-        type: hits === 4 ? 'success' : hits > 0 ? 'warning' : 'info'
+        message: `${playerLabel} CODE: ${guess} >> HITS: ${hits} | CLOSE: ${blips}`,
+        type: hits === 4 ? 'success' : 'info'
       });
 
       const updates: any = {};
-      
       if (hits === 4) {
         updates.status = 'finished';
         updates.winner = player;
       } else {
-        updates.turn = player === 'p1' ? 'p2' : 'p1';
+        if (game.isFirewallActive) {
+          updates.isFirewallActive = false;
+          await storage.createLog({
+            gameId: id,
+            message: `SYSTEM: FIREWALL BLOCKED TURN SWITCH. ${playerLabel} GOES AGAIN.`,
+            type: 'warning'
+          });
+        } else {
+          updates.turn = player === 'p1' ? 'p2' : 'p1';
+        }
       }
 
       await storage.updateGame(id, updates);
@@ -182,33 +190,29 @@ export async function registerRoutes(
 
       const updates: any = {};
       let logMessage = "";
+      const playerLabel = player === 'p1' ? '[P1]' : '[P2]';
 
-      // --- FIREWALL LOGIC ---
       if (type === 'firewall') {
         if ((player === 'p1' && game.p1FirewallUsed) || (player === 'p2' && game.p2FirewallUsed)) {
           return res.status(400).json({ message: 'Ability already used' });
         }
-        
         updates[player === 'p1' ? 'p1FirewallUsed' : 'p2FirewallUsed'] = true;
-        logMessage = `PLAYER ${player === 'p1' ? '01' : '02'} ACTIVATED FIREWALL. TURN EXTENDED.`;
+        updates.isFirewallActive = true; 
+        logMessage = `${playerLabel} ACTIVATED FIREWALL. TURN EXTENDED.`;
       } 
-      // --- BRUTEFORCE LOGIC ---
       else if (type === 'bruteforce') {
         if ((player === 'p1' && game.p1BruteforceUsed) || (player === 'p2' && game.p2BruteforceUsed)) {
           return res.status(400).json({ message: 'Ability already used' });
         }
-
         const opponentCode = player === 'p1' ? game.p2Code : game.p1Code;
         if (!opponentCode) return res.status(500).json({ message: 'Opponent code missing' });
         
-        // Reveal the first digit
         const revealedDigit = opponentCode[0];
         updates[player === 'p1' ? 'p1BruteforceUsed' : 'p2BruteforceUsed'] = true;
-        logMessage = `BRUTEFORCE ATTACK SUCCESSFUL. FIRST DIGIT EXPOSED: [ ${revealedDigit} * * * ]`;
+        logMessage = `${playerLabel} USED BRUTEFORCE. 1ST DIGIT IS [ ${revealedDigit} ]`;
       }
 
       await storage.updateGame(id, updates);
-      
       if (logMessage) {
         await storage.createLog({
             gameId: id,
@@ -219,7 +223,6 @@ export async function registerRoutes(
       
       const updatedGame = await storage.getGame(id);
       res.json(updatedGame);
-
     } catch (err) {
       res.status(400).json({ message: 'Invalid input' });
     }
