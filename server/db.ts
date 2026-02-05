@@ -1,9 +1,13 @@
+import * as dotenv from "dotenv";
+dotenv.config(); // 1. قراءة بيانات الاتصال فوراً
+
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import * as schema from "@shared/schema";
 
 const { Pool } = pg;
 
+// التحقق من وجود الرابط
 if (!process.env.DATABASE_URL) {
   throw new Error(
     "DATABASE_URL must be set. Did you forget to provision a database?",

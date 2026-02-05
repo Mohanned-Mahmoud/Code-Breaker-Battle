@@ -34,7 +34,7 @@ export async function registerRoutes(
         for (let j = 0; j < 4; j++) {
           if (!secretUsed[j] && guessArr[i] === secretArr[j]) {
             blips++;
-            secretUsed[j] = true; // Mark this instance of number as used
+            secretUsed[j] = true;
             break;
           }
         }
@@ -44,11 +44,13 @@ export async function registerRoutes(
     return { hits, blips };
   }
 
+  // 1. Create Game
   app.post(api.games.create.path, async (req, res) => {
     const game = await storage.createGame();
     res.status(201).json({ id: game.id });
   });
 
+  // 2. Get Game State
   app.get(api.games.get.path, async (req, res) => {
     const id = Number(req.params.id);
     const game = await storage.getGame(id);
@@ -57,14 +59,16 @@ export async function registerRoutes(
     }
     const guesses = await storage.getGuesses(id);
 
-    // Construct response masking secret info
+    // هنا كان الخطأ: ضفنا p1Code و p2Code بـ null عشان نرضي الـ TypeScript ونحافظ على السرية
     const response: GameStateResponse = {
       id: game.id,
       status: game.status as 'setup' | 'playing' | 'finished',
-      turn: game.turn as 'p1' | 'p2' | null,
+      turn: game.turn as 'p1' | 'p2',
       winner: game.winner as 'p1' | 'p2' | null,
       p1Setup: !!game.p1Code,
       p2Setup: !!game.p2Code,
+      p1Code: null, // SECURITY: Always send null to client
+      p2Code: null, // SECURITY: Always send null to client
       p1FirewallUsed: game.p1FirewallUsed ?? false,
       p1BruteforceUsed: game.p1BruteforceUsed ?? false,
       p2FirewallUsed: game.p2FirewallUsed ?? false,
@@ -75,6 +79,7 @@ export async function registerRoutes(
     res.json(response);
   });
 
+  // 3. Setup Game (Choose Code)
   app.post(api.games.setup.path, async (req, res) => {
     try {
       const id = Number(req.params.id);
@@ -88,13 +93,12 @@ export async function registerRoutes(
       if (player === 'p1') updates.p1Code = code;
       else updates.p2Code = code;
 
-      // Check if both ready to start
       const isP1Ready = player === 'p1' ? true : !!game.p1Code;
       const isP2Ready = player === 'p2' ? true : !!game.p2Code;
 
       if (isP1Ready && isP2Ready) {
         updates.status = 'playing';
-        updates.turn = 'p1'; // P1 always starts
+        updates.turn = 'p1';
       }
 
       await storage.updateGame(id, updates);
@@ -104,6 +108,7 @@ export async function registerRoutes(
     }
   });
 
+  // 4. Make a Guess
   app.post(api.games.guess.path, async (req, res) => {
     try {
       const id = Number(req.params.id);
@@ -124,10 +129,10 @@ export async function registerRoutes(
         player,
         guess,
         hits,
-        blips
+        blips,
+        timestamp: new Date()
       });
 
-      // Log the attack
       await storage.createLog({
         gameId: id,
         message: `ATTEMPT: ${guess} | D:${hits} N:${blips}`,
@@ -150,16 +155,18 @@ export async function registerRoutes(
     }
   });
 
+  // 5. Get Logs
   app.get(api.games.logs.path, async (req, res) => {
     const id = Number(req.params.id);
     const logs = await storage.getLogs(id);
     res.json(logs);
   });
 
+  // 6. USE POWERUP
   app.post(api.games.powerup.path, async (req, res) => {
     try {
       const id = Number(req.params.id);
-      const { player, type } = api.games.powerup.input.parse(req.body);
+      const { player, type } = req.body; 
 
       const game = await storage.getGame(id);
       if (!game) return res.status(404).json({ message: 'Game not found' });
@@ -167,37 +174,45 @@ export async function registerRoutes(
       if (game.turn !== player) return res.status(400).json({ message: 'Not your turn' });
 
       const updates: any = {};
-      let result = null;
+      let logMessage = "";
 
+      // --- FIREWALL LOGIC ---
       if (type === 'firewall') {
-        if (player === 'p1' && game.p1FirewallUsed) return res.status(400).json({ message: 'Already used' });
-        if (player === 'p2' && game.p2FirewallUsed) return res.status(400).json({ message: 'Already used' });
+        if ((player === 'p1' && game.p1FirewallUsed) || (player === 'p2' && game.p2FirewallUsed)) {
+          return res.status(400).json({ message: 'Ability already used' });
+        }
         
-        if (player === 'p1') updates.p1FirewallUsed = true;
-        else updates.p2FirewallUsed = true;
-        
-        // Firewall blocks opponent turn, so turn stays with current player
-        // No turn change
+        updates[player === 'p1' ? 'p1FirewallUsed' : 'p2FirewallUsed'] = true;
+        logMessage = `PLAYER ${player === 'p1' ? '01' : '02'} ACTIVATED FIREWALL. TURN EXTENDED.`;
       } 
+      // --- BRUTEFORCE LOGIC ---
       else if (type === 'bruteforce') {
-        if (player === 'p1' && game.p1BruteforceUsed) return res.status(400).json({ message: 'Already used' });
-        if (player === 'p2' && game.p2BruteforceUsed) return res.status(400).json({ message: 'Already used' });
+        if ((player === 'p1' && game.p1BruteforceUsed) || (player === 'p2' && game.p2BruteforceUsed)) {
+          return res.status(400).json({ message: 'Ability already used' });
+        }
 
-        if (player === 'p1') updates.p1BruteforceUsed = true;
-        else updates.p2BruteforceUsed = true;
-
-        const targetCode = player === 'p1' ? game.p2Code : game.p1Code;
-        if (!targetCode) return res.status(500).json({ message: 'Target code missing' });
+        const opponentCode = player === 'p1' ? game.p2Code : game.p1Code;
+        if (!opponentCode) return res.status(500).json({ message: 'Opponent code missing' });
         
-        const sum = targetCode.split('').reduce((a, b) => a + parseInt(b), 0);
-        result = {
-          type: sum % 2 === 0 ? 'even' : 'odd',
-          sum // Optionally return sum or just parity
-        };
+        // Reveal the first digit
+        const revealedDigit = opponentCode[0];
+        updates[player === 'p1' ? 'p1BruteforceUsed' : 'p2BruteforceUsed'] = true;
+        logMessage = `BRUTEFORCE ATTACK SUCCESSFUL. FIRST DIGIT EXPOSED: [ ${revealedDigit} * * * ]`;
       }
 
       await storage.updateGame(id, updates);
-      res.json({ success: true, result });
+      
+      if (logMessage) {
+        await storage.createLog({
+            gameId: id,
+            message: logMessage,
+            type: 'warning'
+        });
+      }
+      
+      const updatedGame = await storage.getGame(id);
+      res.json(updatedGame);
+
     } catch (err) {
       res.status(400).json({ message: 'Invalid input' });
     }
