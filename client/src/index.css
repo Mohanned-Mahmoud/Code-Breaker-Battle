@@ -93,4 +93,24 @@
     0% { clip: rect(80px, 9999px, 10px, 0); }
     100% { clip: rect(10px, 9999px, 100px, 0); }
   }
+
+  /* --- NEW SCROLLBAR STYLES --- */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px; /* Visible width */
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 20, 0, 0.5); 
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #00ff00; /* Neon Green */
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.8);
+    box-shadow: 0 0 5px #00ff00; /* Glow effect */
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #ccffcc;
+  }
 }

@@ -32,12 +32,23 @@ const useSFX = () => {
   return { playTyping, playBeep };
 };
 
-// --- UPDATED TERMINAL WITH COLORS ---
+// --- UPDATED TERMINAL WITH COLORS & SCROLLBAR ---
 function TerminalLog({ logs }: { logs: GameLog[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new logs arrive
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [logs]);
   
   return (
-    <div ref={scrollRef} className="font-mono text-xs md:text-sm h-full overflow-y-auto p-4 bg-black/60 border border-primary/20 rounded-sm custom-scrollbar relative">      <div className="flex flex-col-reverse space-y-reverse space-y-2">
+    <div 
+      ref={scrollRef} 
+      className="font-mono text-xs md:text-sm h-full overflow-y-auto p-4 bg-black/60 border border-primary/20 rounded-sm custom-scrollbar relative"
+    >
+      <div className="flex flex-col-reverse space-y-reverse space-y-2">
         <AnimatePresence initial={false}>
           {logs.slice().reverse().map((log) => (
             <motion.div
@@ -49,9 +60,8 @@ function TerminalLog({ logs }: { logs: GameLog[] }) {
               <span className="opacity-40 select-none">[{new Date(log.timestamp!).toLocaleTimeString()}]</span>
               <span className={cn(
                 "flex-1 break-words font-medium",
-                // COLOR LOGIC:
-                log.message.includes("[P1]") ? "text-cyan-400" :      // Player 1 = Cyan
-                log.message.includes("[P2]") ? "text-fuchsia-400" :   // Player 2 = Pink/Purple
+                log.message.includes("[P1]") ? "text-cyan-400" :      
+                log.message.includes("[P2]") ? "text-fuchsia-400" :   
                 log.type === 'success' ? 'text-green-500' : 
                 log.type === 'error' ? 'text-red-500' : 
                 log.type === 'warning' ? 'text-yellow-500' : 'text-primary/70'
@@ -186,8 +196,8 @@ export default function GameRoom() {
       body: JSON.stringify({ player: myRole, type })
     }).then(res => res.json()),
     onSuccess: () => {
-       toast({ title: "SYSTEM UPDATE", description: "Powerup Activated Successfully" });
-       queryClient.invalidateQueries({ queryKey: ['game', id] });
+        toast({ title: "SYSTEM UPDATE", description: "Powerup Activated Successfully" });
+        queryClient.invalidateQueries({ queryKey: ['game', id] });
     }
   });
 
@@ -271,7 +281,8 @@ export default function GameRoom() {
   const myPowerups = myRole === 'p1' ? p1Powerups : p2Powerups;
 
   return (
-    <div className="h-screen flex flex-col md:flex-row relative">
+    // FIX: Using h-[100dvh] + overflow-hidden to lock body scroll on mobile
+    <div className="h-[100dvh] w-full overflow-hidden flex flex-col md:flex-row relative">
       {/* Dynamic Background */}
       <div className={cn(
           "absolute top-0 right-0 w-64 h-64 opacity-10 pointer-events-none z-0 transition-colors duration-500",
@@ -364,6 +375,7 @@ export default function GameRoom() {
           </div>
         </div>
 
+        {/* FIX: Mobile grid layout ensures terminal gets remaining space */}
         <div className="flex-1 grid grid-cols-1 grid-rows-[auto_minmax(0,1fr)] md:grid-rows-none md:grid-cols-2 gap-4 min-h-0">
           <div className="flex flex-col space-y-6 justify-center items-center bg-black/20 p-8 border border-primary/10 rounded-sm relative">
             <div className="absolute top-2 left-2 text-[10px] font-mono opacity-30">
