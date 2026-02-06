@@ -44,11 +44,7 @@ function TerminalLog({ logs }: { logs: GameLog[] }) {
   }, [logs]);
   
   return (
-    <div 
-      ref={scrollRef} 
-      // FIX: Changed 'h-full' to 'flex-1 min-h-0' to fill remaining space properly
-      className="flex-1 min-h-0 font-mono text-xs md:text-sm overflow-y-auto p-4 bg-black/60 border border-primary/20 rounded-sm custom-scrollbar relative"
-    >
+<div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-4 bg-black/60 border border-primary/20 rounded-sm custom-scrollbar relative">
       <div className="flex flex-col-reverse space-y-reverse space-y-2">
         <AnimatePresence initial={false}>
           {logs.slice().reverse().map((log) => (
