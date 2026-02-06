@@ -3,7 +3,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "../shared/routes";
 import { z } from "zod";
-import { GameStateResponse } from "../shared/schema";
+import { GameStateResponse } from "@shared/schema";
 
 export async function registerRoutes(
   httpServer: Server,

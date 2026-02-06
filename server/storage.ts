@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { games, guesses, logs, type Game, type Guess } from "../shared/schema";
+import { games, guesses, logs, type Game, type Guess } from "@shared/schema";
 import { eq, lt, inArray } from "drizzle-orm";
 
 export interface IStorage {
