@@ -1,8 +1,9 @@
 import { motion } from "framer-motion";
-import { useLocation } from "wouter";
-import { Loader2, Plus, Terminal, Lock } from "lucide-react";
+import { useLocation, Link } from "wouter";
+import { Loader2, Plus, Terminal, Lock, Info } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@shared/routes";
+import { Button } from "@/components/ui/button";
 
 export default function Landing() {
   const [, setLocation] = useLocation();
@@ -52,21 +53,32 @@ export default function Landing() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="flex flex-col items-center gap-4"
+          className="flex flex-col items-center gap-4 w-full max-w-sm mx-auto"
         >
+          {/* Main Action: Create Game */}
           <button 
             onClick={() => createGame.mutate()}
             disabled={createGame.isPending}
-            className="group relative px-12 py-4 bg-primary/5 border border-primary text-primary font-mono tracking-[0.3em] uppercase hover:bg-primary/20 transition-all active:scale-95 disabled:opacity-50"
+            className="w-full group relative px-8 py-4 bg-primary/5 border border-primary text-primary font-mono tracking-[0.3em] uppercase hover:bg-primary/20 transition-all active:scale-95 disabled:opacity-50"
           >
-            <div className="absolute inset-0 border border-primary opacity-0 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300" />
+            <div className="absolute inset-0 border border-primary opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300" />
             {createGame.isPending ? (
-              <span className="flex items-center gap-3"><Loader2 className="w-4 h-4 animate-spin" /> INITIALIZING...</span>
+              <span className="flex items-center justify-center gap-3"><Loader2 className="w-4 h-4 animate-spin" /> INITIALIZING...</span>
             ) : (
-              <span className="flex items-center gap-3"><Plus className="w-4 h-4" /> CREATE PRIVATE ROOM</span>
+              <span className="flex items-center justify-center gap-3"><Plus className="w-4 h-4" /> CREATE PRIVATE ROOM</span>
             )}
           </button>
           
+          {/* Secondary Action: How To Play */}
+          <Link href="/how-to-play">
+            <Button 
+              variant="outline" 
+              className="w-full h-12 neon-border text-primary hover:bg-primary/10 tracking-[0.2em] font-mono border-primary/40 text-xs"
+            >
+              <Info className="mr-2 h-3 w-3" /> HOW TO PLAY
+            </Button>
+          </Link>
+
           <div className="flex items-center gap-2 opacity-20 text-[10px] font-mono tracking-widest uppercase mt-4">
             <Lock className="w-3 h-3" />
             <span>End-to-End Encrypted Tunnel</span>
