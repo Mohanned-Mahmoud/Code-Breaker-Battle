@@ -37,8 +37,7 @@ function TerminalLog({ logs }: { logs: GameLog[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   
   return (
-    <div className="font-mono text-xs md:text-sm h-full overflow-y-auto p-4 bg-black/60 border border-primary/20 rounded-sm custom-scrollbar relative">
-      <div className="flex flex-col-reverse space-y-reverse space-y-2">
+    <div ref={scrollRef} className="font-mono text-xs md:text-sm h-full overflow-y-auto p-4 bg-black/60 border border-primary/20 rounded-sm custom-scrollbar relative">      <div className="flex flex-col-reverse space-y-reverse space-y-2">
         <AnimatePresence initial={false}>
           {logs.slice().reverse().map((log) => (
             <motion.div
@@ -365,7 +364,7 @@ export default function GameRoom() {
           </div>
         </div>
 
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 min-h-0">
+        <div className="flex-1 grid grid-cols-1 grid-rows-[auto_minmax(0,1fr)] md:grid-rows-none md:grid-cols-2 gap-4 min-h-0">
           <div className="flex flex-col space-y-6 justify-center items-center bg-black/20 p-8 border border-primary/10 rounded-sm relative">
             <div className="absolute top-2 left-2 text-[10px] font-mono opacity-30">
               IDENTITY: <span className={myRole === 'p1' ? "text-cyan-500" : "text-fuchsia-500"}>{myRole === 'p1' ? 'PLAYER 01' : 'PLAYER 02'}</span>
