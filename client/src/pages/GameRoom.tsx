@@ -287,7 +287,6 @@ export default function GameRoom() {
   const myPowerups = myRole === 'p1' ? p1Powerups : p2Powerups;
 
   return (
-    // FIX: Body locked, only Terminal scrolls
     <div className="h-[100dvh] w-full overflow-hidden flex flex-col md:flex-row relative">
       <div className={cn(
           "absolute top-0 right-0 w-64 h-64 opacity-10 pointer-events-none z-0 transition-colors duration-500",
@@ -377,9 +376,8 @@ export default function GameRoom() {
           </div>
         </div>
 
-        {/* FIX: Mobile grid layout applied here */}
-        <div className="flex-1 grid grid-cols-1 grid-rows-[auto_minmax(0,1fr)] md:grid-rows-none md:grid-cols-2 gap-4 min-h-0">
-          <div className="flex flex-col space-y-6 justify-center items-center bg-black/20 p-8 border border-primary/10 rounded-sm relative">
+        <div className="flex flex-col md:flex-row gap-4 flex-1 min-h-0">
+          <div className="flex-1 flex flex-col space-y-6 justify-center items-center bg-black/20 p-8 border border-primary/10 rounded-sm relative">
             <div className="absolute top-2 left-2 text-[10px] font-mono opacity-30">
               IDENTITY: <span className={myRole === 'p1' ? "text-cyan-500" : "text-fuchsia-500"}>{myRole === 'p1' ? 'PLAYER 01' : 'PLAYER 02'}</span>
             </div>
@@ -423,9 +421,7 @@ export default function GameRoom() {
             </Button>
           </div>
 
-          {/* Terminal Panel Container */}
-          {/* FIX: Added 'h-full' to ensure parent stretches correctly */}
-          <div className="flex flex-col min-h-0 h-full">
+          <div className="flex-1 flex flex-col min-h-0">
             <div className="flex items-center gap-2 mb-2 opacity-50 flex-shrink-0">
               <Terminal className="w-3 h-3" />
               <span className="text-[10px] font-mono tracking-widest uppercase">System Logs // Real-time</span>

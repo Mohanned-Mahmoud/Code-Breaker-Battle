@@ -17,7 +17,7 @@ interface TerminalLogProps {
 export function TerminalLog({ logs, variant = 'p1', className }: TerminalLogProps) {
   return (
     <div className={cn(
-      "font-mono text-xs md:text-sm h-full overflow-y-auto p-4 bg-black/40 border border-white/10 rounded-sm custom-scrollbar",
+      "flex-1 min-h-0 font-mono text-xs md:text-sm overflow-y-auto p-4 bg-black/40 border border-white/10 rounded-sm custom-scrollbar",
       className
     )}>
       <div className="flex flex-col space-y-2">
