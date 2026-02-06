@@ -299,7 +299,7 @@ export default function GameRoom() {
             <h1 className="text-2xl font-bold tracking-widest uppercase">
                 PLAYER <span className={targetRole === 'p1' ? "text-cyan-500" : "text-fuchsia-500"}>{targetRole === 'p1' ? '01' : '02'}</span>
             </h1>
-            <p className="text-xs font-mono opacity-50">DEFINE YOUR 4-DIGIT MASTER KEY</p>
+            <p className="text-xs font-mono opacity-50">DEFINE YOUR 4-DIGIT MASTER KEY (the code that your enemy tries to guess)</p>
           </div>
           <DigitInput value={setupCode} onChange={setSetupCode} variant={targetRole} />
           <Button 

@@ -12,6 +12,10 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      
+      {/* 👇 هذا هو السطر الناقص الذي يسبب المشكلة 👇 */}
+      <Route path="/how-to-play" component={HowToPlay} />
+      
       <Route path="/game/:id" component={GameRoom} />
       <Route component={NotFound} />
     </Switch>
