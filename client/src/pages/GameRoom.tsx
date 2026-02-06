@@ -32,11 +32,10 @@ const useSFX = () => {
   return { playTyping, playBeep };
 };
 
-// --- TERMINAL COMPONENT (Fixed Scroll) ---
+// --- TERMINAL COMPONENT (Fixed Layout & Scroll) ---
 function TerminalLog({ logs }: { logs: GameLog[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll logic
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -44,7 +43,11 @@ function TerminalLog({ logs }: { logs: GameLog[] }) {
   }, [logs]);
   
   return (
-<div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-4 bg-black/60 border border-primary/20 rounded-sm custom-scrollbar relative">
+    <div 
+      ref={scrollRef} 
+      // FIX: Changed 'h-full' to 'flex-1 min-h-0' to fit remaining space perfectly
+      className="font-mono text-xs md:text-sm flex-1 min-h-0 overflow-y-auto p-4 bg-black/60 border border-primary/20 rounded-sm custom-scrollbar relative"
+    >
       <div className="flex flex-col-reverse space-y-reverse space-y-2">
         <AnimatePresence initial={false}>
           {logs.slice().reverse().map((log) => (
@@ -69,12 +72,6 @@ function TerminalLog({ logs }: { logs: GameLog[] }) {
           ))}
         </AnimatePresence>
       </div>
-      {/* Scrollbar Force Fix for Mobile */}
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar { display: block; width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #00ff00; border-radius: 3px; }
-      `}</style>
       <div className="sticky bottom-0 left-0 animate-pulse w-2 h-4 bg-primary/50" />
     </div>
   );
@@ -317,6 +314,7 @@ export default function GameRoom() {
                         Crack the opponent's 4-digit code before they crack yours.
                       </p>
                     </div>
+
                     <div className="space-y-2">
                       <h3 className="font-bold text-white flex items-center gap-2">
                         <Lock className="w-4 h-4 text-yellow-500" /> FEEDBACK
@@ -326,6 +324,7 @@ export default function GameRoom() {
                         <li><span className="text-yellow-500 font-bold">CLOSE:</span> Correct number but Wrong place.</li>
                       </ul>
                     </div>
+
                     <div className="space-y-2">
                       <h3 className="font-bold text-white flex items-center gap-2">
                         <Zap className="w-4 h-4 text-cyan-500" /> POWERUPS
@@ -372,8 +371,9 @@ export default function GameRoom() {
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-4 flex-1 min-h-0">
-          <div className="flex-1 flex flex-col space-y-6 justify-center items-center bg-black/20 p-8 border border-primary/10 rounded-sm relative">
+        <div className="flex-1 grid grid-cols-1 grid-rows-[auto_minmax(0,1fr)] md:grid-rows-none md:grid-cols-2 gap-4 min-h-0">
+          {/* FIX: Reduced padding and spacing for mobile to give terminal more room */}
+          <div className="flex flex-col space-y-4 md:space-y-6 justify-center items-center bg-black/20 p-4 md:p-8 border border-primary/10 rounded-sm relative">
             <div className="absolute top-2 left-2 text-[10px] font-mono opacity-30">
               IDENTITY: <span className={myRole === 'p1' ? "text-cyan-500" : "text-fuchsia-500"}>{myRole === 'p1' ? 'PLAYER 01' : 'PLAYER 02'}</span>
             </div>
@@ -417,7 +417,7 @@ export default function GameRoom() {
             </Button>
           </div>
 
-          <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex flex-col min-h-0 h-full">
             <div className="flex items-center gap-2 mb-2 opacity-50 flex-shrink-0">
               <Terminal className="w-3 h-3" />
               <span className="text-[10px] font-mono tracking-widest uppercase">System Logs // Real-time</span>
