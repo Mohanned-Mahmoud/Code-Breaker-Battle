@@ -32,11 +32,11 @@ const useSFX = () => {
   return { playTyping, playBeep };
 };
 
-// --- UPDATED TERMINAL WITH COLORS & SCROLLBAR ---
+// --- TERMINAL COMPONENT (Fixed Scroll) ---
 function TerminalLog({ logs }: { logs: GameLog[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when new logs arrive
+  // Auto-scroll to bottom logic
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -140,7 +140,6 @@ export default function GameRoom() {
   const [setupCode, setSetupCode] = useState("");
   const [showTransition, setShowTransition] = useState(false);
 
-  // IDENTITY SYSTEM
   const [myRole, setMyRole] = useState<'p1' | 'p2' | null>(() => {
     const saved = localStorage.getItem(`role_${id}`);
     return (saved === 'p1' || saved === 'p2') ? saved : null;
@@ -281,9 +280,8 @@ export default function GameRoom() {
   const myPowerups = myRole === 'p1' ? p1Powerups : p2Powerups;
 
   return (
-    // FIX: Using h-[100dvh] + overflow-hidden to lock body scroll on mobile
+    // FIX: Body locked, only Terminal scrolls
     <div className="h-[100dvh] w-full overflow-hidden flex flex-col md:flex-row relative">
-      {/* Dynamic Background */}
       <div className={cn(
           "absolute top-0 right-0 w-64 h-64 opacity-10 pointer-events-none z-0 transition-colors duration-500",
           activeP === 'p1' ? 'stroke-cyan-500' : 'stroke-fuchsia-500'
@@ -297,7 +295,6 @@ export default function GameRoom() {
       <div className="flex-1 flex flex-col p-4 space-y-4 z-10">
         <div className="flex justify-between items-center border-b border-primary/20 pb-4">
           <div className="flex items-center gap-4">
-            {/* INFO BUTTON (Top Left) */}
             <Dialog>
               <DialogTrigger asChild>
                 <Button size="icon" variant="ghost" className="h-8 w-8 text-primary/70 hover:text-primary">
@@ -318,7 +315,6 @@ export default function GameRoom() {
                         Crack the opponent's 4-digit code before they crack yours.
                       </p>
                     </div>
-
                     <div className="space-y-2">
                       <h3 className="font-bold text-white flex items-center gap-2">
                         <Lock className="w-4 h-4 text-yellow-500" /> FEEDBACK
@@ -328,7 +324,6 @@ export default function GameRoom() {
                         <li><span className="text-yellow-500 font-bold">CLOSE:</span> Correct number but Wrong place.</li>
                       </ul>
                     </div>
-
                     <div className="space-y-2">
                       <h3 className="font-bold text-white flex items-center gap-2">
                         <Zap className="w-4 h-4 text-cyan-500" /> POWERUPS
@@ -375,7 +370,7 @@ export default function GameRoom() {
           </div>
         </div>
 
-        {/* FIX: Mobile grid layout ensures terminal gets remaining space */}
+        {/* FIX: Mobile grid layout applied here */}
         <div className="flex-1 grid grid-cols-1 grid-rows-[auto_minmax(0,1fr)] md:grid-rows-none md:grid-cols-2 gap-4 min-h-0">
           <div className="flex flex-col space-y-6 justify-center items-center bg-black/20 p-8 border border-primary/10 rounded-sm relative">
             <div className="absolute top-2 left-2 text-[10px] font-mono opacity-30">
