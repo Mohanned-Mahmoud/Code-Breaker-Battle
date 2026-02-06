@@ -36,7 +36,7 @@ const useSFX = () => {
 function TerminalLog({ logs }: { logs: GameLog[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom logic
+  // Auto-scroll logic
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -46,7 +46,8 @@ function TerminalLog({ logs }: { logs: GameLog[] }) {
   return (
     <div 
       ref={scrollRef} 
-      className="font-mono text-xs md:text-sm h-full overflow-y-auto p-4 bg-black/60 border border-primary/20 rounded-sm custom-scrollbar relative"
+      // FIX: Changed 'h-full' to 'flex-1 min-h-0' to fill remaining space properly
+      className="flex-1 min-h-0 font-mono text-xs md:text-sm overflow-y-auto p-4 bg-black/60 border border-primary/20 rounded-sm custom-scrollbar relative"
     >
       <div className="flex flex-col-reverse space-y-reverse space-y-2">
         <AnimatePresence initial={false}>
@@ -72,6 +73,12 @@ function TerminalLog({ logs }: { logs: GameLog[] }) {
           ))}
         </AnimatePresence>
       </div>
+      {/* Scrollbar Force Fix for Mobile */}
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { display: block; width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #00ff00; border-radius: 3px; }
+      `}</style>
       <div className="sticky bottom-0 left-0 animate-pulse w-2 h-4 bg-primary/50" />
     </div>
   );
@@ -416,8 +423,10 @@ export default function GameRoom() {
             </Button>
           </div>
 
-          <div className="flex flex-col min-h-0">
-            <div className="flex items-center gap-2 mb-2 opacity-50">
+          {/* Terminal Panel Container */}
+          {/* FIX: Added 'h-full' to ensure parent stretches correctly */}
+          <div className="flex flex-col min-h-0 h-full">
+            <div className="flex items-center gap-2 mb-2 opacity-50 flex-shrink-0">
               <Terminal className="w-3 h-3" />
               <span className="text-[10px] font-mono tracking-widest uppercase">System Logs // Real-time</span>
             </div>
