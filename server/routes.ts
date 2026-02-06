@@ -64,8 +64,8 @@ export async function registerRoutes(
       winner: game.winner as 'p1' | 'p2' | null,
       isFirewallActive: game.isFirewallActive ?? false,
       
-      // --- ADDED THIS LINE TO FIX THE ERROR ---
-      createdAt: game.createdAt, 
+      // Ensure createdAt is included (fallback to now if missing)
+      createdAt: game.createdAt ?? new Date(), 
       
       p1Setup: game.p1Setup ?? false,
       p2Setup: game.p2Setup ?? false,
@@ -226,6 +226,24 @@ export async function registerRoutes(
     } catch (err) {
       res.status(400).json({ message: 'Invalid input' });
     }
+  });
+
+  // 7. RESTART GAME ROUTE (NEW)
+  app.post('/api/games/:id/restart', async (req, res) => {
+    const id = Number(req.params.id);
+    const game = await storage.getGame(id);
+    if (!game) return res.status(404).json({ message: 'Game not found' });
+
+    await storage.resetGame(id);
+    
+    // Create a log indicating restart
+    await storage.createLog({
+      gameId: id,
+      message: "SYSTEM: RESTART SEQUENCE INITIATED. MEMORY CLEARED.",
+      type: "warning"
+    });
+
+    res.json({ success: true });
   });
 
   return httpServer;

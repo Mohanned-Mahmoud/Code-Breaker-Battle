@@ -214,6 +214,23 @@ export default function GameRoom() {
     }
   });
 
+  // داخل GameRoom component
+  
+  const restartMutation = useMutation({
+    mutationFn: () => fetch(`/api/games/${id}/restart`, {
+      method: 'POST'
+    }).then(res => res.json()),
+    onSuccess: () => {
+      toast({ title: "SYSTEM RESET", description: "Game Sequence Restarted" });
+      // تحديث البيانات فوراً
+      queryClient.invalidateQueries({ queryKey: ['game', id] });
+      queryClient.invalidateQueries({ queryKey: ['logs', id] });
+      // تصفير القيم المحلية
+      setGuessVal("");
+      setSetupCode("");
+    }
+  });
+
   if (isLoading) return <div className="h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin" /></div>;
   if (error || !game) return <div className="h-screen flex items-center justify-center bg-background">Connection Error</div>;
 
@@ -225,7 +242,18 @@ export default function GameRoom() {
                 P{game.winner === 'p1' ? '01' : '02'}
             </span> VICTORIOUS
         </h1>
-        <Button variant="outline" className="mt-8 neon-border" onClick={() => setLocation("/")}>INITIATE NEW SEQUENCE</Button>
+        
+        {/* الأزرار الجديدة هنا */}
+        <div className="flex gap-4 mt-8">
+          <Button variant="outline" className="neon-border" onClick={() => setLocation("/")}>EXIT ROOM</Button>
+          <Button 
+            className="neon-border bg-primary/20 hover:bg-primary/40" 
+            onClick={() => restartMutation.mutate()}
+            disabled={restartMutation.isPending}
+          >
+            {restartMutation.isPending ? "REBOOTING..." : "PLAY AGAIN"}
+          </Button>
+        </div>
       </div>
     );
   }

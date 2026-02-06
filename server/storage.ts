@@ -11,7 +11,8 @@ export interface IStorage {
   getGuesses(gameId: number): Promise<Guess[]>;
   createLog(log: any): Promise<any>;
   getLogs(gameId: number): Promise<any[]>;
-  cleanupOldGames(): Promise<void>; // Added function definition
+  resetGame(gameId: number): Promise<void>; // Added: Reset game function
+  cleanupOldGames(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -52,6 +53,29 @@ export class DatabaseStorage implements IStorage {
 
   async getLogs(gameId: number): Promise<any[]> {
     return await db.select().from(logs).where(eq(logs.gameId, gameId)).orderBy(logs.timestamp);
+  }
+
+  // --- NEW: RESET GAME FUNCTION ---
+  async resetGame(gameId: number): Promise<void> {
+    // 1. Delete all guesses and logs for this game to clear history
+    await db.delete(guesses).where(eq(guesses.gameId, gameId));
+    await db.delete(logs).where(eq(logs.gameId, gameId));
+
+    // 2. Reset game state variables to initial values
+    await db.update(games).set({
+      status: 'waiting',
+      turn: 'p1',
+      winner: null,
+      isFirewallActive: false,
+      p1Code: null,
+      p1Setup: false,
+      p1FirewallUsed: false,
+      p1BruteforceUsed: false,
+      p2Code: null,
+      p2Setup: false,
+      p2FirewallUsed: false,
+      p2BruteforceUsed: false,
+    }).where(eq(games.id, gameId));
   }
 
   // --- CLEANUP FUNCTION ---
