@@ -32,7 +32,7 @@ const useSFX = () => {
   return { playTyping, playBeep };
 };
 
-// --- TERMINAL COMPONENT ---
+// --- TERMINAL COMPONENT (Final Scrollbar Fix) ---
 function TerminalLog({ logs }: { logs: GameLog[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -45,9 +45,23 @@ function TerminalLog({ logs }: { logs: GameLog[] }) {
   return (
     <div 
       ref={scrollRef} 
-      // FIX: flex-1 ensures it fills the parent, min-h-0 allows shrinking, overflow-y-auto enables scroll
       className="font-mono text-xs md:text-sm flex-1 min-h-0 overflow-y-auto p-4 bg-black/60 border border-primary/20 rounded-sm custom-scrollbar relative"
     >
+      {/* FORCE SCROLLBAR VISIBILITY ON MOBILE */}
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 5px;
+          display: block; /* Forces display */
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(0, 20, 0, 0.3);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #00ff00;
+          border-radius: 4px;
+        }
+      `}</style>
+      
       <div className="flex flex-col-reverse space-y-reverse space-y-2">
         <AnimatePresence initial={false}>
           {logs.slice().reverse().map((log) => (
@@ -291,8 +305,8 @@ export default function GameRoom() {
         </svg>
       </div>
 
-      <div className="flex-1 flex flex-col p-4 space-y-4 z-10">
-        <div className="flex justify-between items-center border-b border-primary/20 pb-4">
+      <div className="flex-1 flex flex-col p-4 space-y-4 z-10 overflow-hidden">
+        <div className="flex justify-between items-center border-b border-primary/20 pb-4 flex-shrink-0">
           <div className="flex items-center gap-4">
             <Dialog>
               <DialogTrigger asChild>
@@ -371,8 +385,11 @@ export default function GameRoom() {
           </div>
         </div>
 
-        <div className="flex-1 grid grid-cols-1 grid-rows-[auto_minmax(0,1fr)] md:grid-rows-none md:grid-cols-2 gap-4 min-h-0">
-          <div className="flex flex-col space-y-4 md:space-y-6 justify-center items-center bg-black/20 p-4 md:p-8 border border-primary/10 rounded-sm relative">
+        {/* FIX: Use Flex-col on mobile instead of grid to guarantee height constraints */}
+        <div className="flex-1 flex flex-col md:grid md:grid-cols-2 gap-4 min-h-0 overflow-hidden">
+          
+          {/* Input Panel: Don't shrink */}
+          <div className="flex-shrink-0 flex flex-col space-y-4 md:space-y-6 justify-center items-center bg-black/20 p-4 md:p-8 border border-primary/10 rounded-sm relative">
             <div className="absolute top-2 left-2 text-[10px] font-mono opacity-30">
               IDENTITY: <span className={myRole === 'p1' ? "text-cyan-500" : "text-fuchsia-500"}>{myRole === 'p1' ? 'PLAYER 01' : 'PLAYER 02'}</span>
             </div>
@@ -416,8 +433,8 @@ export default function GameRoom() {
             </Button>
           </div>
 
-          {/* FIX: Removed h-full, used flex-col + min-h-0 + overflow-hidden to constrain children */}
-          <div className="flex flex-col min-h-0 overflow-hidden">
+          {/* Terminal Wrapper: Takes remaining space */}
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             <div className="flex items-center gap-2 mb-2 opacity-50 flex-shrink-0">
               <Terminal className="w-3 h-3" />
               <span className="text-[10px] font-mono tracking-widest uppercase">System Logs // Real-time</span>
