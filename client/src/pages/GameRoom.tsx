@@ -254,6 +254,7 @@ export default function GameRoom() {
   const activeP = game?.turn;
   const isMyTurn = myRole === activeP;
   const isBlitz = (game as any)?.mode === 'blitz';
+  const isGlitch = (game as any)?.mode === 'glitch'; // NEW
 
   useEffect(() => {
     if (isBlitz && game?.status === 'playing' && isMyTurn) {
@@ -452,7 +453,9 @@ export default function GameRoom() {
 
             <div className="space-y-1">
               <h2 className="text-xs opacity-50 font-mono tracking-widest">
-                SESSION { isBlitz && <span className="text-red-500 font-bold ml-1">[BLITZ]</span> }
+                SESSION 
+                { isBlitz && <span className="text-red-500 font-bold ml-1">[BLITZ]</span> }
+                { isGlitch && <span className="text-purple-500 font-bold ml-1">[GLITCH]</span> }
               </h2>
               <p className="text-lg font-bold tracking-tighter">{id}</p>
             </div>
@@ -467,6 +470,14 @@ export default function GameRoom() {
                  00:{String((game as any)?.timeLeft ?? 0).padStart(2, '0')}
               </div>
             )}
+            
+            {/* --- GLITCH TIMER HUD --- */}
+            {isGlitch && (
+              <div className="mb-2 px-2 py-1 text-[10px] font-bold tracking-widest text-purple-400 border border-purple-500/30 rounded bg-purple-500/10 animate-pulse">
+                  GLITCH IN: {3 - (((game as any)?.turnCount || 0) % 3)}
+              </div>
+            )}
+
             <div className={cn(
               "px-4 py-1 border rounded-full text-[10px] font-bold tracking-widest transition-all",
               isMyTurn ? "border-primary text-primary animate-pulse" : "border-primary/30 text-primary/30"

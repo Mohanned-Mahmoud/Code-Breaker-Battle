@@ -22,6 +22,16 @@ export async function registerRoutes(
     return { hits, blips };
   }
 
+  // Helper function for Glitch mode (خلط الأرقام بشكل عشوائي)
+  function shuffleString(str: string) {
+    const arr = str.split('');
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr.join('');
+  }
+
   app.post(api.games.create.path, async (req, res) => {
     const mode = req.body?.mode || 'normal';
     const game = await storage.createGame(mode);
@@ -101,9 +111,39 @@ export async function registerRoutes(
       });
 
       const updates: any = {};
+      
+      // زيادة عداد الأدوار
+      let currentTurnCount = (game.turnCount || 0) + 1;
+      updates.turnCount = currentTurnCount;
+
       if (hits === 4) {
         updates.status = 'finished'; updates.winner = player;
       } else {
+
+        // --- منطق طور الـ GLITCH (الفيروس) ---
+        if (game.mode === 'glitch' && currentTurnCount % 3 === 0) {
+            const glitchType = Math.floor(Math.random() * 3);
+            if (glitchType === 0) {
+                // GLITCH 1: خلط الأكواد السرية للاعبين
+                updates.p1Code = shuffleString(game.p1Code!);
+                updates.p2Code = shuffleString(game.p2Code!);
+                await storage.createLog({ gameId: id, message: `[GLITCH] SYSTEM REBOOT: ALL MASTER CODES SHUFFLED!`, type: 'error' });
+            } else if (glitchType === 1) {
+                // GLITCH 2: إعادة القدرات للعمل
+                updates.p1FirewallUsed = false; updates.p1TimeHackUsed = false; updates.p1BruteforceUsed = false; updates.p1ChangeDigitUsed = false; updates.p1SwapDigitsUsed = false;
+                updates.p2FirewallUsed = false; updates.p2TimeHackUsed = false; updates.p2BruteforceUsed = false; updates.p2ChangeDigitUsed = false; updates.p2SwapDigitsUsed = false;
+                await storage.createLog({ gameId: id, message: `[GLITCH] FIREWALL DOWN: ALL POWERUPS RESTORED!`, type: 'error' });
+            } else {
+                // GLITCH 3: طفرة في الرقم الأول
+                const r1 = Math.floor(Math.random() * 10).toString();
+                const r2 = Math.floor(Math.random() * 10).toString();
+                updates.p1Code = r1 + game.p1Code!.substring(1);
+                updates.p2Code = r2 + game.p2Code!.substring(1);
+                await storage.createLog({ gameId: id, message: `[GLITCH] DATA CORRUPTION: 1ST DIGIT MUTATED FOR BOTH PLAYERS!`, type: 'error' });
+            }
+        }
+        // ----------------------------------
+
         if (game.isFirewallActive) {
           updates.isFirewallActive = false; updates.turnStartedAt = new Date();
           await storage.createLog({ gameId: id, message: `SYSTEM: FIREWALL EXTENDED ${playerLabel} TURN.`, type: 'warning' });

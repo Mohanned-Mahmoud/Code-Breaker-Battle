@@ -63,19 +63,20 @@ export class DatabaseStorage implements IStorage {
       status: 'waiting',
       turn: 'p1',
       winner: null,
+      turnCount: 0, // NEW: Reset turn count
       isFirewallActive: false,
-      isTimeHackActive: false, // NEW
+      isTimeHackActive: false, 
       p1Code: null,
       p1Setup: false,
       p1FirewallUsed: false,
-      p1TimeHackUsed: false, // NEW
+      p1TimeHackUsed: false, 
       p1BruteforceUsed: false,
       p1ChangeDigitUsed: false,
       p1SwapDigitsUsed: false,
       p2Code: null,
       p2Setup: false,
       p2FirewallUsed: false,
-      p2TimeHackUsed: false, // NEW
+      p2TimeHackUsed: false, 
       p2BruteforceUsed: false,
       p2ChangeDigitUsed: false,
       p2SwapDigitsUsed: false,

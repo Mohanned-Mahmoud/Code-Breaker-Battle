@@ -73,10 +73,9 @@ export default function Landing() {
               <Timer className="w-5 h-5 mb-2" />
               <span className="text-[10px] font-bold tracking-wider">BLITZ (30s)</span>
             </button>
-            <button disabled className="flex flex-col items-center p-3 rounded border border-primary/10 opacity-30 cursor-not-allowed">
-              <Zap className="w-5 h-5 mb-2 text-primary/30" />
+            <button onClick={() => setMode('glitch')} className={cn("flex flex-col items-center p-3 rounded border transition-all", mode === 'glitch' ? "border-purple-500 bg-purple-500/20 text-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.2)]" : "border-primary/20 opacity-50 hover:opacity-100")}>
+              <Zap className="w-5 h-5 mb-2" />
               <span className="text-[10px] font-bold tracking-wider">GLITCH</span>
-              <span className="text-[8px] mt-1 text-primary/50">LOCKED</span>
             </button>
           </div>
           
