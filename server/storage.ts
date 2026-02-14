@@ -1,9 +1,9 @@
 import { db } from "./db";
 import { games, guesses, logs, type Game, type Guess } from "@shared/schema";
-import { eq, lt, inArray } from "drizzle-orm";
+import { eq, lt, inArray, like, and } from "drizzle-orm";
 
 export interface IStorage {
-  createGame(mode?: string): Promise<Game>;
+  createGame(mode?: string, customSettings?: any): Promise<Game>;
   getGame(id: number): Promise<Game | undefined>;
   getGameByRoomId(roomId: string): Promise<Game | undefined>;
   updateGame(id: number, updates: Partial<Game>): Promise<Game>;
@@ -11,14 +11,26 @@ export interface IStorage {
   getGuesses(gameId: number): Promise<Guess[]>;
   createLog(log: any): Promise<any>;
   getLogs(gameId: number): Promise<any[]>;
+  deletePlayerLogs(gameId: number, playerLabel: string): Promise<void>; 
   resetGame(gameId: number): Promise<void>; 
   cleanupOldGames(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
-  async createGame(mode: string = 'normal'): Promise<Game> {
+  async createGame(mode: string = 'normal', customSettings?: any): Promise<Game> {
     const roomId = Math.random().toString(36).substring(2, 7).toUpperCase();
-    const [game] = await db.insert(games).values({ roomId, mode }).returning();
+    const insertData: any = { roomId, mode };
+    
+    if (mode === 'custom' && customSettings) {
+        insertData.customTimer = customSettings.timer;
+        insertData.allowFirewall = customSettings.firewall;
+        insertData.allowVirus = customSettings.virus; 
+        insertData.allowBruteforce = customSettings.bruteforce;
+        insertData.allowChangeDigit = customSettings.changeDigit;
+        insertData.allowSwapDigits = customSettings.swapDigits;
+    }
+    
+    const [game] = await db.insert(games).values(insertData).returning();
     return game;
   }
 
@@ -55,31 +67,24 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(logs).where(eq(logs.gameId, gameId)).orderBy(logs.timestamp);
   }
 
+  async deletePlayerLogs(gameId: number, playerLabel: string): Promise<void> {
+    await db.delete(logs).where(
+      and(
+        eq(logs.gameId, gameId),
+        like(logs.message, `%${playerLabel}%`)
+      )
+    );
+  }
+
   async resetGame(gameId: number): Promise<void> {
     await db.delete(guesses).where(eq(guesses.gameId, gameId));
     await db.delete(logs).where(eq(logs.gameId, gameId));
 
     await db.update(games).set({
-      status: 'waiting',
-      turn: 'p1',
-      winner: null,
-      turnCount: 0, // NEW: Reset turn count
-      isFirewallActive: false,
-      isTimeHackActive: false, 
-      p1Code: null,
-      p1Setup: false,
-      p1FirewallUsed: false,
-      p1TimeHackUsed: false, 
-      p1BruteforceUsed: false,
-      p1ChangeDigitUsed: false,
-      p1SwapDigitsUsed: false,
-      p2Code: null,
-      p2Setup: false,
-      p2FirewallUsed: false,
-      p2TimeHackUsed: false, 
-      p2BruteforceUsed: false,
-      p2ChangeDigitUsed: false,
-      p2SwapDigitsUsed: false,
+      status: 'waiting', turn: 'p1', winner: null, turnCount: 0,
+      isFirewallActive: false, isTimeHackActive: false, 
+      p1Code: null, p1Setup: false, p1FirewallUsed: false, p1TimeHackUsed: false, p1VirusUsed: false, p1BruteforceUsed: false, p1ChangeDigitUsed: false, p1SwapDigitsUsed: false,
+      p2Code: null, p2Setup: false, p2FirewallUsed: false, p2TimeHackUsed: false, p2VirusUsed: false, p2BruteforceUsed: false, p2ChangeDigitUsed: false, p2SwapDigitsUsed: false,
     }).where(eq(games.id, gameId));
   }
 

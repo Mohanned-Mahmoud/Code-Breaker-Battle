@@ -9,12 +9,20 @@ export const games = pgTable("games", {
   status: text("status").notNull().default("waiting"),
   turn: text("turn").notNull().default("p1"),
   turnStartedAt: timestamp("turn_started_at").defaultNow(),
-  turnCount: integer("turn_count").default(0), // NEW: Tracking turns for Glitch mode
+  turnCount: integer("turn_count").default(0),
   winner: text("winner"),
   
   isFirewallActive: boolean("is_firewall_active").default(false),
   isTimeHackActive: boolean("is_time_hack_active").default(false),
   
+  // --- CUSTOM MODE SETTINGS ---
+  customTimer: boolean("custom_timer").default(false),
+  allowFirewall: boolean("allow_firewall").default(true), // Controls both Firewall and DDOS
+  allowVirus: boolean("allow_virus").default(true),
+  allowBruteforce: boolean("allow_bruteforce").default(true),
+  allowChangeDigit: boolean("allow_change_digit").default(true),
+  allowSwapDigits: boolean("allow_swap_digits").default(true),
+
   createdAt: timestamp("created_at").defaultNow(),
 
   // Player 1
@@ -22,6 +30,7 @@ export const games = pgTable("games", {
   p1Setup: boolean("p1_setup").default(false),
   p1FirewallUsed: boolean("p1_firewall_used").default(false),
   p1TimeHackUsed: boolean("p1_time_hack_used").default(false),
+  p1VirusUsed: boolean("p1_virus_used").default(false),
   p1BruteforceUsed: boolean("p1_bruteforce_used").default(false),
   p1ChangeDigitUsed: boolean("p1_change_digit_used").default(false),
   p1SwapDigitsUsed: boolean("p1_swap_digits_used").default(false),
@@ -31,6 +40,7 @@ export const games = pgTable("games", {
   p2Setup: boolean("p2_setup").default(false),
   p2FirewallUsed: boolean("p2_firewall_used").default(false),
   p2TimeHackUsed: boolean("p2_time_hack_used").default(false),
+  p2VirusUsed: boolean("p2_virus_used").default(false),
   p2BruteforceUsed: boolean("p2_bruteforce_used").default(false),
   p2ChangeDigitUsed: boolean("p2_change_digit_used").default(false),
   p2SwapDigitsUsed: boolean("p2_swap_digits_used").default(false),

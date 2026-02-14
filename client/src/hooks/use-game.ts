@@ -15,14 +15,14 @@ export function useGame(id: number) {
   });
 }
 
-// NEW: Accept mode parameter
+// --- UPDATED: Pass Custom Settings ---
 export function useCreateGame() {
   return useMutation({
-    mutationFn: async (mode: string = 'normal') => {
+    mutationFn: async ({ mode, customSettings }: { mode: string, customSettings?: any }) => {
       const res = await fetch(api.games.create.path, {
         method: api.games.create.method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode })
+        body: JSON.stringify({ mode, customSettings })
       });
       if (!res.ok) throw new Error("Failed to create game");
       return await res.json();
@@ -42,9 +42,7 @@ export function useSetupGame() {
       if (!res.ok) throw new Error("Failed to setup game");
       return await res.json();
     },
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: [buildUrl(api.games.get.path, { id })] });
-    },
+    onSuccess: (_, { id }) => { queryClient.invalidateQueries({ queryKey: [buildUrl(api.games.get.path, { id })] }); },
   });
 }
 
@@ -60,9 +58,7 @@ export function useMakeGuess() {
       if (!res.ok) throw new Error("Failed to submit guess");
       return await res.json();
     },
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: [buildUrl(api.games.get.path, { id })] });
-    },
+    onSuccess: (_, { id }) => { queryClient.invalidateQueries({ queryKey: [buildUrl(api.games.get.path, { id })] }); },
   });
 }
 
@@ -78,8 +74,6 @@ export function usePowerup() {
       if (!res.ok) throw new Error("Failed to use powerup");
       return await res.json();
     },
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: [buildUrl(api.games.get.path, { id })] });
-    },
+    onSuccess: (_, { id }) => { queryClient.invalidateQueries({ queryKey: [buildUrl(api.games.get.path, { id })] }); },
   });
 }

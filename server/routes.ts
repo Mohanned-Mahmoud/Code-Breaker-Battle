@@ -22,7 +22,6 @@ export async function registerRoutes(
     return { hits, blips };
   }
 
-  // Helper function for Glitch mode (خلط الأرقام بشكل عشوائي)
   function shuffleString(str: string) {
     const arr = str.split('');
     for (let i = arr.length - 1; i > 0; i--) {
@@ -34,7 +33,8 @@ export async function registerRoutes(
 
   app.post(api.games.create.path, async (req, res) => {
     const mode = req.body?.mode || 'normal';
-    const game = await storage.createGame(mode);
+    const customSettings = req.body?.customSettings;
+    const game = await storage.createGame(mode, customSettings);
     res.status(201).json({ id: game.id });
   });
 
@@ -45,7 +45,9 @@ export async function registerRoutes(
     
     const guesses = await storage.getGuesses(id);
     let timeLeft = 0;
-    if (game.mode === 'blitz' && game.status === 'playing') {
+    
+    const isTimed = game.mode === 'blitz' || (game.mode === 'custom' && game.customTimer);
+    if (isTimed && game.status === 'playing') {
        const turnStart = game.turnStartedAt ? new Date(game.turnStartedAt).getTime() : new Date().getTime();
        const elapsed = Math.floor((new Date().getTime() - turnStart) / 1000);
        timeLeft = Math.max(0, 30 - elapsed);
@@ -56,7 +58,7 @@ export async function registerRoutes(
       status: game.status as any,
       turn: game.turn as any,
       winner: game.winner as any,
-      p1TimeHackUsed: game.p1TimeHackUsed ?? false, // Expose status
+      p1TimeHackUsed: game.p1TimeHackUsed ?? false, 
       p2TimeHackUsed: game.p2TimeHackUsed ?? false,
       guesses,
       timeLeft
@@ -111,8 +113,6 @@ export async function registerRoutes(
       });
 
       const updates: any = {};
-      
-      // زيادة عداد الأدوار
       let currentTurnCount = (game.turnCount || 0) + 1;
       updates.turnCount = currentTurnCount;
 
@@ -120,38 +120,29 @@ export async function registerRoutes(
         updates.status = 'finished'; updates.winner = player;
       } else {
 
-        // --- منطق طور الـ GLITCH (الفيروس) ---
         if (game.mode === 'glitch' && currentTurnCount % 3 === 0) {
             const glitchType = Math.floor(Math.random() * 3);
             if (glitchType === 0) {
-                // GLITCH 1: خلط الأكواد السرية للاعبين
-                updates.p1Code = shuffleString(game.p1Code!);
-                updates.p2Code = shuffleString(game.p2Code!);
+                updates.p1Code = shuffleString(game.p1Code!); updates.p2Code = shuffleString(game.p2Code!);
                 await storage.createLog({ gameId: id, message: `[GLITCH] SYSTEM REBOOT: ALL MASTER CODES SHUFFLED!`, type: 'error' });
             } else if (glitchType === 1) {
-                // GLITCH 2: إعادة القدرات للعمل
-                updates.p1FirewallUsed = false; updates.p1TimeHackUsed = false; updates.p1BruteforceUsed = false; updates.p1ChangeDigitUsed = false; updates.p1SwapDigitsUsed = false;
-                updates.p2FirewallUsed = false; updates.p2TimeHackUsed = false; updates.p2BruteforceUsed = false; updates.p2ChangeDigitUsed = false; updates.p2SwapDigitsUsed = false;
+                updates.p1FirewallUsed = false; updates.p1TimeHackUsed = false; updates.p1VirusUsed = false; updates.p1BruteforceUsed = false; updates.p1ChangeDigitUsed = false; updates.p1SwapDigitsUsed = false;
+                updates.p2FirewallUsed = false; updates.p2TimeHackUsed = false; updates.p2VirusUsed = false; updates.p2BruteforceUsed = false; updates.p2ChangeDigitUsed = false; updates.p2SwapDigitsUsed = false;
                 await storage.createLog({ gameId: id, message: `[GLITCH] FIREWALL DOWN: ALL POWERUPS RESTORED!`, type: 'error' });
             } else {
-                // GLITCH 3: طفرة في الرقم الأول
-                const r1 = Math.floor(Math.random() * 10).toString();
-                const r2 = Math.floor(Math.random() * 10).toString();
-                updates.p1Code = r1 + game.p1Code!.substring(1);
-                updates.p2Code = r2 + game.p2Code!.substring(1);
+                const r1 = Math.floor(Math.random() * 10).toString(); const r2 = Math.floor(Math.random() * 10).toString();
+                updates.p1Code = r1 + game.p1Code!.substring(1); updates.p2Code = r2 + game.p2Code!.substring(1);
                 await storage.createLog({ gameId: id, message: `[GLITCH] DATA CORRUPTION: 1ST DIGIT MUTATED FOR BOTH PLAYERS!`, type: 'error' });
             }
         }
-        // ----------------------------------
 
         if (game.isFirewallActive) {
           updates.isFirewallActive = false; updates.turnStartedAt = new Date();
           await storage.createLog({ gameId: id, message: `SYSTEM: FIREWALL EXTENDED ${playerLabel} TURN.`, type: 'warning' });
         } else {
           updates.turn = player === 'p1' ? 'p2' : 'p1';
-          // --- خصم الـ 20 ثانية من الخصم هنا ---
           if (game.isTimeHackActive) {
-             updates.turnStartedAt = new Date(Date.now() - 20000); // 20 seconds penalty!
+             updates.turnStartedAt = new Date(Date.now() - 20000); 
              updates.isTimeHackActive = false;
           } else {
              updates.turnStartedAt = new Date();
@@ -167,7 +158,9 @@ export async function registerRoutes(
     try {
       const id = Number(req.params.id); const { player } = req.body;
       const game = await storage.getGame(id);
-      if (!game || game.status !== 'playing' || game.turn !== player || game.mode !== 'blitz') return res.status(400).json({ message: 'Invalid' });
+      
+      const isTimed = game?.mode === 'blitz' || (game?.mode === 'custom' && game?.customTimer);
+      if (!game || game.status !== 'playing' || game.turn !== player || !isTimed) return res.status(400).json({ message: 'Invalid' });
 
       const turnStart = game.turnStartedAt ? new Date(game.turnStartedAt).getTime() : new Date().getTime();
       const elapsed = (new Date().getTime() - turnStart) / 1000;
@@ -179,7 +172,6 @@ export async function registerRoutes(
       await storage.createLog({ gameId: id, message: `SYSTEM: ${playerLabel} CONNECTION TIMED OUT. TURN SKIPPED.`, type: 'error' });
 
       const updates: any = { turn: nextTurn, isFirewallActive: false };
-      // --- خصم الـ 20 ثانية من الخصم حتى لو انتهى وقتك ولم تخمن ---
       if (game.isTimeHackActive) {
           updates.turnStartedAt = new Date(Date.now() - 20000); 
           updates.isTimeHackActive = false;
@@ -200,6 +192,15 @@ export async function registerRoutes(
       const game = await storage.getGame(id);
       if (!game || game.status !== 'playing' || game.turn !== player) return res.status(400).json({ message: 'Invalid' });
 
+      if (game.mode === 'custom') {
+          // --- التحديث هنا: قدرة الـ DDOS تعتمد على الـ Firewall أيضاً ---
+          if ((type === 'firewall' || type === 'timeHack') && !game.allowFirewall) return res.status(400).json({ message: 'Disabled' });
+          if (type === 'virus' && !game.allowVirus) return res.status(400).json({ message: 'Disabled' });
+          if (type === 'bruteforce' && !game.allowBruteforce) return res.status(400).json({ message: 'Disabled' });
+          if (type === 'changeDigit' && !game.allowChangeDigit) return res.status(400).json({ message: 'Disabled' });
+          if (type === 'swapDigits' && !game.allowSwapDigits) return res.status(400).json({ message: 'Disabled' });
+      }
+
       const updates: any = {}; let logMessage = "";
       const playerLabel = player === 'p1' ? '[P1]' : '[P2]';
       const myCode = player === 'p1' ? game.p1Code : game.p2Code;
@@ -209,13 +210,21 @@ export async function registerRoutes(
         updates[player === 'p1' ? 'p1FirewallUsed' : 'p2FirewallUsed'] = true; updates.isFirewallActive = true; 
         logMessage = `${playerLabel} ACTIVATED FIREWALL. TURN EXTENDED.`;
       } 
-      // --- قدرة الـ DDOS الجديدة الخاصة بطور الـ Blitz ---
       else if (type === 'timeHack') {
-        if (game.mode !== 'blitz') return res.status(400).json({ message: 'Only available in Blitz mode' });
+        if (game.mode !== 'blitz' && game.mode !== 'custom') return res.status(400).json({ message: 'Only available in Blitz or Custom mode' });
         if ((player === 'p1' && game.p1TimeHackUsed) || (player === 'p2' && game.p2TimeHackUsed)) return res.status(400).json({ message: 'Used' });
         updates[player === 'p1' ? 'p1TimeHackUsed' : 'p2TimeHackUsed'] = true;
         updates.isTimeHackActive = true; 
         logMessage = `WARNING: ${playerLabel} LAUNCHED DDOS ATTACK! OPPONENT'S NEXT TURN REDUCED BY 20s.`;
+      }
+      else if (type === 'virus') {
+        if ((player === 'p1' && game.p1VirusUsed) || (player === 'p2' && game.p2VirusUsed)) return res.status(400).json({ message: 'Used' });
+        updates[player === 'p1' ? 'p1VirusUsed' : 'p2VirusUsed'] = true;
+        
+        const opponentLabel = player === 'p1' ? '[P2]' : '[P1]';
+        await storage.deletePlayerLogs(id, opponentLabel);
+        
+        logMessage = `WARNING: ${playerLabel} UPLOADED A VIRUS! ALL ${opponentLabel} SYSTEM LOGS DELETED.`;
       }
       else if (type === 'bruteforce') {
         if ((player === 'p1' && game.p1BruteforceUsed) || (player === 'p2' && game.p2BruteforceUsed)) return res.status(400).json({ message: 'Used' });
@@ -237,7 +246,7 @@ export async function registerRoutes(
         logMessage = `SYSTEM: ${playerLabel} SHUFFLED THEIR MASTER CODE.`;
       }
 
-      updates.turnStartedAt = new Date(); // Reset timer so they have full time after powerup
+      updates.turnStartedAt = new Date(); 
       await storage.updateGame(id, updates);
       if (logMessage) await storage.createLog({ gameId: id, message: logMessage, type: 'warning' });
       res.json(await storage.getGame(id));
