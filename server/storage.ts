@@ -3,7 +3,7 @@ import { games, guesses, logs, type Game, type Guess } from "@shared/schema";
 import { eq, lt, inArray } from "drizzle-orm";
 
 export interface IStorage {
-  createGame(): Promise<Game>;
+  createGame(mode?: string): Promise<Game>;
   getGame(id: number): Promise<Game | undefined>;
   getGameByRoomId(roomId: string): Promise<Game | undefined>;
   updateGame(id: number, updates: Partial<Game>): Promise<Game>;
@@ -11,14 +11,14 @@ export interface IStorage {
   getGuesses(gameId: number): Promise<Guess[]>;
   createLog(log: any): Promise<any>;
   getLogs(gameId: number): Promise<any[]>;
-  resetGame(gameId: number): Promise<void>; // Added: Reset game function
+  resetGame(gameId: number): Promise<void>; 
   cleanupOldGames(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
-  async createGame(): Promise<Game> {
+  async createGame(mode: string = 'normal'): Promise<Game> {
     const roomId = Math.random().toString(36).substring(2, 7).toUpperCase();
-    const [game] = await db.insert(games).values({ roomId }).returning();
+    const [game] = await db.insert(games).values({ roomId, mode }).returning();
     return game;
   }
 
@@ -55,45 +55,41 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(logs).where(eq(logs.gameId, gameId)).orderBy(logs.timestamp);
   }
 
-  // --- NEW: RESET GAME FUNCTION ---
   async resetGame(gameId: number): Promise<void> {
-    // 1. Delete all guesses and logs for this game to clear history
     await db.delete(guesses).where(eq(guesses.gameId, gameId));
     await db.delete(logs).where(eq(logs.gameId, gameId));
 
-    // 2. Reset game state variables to initial values
     await db.update(games).set({
       status: 'waiting',
       turn: 'p1',
       winner: null,
       isFirewallActive: false,
+      isTimeHackActive: false, // NEW
       p1Code: null,
       p1Setup: false,
       p1FirewallUsed: false,
+      p1TimeHackUsed: false, // NEW
       p1BruteforceUsed: false,
+      p1ChangeDigitUsed: false,
+      p1SwapDigitsUsed: false,
       p2Code: null,
       p2Setup: false,
       p2FirewallUsed: false,
+      p2TimeHackUsed: false, // NEW
       p2BruteforceUsed: false,
+      p2ChangeDigitUsed: false,
+      p2SwapDigitsUsed: false,
     }).where(eq(games.id, gameId));
   }
 
-  // --- CLEANUP FUNCTION ---
   async cleanupOldGames(): Promise<void> {
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 Hours
-    
-    // 1. Find old games
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000); 
     const oldGames = await db.select({ id: games.id }).from(games).where(lt(games.createdAt, oneDayAgo));
     const ids = oldGames.map(g => g.id);
-
     if (ids.length > 0) {
-      console.log(`[CLEANUP] Deleting ${ids.length} old games...`);
-      // 2. Delete related data first
       await db.delete(logs).where(inArray(logs.gameId, ids));
       await db.delete(guesses).where(inArray(guesses.gameId, ids));
-      // 3. Delete the games
       await db.delete(games).where(inArray(games.id, ids));
-      console.log(`[CLEANUP] Done.`);
     }
   }
 }

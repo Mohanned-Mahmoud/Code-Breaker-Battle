@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import { Shield, Zap, Terminal, ArrowLeft, Play, RefreshCw, Edit2, Shuffle } from "lucide-react";
+import { Shield, Zap, Terminal, ArrowLeft, Play, RefreshCw, Edit2, Shuffle, Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -10,7 +10,7 @@ const TUTORIAL_LOGS = [
     "LOADING_TUTORIAL_MODULES...",
     "MODULE_LOADED: DECRYPTION_LOGIC",
     "MODULE_LOADED: BATTLE_MECHANICS",
-    "MODULE_LOADED: ADVANCED_MUTATIONS",
+    "MODULE_LOADED: TIME_PROTOCOLS",
     "WELCOME_RECRUIT. PREPARE_FOR_BRIEFING.",
     "OBJECTIVE: GUESS THE 4-DIGIT ENEMY CODE.",
     "TIP: USE LOGIC, NOT LUCK.",
@@ -18,7 +18,6 @@ const TUTORIAL_LOGS = [
 ];
 
 // --- COMPONENTS ---
-
 const MockDigit = ({ val, status }: { val: string, status: 'hit' | 'close' | 'none' }) => (
   <div className={cn(
     "w-10 h-10 md:w-12 md:h-12 flex items-center justify-center text-xl font-bold rounded-sm border-2 transition-all duration-500",
@@ -124,7 +123,7 @@ export default function HowToPlay() {
              </Button>
             <div>
               <h2 className="text-xl font-black tracking-tighter glitch-effect">TRAINING_SIM</h2>
-              <p className="text-[10px] opacity-50 font-mono tracking-widest">V.2.0 // INTERACTIVE</p>
+              <p className="text-[10px] opacity-50 font-mono tracking-widest">V.2.1 // UPDATED</p>
             </div>
           </div>
           <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/5">
@@ -135,7 +134,7 @@ export default function HowToPlay() {
 
       <div className="flex-1 overflow-y-auto md:overflow-hidden p-4 grid grid-cols-1 md:grid-cols-12 gap-6 z-10 max-w-7xl mx-auto w-full">
         
-        <div className="md:col-span-5 flex flex-col gap-6 overflow-y-auto pr-2 custom-scrollbar">
+        <div className="md:col-span-5 flex flex-col gap-6 overflow-y-auto pr-2 custom-scrollbar pb-20">
             
             <div className="bg-black/40 border border-primary/20 p-5 rounded-lg space-y-4 hover:border-primary/50 transition-colors group">
                 <h3 className="flex items-center gap-2 font-bold text-lg text-white group-hover:text-cyan-400 transition-colors">
@@ -159,20 +158,41 @@ export default function HowToPlay() {
                 </div>
             </div>
 
+            {/* --- NEW GAME MODES SECTION --- */}
+            <div className="bg-black/40 border border-primary/20 p-5 rounded-lg space-y-4 hover:border-primary/50 transition-colors">
+                 <h3 className="flex items-center gap-2 font-bold text-lg text-white">
+                    <Terminal className="w-5 h-5 text-cyan-500" /> GAME MODES
+                </h3>
+                <div className="space-y-3">
+                     <div className="p-3 bg-primary/5 border border-primary/20 rounded">
+                         <span className="text-cyan-400 font-bold text-sm block mb-1">NORMAL MODE</span>
+                         <span className="text-xs opacity-70">Classic turn-based tactical hacking. Unlimited time per turn.</span>
+                     </div>
+                     <div className="p-3 bg-red-900/10 border border-red-500/20 rounded">
+                         <span className="text-red-400 font-bold text-sm flex items-center gap-1 mb-1"><Timer className="w-4 h-4" /> BLITZ MODE</span>
+                         <span className="text-xs opacity-70">30 seconds per turn. If time runs out, your turn is skipped. The Firewall powerup is replaced with DDOS.</span>
+                     </div>
+                </div>
+            </div>
+
             <div className="bg-black/40 border border-primary/20 p-5 rounded-lg space-y-4 hover:border-primary/50 transition-colors mb-8">
                  <h3 className="flex items-center gap-2 font-bold text-lg text-white">
                     <Zap className="w-5 h-5 text-yellow-500" /> ARSENAL (1-TIME USE)
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 bg-primary/5 rounded border border-primary/10 text-center flex flex-col justify-center">
+                    <div className="p-3 bg-primary/5 rounded border border-primary/10 text-center flex flex-col justify-center relative overflow-hidden">
+                        <div className="absolute top-0 right-0 bg-primary/20 text-[8px] px-1 rounded-bl">VARIES</div>
                         <Shield className="w-5 h-5 mx-auto mb-2 text-yellow-500" />
-                        <div className="text-[10px] font-bold text-white mb-1">FIREWALL</div>
-                        <p className="text-[9px] opacity-60 leading-tight">Block turn switch. Play again instantly.</p>
+                        <div className="text-[10px] font-bold text-white mb-1">FIREWALL / DDOS</div>
+                        <p className="text-[9px] opacity-60 leading-tight">
+                            <span className="text-yellow-400 font-bold">Normal:</span> Extra turn.<br/>
+                            <span className="text-orange-400 font-bold mt-1 block">Blitz:</span> -20s from enemy time.
+                        </p>
                     </div>
                     <div className="p-3 bg-primary/5 rounded border border-primary/10 text-center flex flex-col justify-center">
                         <Zap className="w-5 h-5 mx-auto mb-2 text-red-500" />
                         <div className="text-[10px] font-bold text-white mb-1">BRUTEFORCE</div>
-                        <p className="text-[9px] opacity-60 leading-tight">Reveal the 1st digit of enemy code.</p>
+                        <p className="text-[9px] opacity-60 leading-tight">Reveal the 1st digit of enemy code permanently.</p>
                     </div>
                     <div className="p-3 bg-primary/5 rounded border border-primary/10 text-center flex flex-col justify-center">
                         <Edit2 className="w-5 h-5 mx-auto mb-2 text-blue-500" />
@@ -207,10 +227,7 @@ export default function HowToPlay() {
                              if (demoInput[i] === TARGET_CODE[i]) status = 'hit';
                              else if (TARGET_CODE.includes(demoInput[i])) status = 'close';
                         }
-                        
-                        return (
-                            <MockDigit key={i} val={demoInput[i] || ""} status={status} />
-                        );
+                        return <MockDigit key={i} val={demoInput[i] || ""} status={status} />;
                     })}
                 </div>
 

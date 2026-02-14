@@ -1,16 +1,9 @@
 import { z } from 'zod';
-import { guesses } from './schema';
 
 export const errorSchemas = {
-  validation: z.object({
-    message: z.string(),
-  }),
-  notFound: z.object({
-    message: z.string(),
-  }),
-  badRequest: z.object({
-    message: z.string(),
-  }),
+  validation: z.object({ message: z.string() }),
+  notFound: z.object({ message: z.string() }),
+  badRequest: z.object({ message: z.string() }),
 };
 
 export const api = {
@@ -18,6 +11,9 @@ export const api = {
     create: {
       method: 'POST' as const,
       path: '/api/games',
+      input: z.object({
+        mode: z.enum(['normal', 'blitz', 'glitch']).default('normal'),
+      }),
       responses: {
         201: z.object({ id: z.number() }),
       },
@@ -26,7 +22,7 @@ export const api = {
       method: 'GET' as const,
       path: '/api/games/:id',
       responses: {
-        200: z.any(), // Typed as GameStateResponse in practice
+        200: z.any(), 
         404: errorSchemas.notFound,
       },
     },
@@ -57,10 +53,14 @@ export const api = {
     powerup: {
       method: 'POST' as const,
       path: '/api/games/:id/powerup',
-      input: z.object({
-        player: z.enum(['p1', 'p2']),
-        type: z.enum(['firewall', 'bruteforce']),
-      }),
+      responses: {
+        200: z.any(),
+        400: errorSchemas.badRequest,
+      },
+    },
+    timeout: {
+      method: 'POST' as const,
+      path: '/api/games/:id/timeout',
       responses: {
         200: z.any(),
         400: errorSchemas.badRequest,

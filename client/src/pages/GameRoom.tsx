@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
-  Loader2, Share2, Lock, Shield, Zap, Terminal, Info, Edit2, Shuffle 
+  Loader2, Share2, Lock, Shield, Zap, Terminal, Info, Edit2, Shuffle, Timer 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -152,7 +152,6 @@ export default function GameRoom() {
   const [setupCode, setSetupCode] = useState("");
   const [showTransition, setShowTransition] = useState(false);
 
-  // --- NEW: Powerup Interface State ---
   const [powerupState, setPowerupState] = useState<{
     active: 'change' | 'swap' | null;
     code: string;
@@ -164,7 +163,6 @@ export default function GameRoom() {
     return (saved === 'p1' || saved === 'p2') ? saved : null;
   });
 
-  // Helper to fetch code
   const fetchMyCode = async () => {
     const res = await fetch(`/api/games/${id}/code/${myRole}`);
     const data = await res.json();
@@ -238,6 +236,32 @@ export default function GameRoom() {
       setSetupCode("");
     }
   });
+
+  // --- Timeout Auto-Trigger Logic ---
+  const timeoutMutation = useMutation({
+    mutationFn: () => fetch(`/api/games/${id}/timeout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player: myRole })
+    }).then(res => res.json()),
+    onSuccess: () => {
+       toast({ title: "TIMEOUT", description: "You took too long! Turn skipped.", variant: "destructive" });
+       setGuessVal(""); setPowerupState({ active: null, code: "", step1Index: null });
+       queryClient.invalidateQueries({ queryKey: ['game', id] });
+    }
+  });
+
+  const activeP = game?.turn;
+  const isMyTurn = myRole === activeP;
+  const isBlitz = (game as any)?.mode === 'blitz';
+
+  useEffect(() => {
+    if (isBlitz && game?.status === 'playing' && isMyTurn) {
+      if ((game as any)?.timeLeft === 0 && !timeoutMutation.isPending) {
+        timeoutMutation.mutate();
+      }
+    }
+  }, [(game as any)?.timeLeft, isMyTurn, game?.status, isBlitz]);
 
   if (isLoading) return <div className="h-screen flex items-center justify-center bg-background"><Loader2 className="animate-spin" /></div>;
   if (error || !game) return <div className="h-screen flex items-center justify-center bg-background">Connection Error</div>;
@@ -321,17 +345,16 @@ export default function GameRoom() {
   }
 
   // --- BATTLE PHASE ---
-  const activeP = game.turn;
-  const isMyTurn = myRole === activeP;
-  
   const p1Powerups = { 
     firewall: game.p1FirewallUsed ?? false, 
+    timeHack: (game as any).p1TimeHackUsed ?? false,
     bruteforce: game.p1BruteforceUsed ?? false,
     changeDigit: (game as any).p1ChangeDigitUsed ?? false,
     swapDigits: (game as any).p1SwapDigitsUsed ?? false,
   };
   const p2Powerups = { 
     firewall: game.p2FirewallUsed ?? false, 
+    timeHack: (game as any).p2TimeHackUsed ?? false,
     bruteforce: game.p2BruteforceUsed ?? false,
     changeDigit: (game as any).p2ChangeDigitUsed ?? false,
     swapDigits: (game as any).p2SwapDigitsUsed ?? false,
@@ -361,8 +384,8 @@ export default function GameRoom() {
               </DialogTrigger>
               <DialogContent className="border-primary/50 bg-black/90 text-primary">
                 <DialogHeader>
-                  <DialogTitle className="text-xl tracking-widest uppercase mb-4 border-b border-primary/30 pb-2">
-                    Battle Manual
+                  <DialogTitle className="text-xl tracking-widest uppercase mb-4 border-b border-primary/30 pb-2 flex items-center gap-2">
+                    Battle Manual {isBlitz && <span className="text-red-500 text-xs bg-red-500/10 px-2 py-1 rounded">BLITZ MODE</span>}
                   </DialogTitle>
                   <DialogDescription className="space-y-4 text-left pt-2">
                     <div className="space-y-2">
@@ -372,6 +395,11 @@ export default function GameRoom() {
                       <p className="text-xs font-mono opacity-80">
                         Crack the opponent's 4-digit code before they crack yours.
                       </p>
+                      {isBlitz && (
+                        <div className="mt-2 p-2 bg-red-900/20 border border-red-500/30 rounded text-red-400 text-xs font-mono">
+                          ⚠️ WARNING: You have exactly 30 seconds per turn. Failure to input a code will result in an immediate turn skip!
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -389,11 +417,21 @@ export default function GameRoom() {
                         <Zap className="w-4 h-4 text-cyan-500" /> POWERUPS
                       </h3>
                       <div className="grid grid-cols-2 gap-2 text-xs font-mono opacity-80">
-                        <div className="border border-primary/20 p-2 rounded">
-                          <strong className="text-yellow-500 block mb-1">🛡️ FIREWALL</strong>
-                          Blocks turn switch. Gives you 1 extra turn immediately.
-                        </div>
-                        <div className="border border-primary/20 p-2 rounded">
+                        
+                        {/* --- Dynamic Powerup based on Mode --- */}
+                        {isBlitz ? (
+                          <div className="border border-orange-500/30 p-2 rounded bg-orange-900/20">
+                            <strong className="text-orange-500 block mb-1 flex items-center gap-1"><Timer className="w-3 h-3"/> DDOS ATTACK</strong>
+                            Sabotages enemy connection. Reduces their next turn time by 20 seconds.
+                          </div>
+                        ) : (
+                          <div className="border border-primary/20 p-2 rounded bg-black/50">
+                            <strong className="text-yellow-500 block mb-1">🛡️ FIREWALL</strong>
+                            Blocks turn switch. Gives you 1 extra turn immediately.
+                          </div>
+                        )}
+
+                        <div className="border border-primary/20 p-2 rounded bg-black/50">
                           <strong className="text-red-500 block mb-1">⚡ BRUTEFORCE</strong>
                           Reveals the 1st digit of enemy code permanently.
                         </div>
@@ -413,12 +451,22 @@ export default function GameRoom() {
             </Dialog>
 
             <div className="space-y-1">
-              <h2 className="text-xs opacity-50 font-mono tracking-widest">SESSION</h2>
+              <h2 className="text-xs opacity-50 font-mono tracking-widest">
+                SESSION { isBlitz && <span className="text-red-500 font-bold ml-1">[BLITZ]</span> }
+              </h2>
               <p className="text-lg font-bold tracking-tighter">{id}</p>
             </div>
           </div>
 
-          <div className="text-center absolute left-1/2 -translate-x-1/2">
+          <div className="text-center absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
+            {isBlitz && (
+              <div className={cn(
+                  "text-3xl font-black font-mono tracking-widest mb-1 transition-colors text-center", 
+                  ((game as any)?.timeLeft ?? 30) <= 10 ? "text-red-500 animate-pulse drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]" : "text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]"
+              )}>
+                 00:{String((game as any)?.timeLeft ?? 0).padStart(2, '0')}
+              </div>
+            )}
             <div className={cn(
               "px-4 py-1 border rounded-full text-[10px] font-bold tracking-widest transition-all",
               isMyTurn ? "border-primary text-primary animate-pulse" : "border-primary/30 text-primary/30"
@@ -531,14 +579,27 @@ export default function GameRoom() {
                 <DigitInput value={guessVal} onChange={setGuessVal} disabled={!isMyTurn} variant={activeP as 'p1' | 'p2'} />
 
                 <div className="grid grid-cols-2 gap-2 w-full max-w-xs">
-                    <Button 
-                        variant="outline" 
-                        className="border-yellow-500/50 text-yellow-500 hover:bg-yellow-500/10 text-[10px]"
-                        disabled={!isMyTurn || myPowerups.firewall || powerupMutation.isPending}
-                        onClick={() => powerupMutation.mutate({ type: 'firewall' })}
-                    >
-                        <Shield className="w-3 h-3 mr-1" /> FIREWALL
-                    </Button>
+                    {/* التبديل بين الزرين بناءً على المود */}
+                    {isBlitz ? (
+                        <Button 
+                            variant="outline" 
+                            className="border-orange-500/50 text-orange-500 hover:bg-orange-500/10 text-[10px]"
+                            disabled={!isMyTurn || myPowerups.timeHack || powerupMutation.isPending}
+                            onClick={() => powerupMutation.mutate({ type: 'timeHack' })}
+                        >
+                            <Timer className="w-3 h-3 mr-1" /> DDOS -20S
+                        </Button>
+                    ) : (
+                        <Button 
+                            variant="outline" 
+                            className="border-yellow-500/50 text-yellow-500 hover:bg-yellow-500/10 text-[10px]"
+                            disabled={!isMyTurn || myPowerups.firewall || powerupMutation.isPending}
+                            onClick={() => powerupMutation.mutate({ type: 'firewall' })}
+                        >
+                            <Shield className="w-3 h-3 mr-1" /> FIREWALL
+                        </Button>
+                    )}
+
                     <Button 
                         variant="outline" 
                         className="border-red-500/50 text-red-500 hover:bg-red-500/10 text-[10px]"
@@ -547,7 +608,6 @@ export default function GameRoom() {
                     >
                         <Zap className="w-3 h-3 mr-1" /> BRUTEFORCE
                     </Button>
-                    {/* زر تغيير الرقم */}
                     <Button 
                         variant="outline" 
                         className="border-blue-500/50 text-blue-500 hover:bg-blue-500/10 text-[10px]"
@@ -559,8 +619,6 @@ export default function GameRoom() {
                     >
                         <Edit2 className="w-3 h-3 mr-1" /> CHANGE DIGIT
                     </Button>
-
-                    {/* زر تبديل الأرقام */}
                     <Button 
                         variant="outline" 
                         className="border-purple-500/50 text-purple-500 hover:bg-purple-500/10 text-[10px]"

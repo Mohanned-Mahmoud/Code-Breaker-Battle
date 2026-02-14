@@ -1,16 +1,24 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { useLocation, Link } from "wouter";
-import { Loader2, Plus, Terminal, Lock, Info } from "lucide-react";
+import { Loader2, Plus, Terminal, Lock, Info, Timer, Zap } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export default function Landing() {
   const [, setLocation] = useLocation();
+  const [mode, setMode] = useState<'normal' | 'blitz' | 'glitch'>('normal');
 
   const createGame = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(api.games.create.path, { method: 'POST' });
+    // قمنا بتعديل هذه الدالة لتقبل الـ mode وترسله للباك اند
+    mutationFn: async (selectedMode: string) => {
+      const res = await fetch(api.games.create.path, { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: selectedMode })
+      });
       return await res.json();
     },
     onSuccess: (data) => {
@@ -55,9 +63,26 @@ export default function Landing() {
           transition={{ delay: 0.3 }}
           className="flex flex-col items-center gap-4 w-full max-w-sm mx-auto"
         >
+          {/* Mode Selection */}
+          <div className="grid grid-cols-3 gap-2 w-full mb-6">
+            <button onClick={() => setMode('normal')} className={cn("flex flex-col items-center p-3 rounded border transition-all", mode === 'normal' ? "border-primary bg-primary/20 text-primary shadow-[0_0_15px_rgba(0,255,0,0.2)]" : "border-primary/20 opacity-50 hover:opacity-100")}>
+              <Terminal className="w-5 h-5 mb-2" />
+              <span className="text-[10px] font-bold tracking-wider">NORMAL</span>
+            </button>
+            <button onClick={() => setMode('blitz')} className={cn("flex flex-col items-center p-3 rounded border transition-all", mode === 'blitz' ? "border-red-500 bg-red-500/20 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]" : "border-primary/20 opacity-50 hover:opacity-100")}>
+              <Timer className="w-5 h-5 mb-2" />
+              <span className="text-[10px] font-bold tracking-wider">BLITZ (30s)</span>
+            </button>
+            <button disabled className="flex flex-col items-center p-3 rounded border border-primary/10 opacity-30 cursor-not-allowed">
+              <Zap className="w-5 h-5 mb-2 text-primary/30" />
+              <span className="text-[10px] font-bold tracking-wider">GLITCH</span>
+              <span className="text-[8px] mt-1 text-primary/50">LOCKED</span>
+            </button>
+          </div>
+          
           {/* Main Action: Create Game */}
           <button 
-            onClick={() => createGame.mutate()}
+            onClick={() => createGame.mutate(mode)}
             disabled={createGame.isPending}
             className="w-full group relative px-8 py-4 bg-primary/5 border border-primary text-primary font-mono tracking-[0.3em] uppercase hover:bg-primary/20 transition-all active:scale-95 disabled:opacity-50"
           >

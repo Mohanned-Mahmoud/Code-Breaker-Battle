@@ -2,13 +2,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 import { type GameStateResponse } from "@shared/schema";
 
-// Game State Hook
 export function useGame(id: number) {
   return useQuery<GameStateResponse>({
     queryKey: [buildUrl(api.games.get.path, { id })],
     queryFn: async () => {
-      const url = buildUrl(api.games.get.path, { id });
-      const res = await fetch(url);
+      const res = await fetch(buildUrl(api.games.get.path, { id }));
       if (res.status === 404) throw new Error("Game not found");
       if (!res.ok) throw new Error("Failed to fetch game");
       return await res.json();
@@ -17,37 +15,31 @@ export function useGame(id: number) {
   });
 }
 
-// Create Game
+// NEW: Accept mode parameter
 export function useCreateGame() {
-  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (mode: string = 'normal') => {
       const res = await fetch(api.games.create.path, {
         method: api.games.create.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode })
       });
       if (!res.ok) throw new Error("Failed to create game");
-      return api.games.create.responses[201].parse(await res.json());
-    },
-    onSuccess: () => {},
+      return await res.json();
+    }
   });
 }
 
-// Setup Game (Set Master Key)
 export function useSetupGame() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, player, code }: { id: number; player: 'p1' | 'p2'; code: string }) => {
-      const validated = api.games.setup.input.parse({ player, code });
-      const url = buildUrl(api.games.setup.path, { id });
-      const res = await fetch(url, {
+      const res = await fetch(buildUrl(api.games.setup.path, { id }), {
         method: api.games.setup.method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(validated),
+        body: JSON.stringify({ player, code }),
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Failed to setup game");
-      }
+      if (!res.ok) throw new Error("Failed to setup game");
       return await res.json();
     },
     onSuccess: (_, { id }) => {
@@ -56,22 +48,16 @@ export function useSetupGame() {
   });
 }
 
-// Make Guess
 export function useMakeGuess() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, player, guess }: { id: number; player: 'p1' | 'p2'; guess: string }) => {
-      const validated = api.games.guess.input.parse({ player, guess });
-      const url = buildUrl(api.games.guess.path, { id });
-      const res = await fetch(url, {
+      const res = await fetch(buildUrl(api.games.guess.path, { id }), {
         method: api.games.guess.method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(validated),
+        body: JSON.stringify({ player, guess }),
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Failed to submit guess");
-      }
+      if (!res.ok) throw new Error("Failed to submit guess");
       return await res.json();
     },
     onSuccess: (_, { id }) => {
@@ -80,31 +66,16 @@ export function useMakeGuess() {
   });
 }
 
-// Use Powerup (UPDATED)
-type PowerupArgs = {
-  id: number;
-  player: 'p1' | 'p2';
-  type: 'firewall' | 'bruteforce' | 'changeDigit' | 'swapDigits';
-  targetIndex?: number;
-  newDigit?: string;
-  swapIndex1?: number;
-  swapIndex2?: number;
-};
-
 export function usePowerup() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (args: PowerupArgs) => {
-      const url = buildUrl(api.games.powerup.path, { id: args.id });
-      const res = await fetch(url, {
+    mutationFn: async (args: any) => {
+      const res = await fetch(buildUrl(api.games.powerup.path, { id: args.id }), {
         method: api.games.powerup.method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(args),
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Failed to use powerup");
-      }
+      if (!res.ok) throw new Error("Failed to use powerup");
       return await res.json();
     },
     onSuccess: (_, { id }) => {
