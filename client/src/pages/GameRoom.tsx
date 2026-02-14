@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
-  Loader2, Share2, Lock, Shield, Zap, Terminal, Info
+  Loader2, Share2, Lock, Shield, Zap, Terminal, Info, Edit2, Shuffle 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -32,7 +32,6 @@ const useSFX = () => {
   return { playTyping, playBeep };
 };
 
-// --- TERMINAL COMPONENT (Final Scrollbar Fix) ---
 function TerminalLog({ logs }: { logs: GameLog[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -47,11 +46,10 @@ function TerminalLog({ logs }: { logs: GameLog[] }) {
       ref={scrollRef} 
       className="font-mono text-xs md:text-sm flex-1 min-h-0 overflow-y-auto p-4 bg-black/60 border border-primary/20 rounded-sm custom-scrollbar relative"
     >
-      {/* FORCE SCROLLBAR VISIBILITY ON MOBILE */}
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 5px;
-          display: block; /* Forces display */
+          display: block;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
           background: rgba(0, 20, 0, 0.3);
@@ -154,10 +152,24 @@ export default function GameRoom() {
   const [setupCode, setSetupCode] = useState("");
   const [showTransition, setShowTransition] = useState(false);
 
+  // --- NEW: Powerup Interface State ---
+  const [powerupState, setPowerupState] = useState<{
+    active: 'change' | 'swap' | null;
+    code: string;
+    step1Index: number | null;
+  }>({ active: null, code: "", step1Index: null });
+
   const [myRole, setMyRole] = useState<'p1' | 'p2' | null>(() => {
     const saved = localStorage.getItem(`role_${id}`);
     return (saved === 'p1' || saved === 'p2') ? saved : null;
   });
+
+  // Helper to fetch code
+  const fetchMyCode = async () => {
+    const res = await fetch(`/api/games/${id}/code/${myRole}`);
+    const data = await res.json();
+    return data.code;
+  };
 
   const { data: game, isLoading, error } = useQuery<GameStateResponse>({
     queryKey: ['game', id],
@@ -203,10 +215,10 @@ export default function GameRoom() {
   });
 
   const powerupMutation = useMutation({
-    mutationFn: (type: 'firewall' | 'bruteforce') => fetch(`/api/games/${id}/powerup`, {
+    mutationFn: (args: any) => fetch(`/api/games/${id}/powerup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ player: myRole, type })
+      body: JSON.stringify({ player: myRole, ...args })
     }).then(res => res.json()),
     onSuccess: () => {
         toast({ title: "SYSTEM UPDATE", description: "Powerup Activated Successfully" });
@@ -214,18 +226,14 @@ export default function GameRoom() {
     }
   });
 
-  // داخل GameRoom component
-  
   const restartMutation = useMutation({
     mutationFn: () => fetch(`/api/games/${id}/restart`, {
       method: 'POST'
     }).then(res => res.json()),
     onSuccess: () => {
       toast({ title: "SYSTEM RESET", description: "Game Sequence Restarted" });
-      // تحديث البيانات فوراً
       queryClient.invalidateQueries({ queryKey: ['game', id] });
       queryClient.invalidateQueries({ queryKey: ['logs', id] });
-      // تصفير القيم المحلية
       setGuessVal("");
       setSetupCode("");
     }
@@ -243,7 +251,6 @@ export default function GameRoom() {
             </span> VICTORIOUS
         </h1>
         
-        {/* الأزرار الجديدة هنا */}
         <div className="flex gap-4 mt-8">
           <Button variant="outline" className="neon-border" onClick={() => setLocation("/")}>EXIT ROOM</Button>
           <Button 
@@ -258,7 +265,6 @@ export default function GameRoom() {
     );
   }
 
-  // --- SETUP PHASE ---
   if (!game.p1Setup || !game.p2Setup) {
     const targetRole = !game.p1Setup ? 'p1' : 'p2';
     
@@ -317,8 +323,19 @@ export default function GameRoom() {
   // --- BATTLE PHASE ---
   const activeP = game.turn;
   const isMyTurn = myRole === activeP;
-  const p1Powerups = { firewall: game.p1FirewallUsed ?? false, bruteforce: game.p1BruteforceUsed ?? false };
-  const p2Powerups = { firewall: game.p2FirewallUsed ?? false, bruteforce: game.p2BruteforceUsed ?? false };
+  
+  const p1Powerups = { 
+    firewall: game.p1FirewallUsed ?? false, 
+    bruteforce: game.p1BruteforceUsed ?? false,
+    changeDigit: (game as any).p1ChangeDigitUsed ?? false,
+    swapDigits: (game as any).p1SwapDigitsUsed ?? false,
+  };
+  const p2Powerups = { 
+    firewall: game.p2FirewallUsed ?? false, 
+    bruteforce: game.p2BruteforceUsed ?? false,
+    changeDigit: (game as any).p2ChangeDigitUsed ?? false,
+    swapDigits: (game as any).p2SwapDigitsUsed ?? false,
+  };
   const myPowerups = myRole === 'p1' ? p1Powerups : p2Powerups;
 
   return (
@@ -380,6 +397,14 @@ export default function GameRoom() {
                           <strong className="text-red-500 block mb-1">⚡ BRUTEFORCE</strong>
                           Reveals the 1st digit of enemy code permanently.
                         </div>
+                        <div className="border border-primary/20 p-2 rounded bg-black/50">
+                          <strong className="text-blue-500 block mb-1">🧬 CHANGE DIGIT</strong>
+                          Change one digit in your own master code.
+                        </div>
+                        <div className="border border-primary/20 p-2 rounded bg-black/50">
+                          <strong className="text-purple-500 block mb-1">🔀 SWAP DIGITS</strong>
+                          Swap the positions of two digits in your code.
+                        </div>
                       </div>
                     </div>
                   </DialogDescription>
@@ -413,55 +438,156 @@ export default function GameRoom() {
           </div>
         </div>
 
-        {/* FIX: Use Flex-col on mobile instead of grid to guarantee height constraints */}
         <div className="flex-1 flex flex-col md:grid md:grid-cols-2 gap-4 min-h-0 overflow-hidden">
           
-          {/* Input Panel: Don't shrink */}
-          <div className="flex-shrink-0 flex flex-col space-y-4 md:space-y-6 justify-center items-center bg-black/20 p-4 md:p-8 border border-primary/10 rounded-sm relative">
+          <div className="flex-shrink-0 flex flex-col space-y-4 md:space-y-6 justify-center items-center bg-black/20 p-4 md:p-8 border border-primary/10 rounded-sm relative min-h-[350px]">
             <div className="absolute top-2 left-2 text-[10px] font-mono opacity-30">
               IDENTITY: <span className={myRole === 'p1' ? "text-cyan-500" : "text-fuchsia-500"}>{myRole === 'p1' ? 'PLAYER 01' : 'PLAYER 02'}</span>
             </div>
-            <div className="space-y-2 text-center">
-              <h3 className="text-sm font-mono opacity-40 uppercase tracking-[0.3em]">Neural Input Required</h3>
-              <p className="text-xs opacity-20 italic">"Guess the enemy encryption to compromise system."</p>
-            </div>
             
-            <DigitInput value={guessVal} onChange={setGuessVal} disabled={!isMyTurn} variant={activeP as 'p1' | 'p2'} />
+            {powerupState.active ? (
+              <div className="space-y-6 w-full flex flex-col items-center animate-in fade-in duration-300">
+                <div className="space-y-2 text-center">
+                  <h3 className={cn("text-sm font-bold animate-pulse tracking-widest uppercase", 
+                      powerupState.active === 'change' ? "text-blue-500" : "text-purple-500"
+                  )}>
+                    {powerupState.active === 'change' ? "Select Digit to Mutate" : "Select Two Digits to Swap"}
+                  </h3>
+                  <p className="text-xs opacity-50 font-mono">
+                    {powerupState.active === 'change' && powerupState.step1Index !== null 
+                      ? "Type the new number..." 
+                      : "Modifying your master encryption"}
+                  </p>
+                </div>
 
-            <div className="flex gap-4 w-full max-w-xs">
-                <Button 
-                    variant="outline" 
-                    className="flex-1 border-yellow-500/50 text-yellow-500 hover:bg-yellow-500/10 text-[10px]"
-                    disabled={!isMyTurn || myPowerups.firewall || powerupMutation.isPending}
-                    onClick={() => powerupMutation.mutate('firewall')}
-                    title="Block opponent's next turn"
-                >
-                    <Shield className="w-3 h-3 mr-1" /> FIREWALL
-                </Button>
-                <Button 
-                    variant="outline" 
-                    className="flex-1 border-red-500/50 text-red-500 hover:bg-red-500/10 text-[10px]"
-                    disabled={!isMyTurn || myPowerups.bruteforce || powerupMutation.isPending}
-                    onClick={() => powerupMutation.mutate('bruteforce')}
-                    title="Reveal one digit (Simulation)"
-                >
-                    <Zap className="w-3 h-3 mr-1" /> BRUTEFORCE
-                </Button>
-            </div>
+                <div className="flex gap-4 justify-center">
+                  {powerupState.code.split('').map((digit, i) => {
+                     if (powerupState.active === 'change' && powerupState.step1Index === i) {
+                       return (
+                         <input
+                           key={i}
+                           autoFocus
+                           className="w-12 h-12 md:w-16 md:h-16 bg-white text-black text-center text-2xl font-bold rounded-sm outline-none border-2 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)]"
+                           maxLength={1}
+                           onChange={(e) => {
+                             const val = e.target.value;
+                             if (/^\d$/.test(val)) {
+                               powerupMutation.mutate({ type: 'changeDigit', targetIndex: i, newDigit: val });
+                               setPowerupState({ active: null, code: "", step1Index: null });
+                             }
+                           }}
+                         />
+                       );
+                     }
 
-            <Button 
-              className={cn(
-                "w-full max-w-xs h-14 neon-border text-lg tracking-widest font-black transition-all",
-                !isMyTurn && "opacity-50 grayscale cursor-not-allowed"
-              )}
-              disabled={guessVal.length < 4 || guessMutation.isPending || !isMyTurn}
-              onClick={() => guessMutation.mutate({ player: activeP, guess: guessVal })}
-            >
-              {guessMutation.isPending ? "LAUNCHING..." : !isMyTurn ? "OPPONENT TURN..." : "EXECUTE ATTACK"}
-            </Button>
+                     const isSelected = powerupState.step1Index === i;
+                     return (
+                       <button
+                         key={i}
+                         className={cn(
+                           "w-12 h-12 md:w-16 md:h-16 bg-black text-center text-2xl font-bold rounded-sm border-2 transition-all outline-none neon-border",
+                           isSelected 
+                            ? "border-white text-white scale-110 shadow-[0_0_15px_rgba(255,255,255,0.5)]" 
+                            : "border-primary/50 text-primary/50 hover:border-primary hover:text-primary"
+                         )}
+                         onClick={() => {
+                           if (powerupState.active === 'change') {
+                             setPowerupState(prev => ({ ...prev, step1Index: i }));
+                           } else if (powerupState.active === 'swap') {
+                             if (powerupState.step1Index === null) {
+                               setPowerupState(prev => ({ ...prev, step1Index: i }));
+                             } else {
+                               if (powerupState.step1Index === i) {
+                                 setPowerupState(prev => ({ ...prev, step1Index: null }));
+                                 return;
+                               }
+                               powerupMutation.mutate({ type: 'swapDigits', swapIndex1: powerupState.step1Index, swapIndex2: i });
+                               setPowerupState({ active: null, code: "", step1Index: null });
+                             }
+                           }
+                         }}
+                       >
+                         {digit}
+                       </button>
+                     );
+                  })}
+                </div>
+
+                <Button 
+                   variant="ghost" 
+                   className="mt-4 text-xs opacity-50 hover:opacity-100 text-red-400 hover:text-red-300"
+                   onClick={() => setPowerupState({ active: null, code: "", step1Index: null })}
+                >
+                   ABORT MODIFICATION
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2 text-center">
+                  <h3 className="text-sm font-mono opacity-40 uppercase tracking-[0.3em]">Neural Input Required</h3>
+                  <p className="text-xs opacity-20 italic">"Guess the enemy encryption to compromise system."</p>
+                </div>
+                
+                <DigitInput value={guessVal} onChange={setGuessVal} disabled={!isMyTurn} variant={activeP as 'p1' | 'p2'} />
+
+                <div className="grid grid-cols-2 gap-2 w-full max-w-xs">
+                    <Button 
+                        variant="outline" 
+                        className="border-yellow-500/50 text-yellow-500 hover:bg-yellow-500/10 text-[10px]"
+                        disabled={!isMyTurn || myPowerups.firewall || powerupMutation.isPending}
+                        onClick={() => powerupMutation.mutate({ type: 'firewall' })}
+                    >
+                        <Shield className="w-3 h-3 mr-1" /> FIREWALL
+                    </Button>
+                    <Button 
+                        variant="outline" 
+                        className="border-red-500/50 text-red-500 hover:bg-red-500/10 text-[10px]"
+                        disabled={!isMyTurn || myPowerups.bruteforce || powerupMutation.isPending}
+                        onClick={() => powerupMutation.mutate({ type: 'bruteforce' })}
+                    >
+                        <Zap className="w-3 h-3 mr-1" /> BRUTEFORCE
+                    </Button>
+                    {/* زر تغيير الرقم */}
+                    <Button 
+                        variant="outline" 
+                        className="border-blue-500/50 text-blue-500 hover:bg-blue-500/10 text-[10px]"
+                        disabled={!isMyTurn || myPowerups.changeDigit || powerupMutation.isPending}
+                        onClick={async () => {
+                           const code = await fetchMyCode();
+                           setPowerupState({ active: 'change', code, step1Index: null });
+                        }}
+                    >
+                        <Edit2 className="w-3 h-3 mr-1" /> CHANGE DIGIT
+                    </Button>
+
+                    {/* زر تبديل الأرقام */}
+                    <Button 
+                        variant="outline" 
+                        className="border-purple-500/50 text-purple-500 hover:bg-purple-500/10 text-[10px]"
+                        disabled={!isMyTurn || myPowerups.swapDigits || powerupMutation.isPending}
+                        onClick={async () => {
+                           const code = await fetchMyCode();
+                           setPowerupState({ active: 'swap', code, step1Index: null });
+                        }}
+                    >
+                        <Shuffle className="w-3 h-3 mr-1" /> SWAP DIGITS
+                    </Button>
+                </div>
+
+                <Button 
+                  className={cn(
+                    "w-full max-w-xs h-14 neon-border text-lg tracking-widest font-black transition-all",
+                    !isMyTurn && "opacity-50 grayscale cursor-not-allowed"
+                  )}
+                  disabled={guessVal.length < 4 || guessMutation.isPending || !isMyTurn}
+                  onClick={() => guessMutation.mutate({ player: activeP, guess: guessVal })}
+                >
+                  {guessMutation.isPending ? "LAUNCHING..." : !isMyTurn ? "OPPONENT TURN..." : "EXECUTE ATTACK"}
+                </Button>
+              </>
+            )}
           </div>
 
-          {/* Terminal Wrapper: Takes remaining space */}
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             <div className="flex items-center gap-2 mb-2 opacity-50 flex-shrink-0">
               <Terminal className="w-3 h-3" />

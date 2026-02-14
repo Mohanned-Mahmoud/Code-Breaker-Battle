@@ -13,7 +13,7 @@ export function useGame(id: number) {
       if (!res.ok) throw new Error("Failed to fetch game");
       return await res.json();
     },
-    refetchInterval: 1000, // Poll every second for live updates
+    refetchInterval: 1000, 
   });
 }
 
@@ -28,9 +28,7 @@ export function useCreateGame() {
       if (!res.ok) throw new Error("Failed to create game");
       return api.games.create.responses[201].parse(await res.json());
     },
-    onSuccess: () => {
-      // Invalidate list queries if we had any
-    },
+    onSuccess: () => {},
   });
 }
 
@@ -82,17 +80,26 @@ export function useMakeGuess() {
   });
 }
 
-// Use Powerup
+// Use Powerup (UPDATED)
+type PowerupArgs = {
+  id: number;
+  player: 'p1' | 'p2';
+  type: 'firewall' | 'bruteforce' | 'changeDigit' | 'swapDigits';
+  targetIndex?: number;
+  newDigit?: string;
+  swapIndex1?: number;
+  swapIndex2?: number;
+};
+
 export function usePowerup() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, player, type }: { id: number; player: 'p1' | 'p2'; type: 'firewall' | 'bruteforce' }) => {
-      const validated = api.games.powerup.input.parse({ player, type });
-      const url = buildUrl(api.games.powerup.path, { id });
+    mutationFn: async (args: PowerupArgs) => {
+      const url = buildUrl(api.games.powerup.path, { id: args.id });
       const res = await fetch(url, {
         method: api.games.powerup.method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(validated),
+        body: JSON.stringify(args),
       });
       if (!res.ok) {
         const err = await res.json();

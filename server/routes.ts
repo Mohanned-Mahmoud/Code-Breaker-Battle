@@ -64,21 +64,38 @@ export async function registerRoutes(
       winner: game.winner as 'p1' | 'p2' | null,
       isFirewallActive: game.isFirewallActive ?? false,
       
-      // Ensure createdAt is included (fallback to now if missing)
       createdAt: game.createdAt ?? new Date(), 
       
       p1Setup: game.p1Setup ?? false,
       p2Setup: game.p2Setup ?? false,
       p1Code: null,
       p2Code: null,
+      
       p1FirewallUsed: game.p1FirewallUsed ?? false,
       p1BruteforceUsed: game.p1BruteforceUsed ?? false,
       p2FirewallUsed: game.p2FirewallUsed ?? false,
       p2BruteforceUsed: game.p2BruteforceUsed ?? false,
+      
+      p1ChangeDigitUsed: game.p1ChangeDigitUsed ?? false,
+      p1SwapDigitsUsed: game.p1SwapDigitsUsed ?? false,
+      p2ChangeDigitUsed: game.p2ChangeDigitUsed ?? false,
+      p2SwapDigitsUsed: game.p2SwapDigitsUsed ?? false,
+
       guesses,
     };
 
     res.json(response);
+  });
+
+  // 2.5 Get Player Code (For Powerups)
+  app.get('/api/games/:id/code/:player', async (req, res) => {
+    const id = Number(req.params.id);
+    const player = req.params.player;
+    const game = await storage.getGame(id);
+    if (!game) return res.status(404).json({ message: 'Game not found' });
+    
+    const code = player === 'p1' ? game.p1Code : game.p2Code;
+    res.json({ code });
   });
 
   // 3. Setup Game
@@ -181,7 +198,7 @@ export async function registerRoutes(
   app.post(api.games.powerup.path, async (req, res) => {
     try {
       const id = Number(req.params.id);
-      const { player, type } = req.body; 
+      const { player, type, targetIndex, newDigit, swapIndex1, swapIndex2 } = req.body; 
 
       const game = await storage.getGame(id);
       if (!game) return res.status(404).json({ message: 'Game not found' });
@@ -191,6 +208,7 @@ export async function registerRoutes(
       const updates: any = {};
       let logMessage = "";
       const playerLabel = player === 'p1' ? '[P1]' : '[P2]';
+      const myCode = player === 'p1' ? game.p1Code : game.p2Code;
 
       if (type === 'firewall') {
         if ((player === 'p1' && game.p1FirewallUsed) || (player === 'p2' && game.p2FirewallUsed)) {
@@ -211,6 +229,33 @@ export async function registerRoutes(
         updates[player === 'p1' ? 'p1BruteforceUsed' : 'p2BruteforceUsed'] = true;
         logMessage = `${playerLabel} USED BRUTEFORCE. 1ST DIGIT IS [ ${revealedDigit} ]`;
       }
+      else if (type === 'changeDigit') {
+        if ((player === 'p1' && game.p1ChangeDigitUsed) || (player === 'p2' && game.p2ChangeDigitUsed)) {
+          return res.status(400).json({ message: 'Ability already used' });
+        }
+        if (targetIndex === undefined || newDigit === undefined || !myCode) return res.status(400).json({ message: 'Invalid parameters' });
+
+        let codeArr = myCode.split('');
+        codeArr[targetIndex] = newDigit.toString();
+        updates[player === 'p1' ? 'p1Code' : 'p2Code'] = codeArr.join('');
+        updates[player === 'p1' ? 'p1ChangeDigitUsed' : 'p2ChangeDigitUsed'] = true;
+        logMessage = `SYSTEM: ${playerLabel} MUTATED THEIR MASTER CODE.`;
+      }
+      else if (type === 'swapDigits') {
+        if ((player === 'p1' && game.p1SwapDigitsUsed) || (player === 'p2' && game.p2SwapDigitsUsed)) {
+          return res.status(400).json({ message: 'Ability already used' });
+        }
+        if (swapIndex1 === undefined || swapIndex2 === undefined || !myCode) return res.status(400).json({ message: 'Invalid parameters' });
+
+        let codeArr = myCode.split('');
+        let temp = codeArr[swapIndex1];
+        codeArr[swapIndex1] = codeArr[swapIndex2];
+        codeArr[swapIndex2] = temp;
+        
+        updates[player === 'p1' ? 'p1Code' : 'p2Code'] = codeArr.join('');
+        updates[player === 'p1' ? 'p1SwapDigitsUsed' : 'p2SwapDigitsUsed'] = true;
+        logMessage = `SYSTEM: ${playerLabel} SHUFFLED THEIR MASTER CODE.`;
+      }
 
       await storage.updateGame(id, updates);
       if (logMessage) {
@@ -228,7 +273,7 @@ export async function registerRoutes(
     }
   });
 
-  // 7. RESTART GAME ROUTE (NEW)
+  // 7. RESTART GAME ROUTE
   app.post('/api/games/:id/restart', async (req, res) => {
     const id = Number(req.params.id);
     const game = await storage.getGame(id);
@@ -236,7 +281,6 @@ export async function registerRoutes(
 
     await storage.resetGame(id);
     
-    // Create a log indicating restart
     await storage.createLog({
       gameId: id,
       message: "SYSTEM: RESTART SEQUENCE INITIATED. MEMORY CLEARED.",
