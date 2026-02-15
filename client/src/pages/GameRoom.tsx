@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
-  Loader2, Share2, Lock, Shield, Zap, Terminal, Info, Edit2, Shuffle, Timer, Settings2, Bug, Eye, Ghost, Radio
+  Loader2, Share2, Lock, Shield, Zap, Terminal, Info, Edit2, Shuffle, Timer, Settings2, Bug, Eye, Ghost, Radio, Copy
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -213,14 +213,39 @@ export default function GameRoom() {
     const targetRole = !game.p1Setup ? 'p1' : 'p2';
     if (myRole && myRole !== targetRole) {
        return (
-         <div className="h-screen flex flex-col items-center justify-center bg-background p-4 text-center space-y-6">
-            <Loader2 className="w-12 h-12 animate-spin text-primary" />
-            <h2 className="text-xl font-mono tracking-widest text-primary">WAITING FOR OPPONENT...</h2>
-            <div className="p-4 border border-primary/20 rounded bg-primary/5">
-                <p className="text-xs opacity-50 mb-2">SEND THIS UPLINK TO PLAYER 2:</p>
-                <div className="flex gap-2">
-                    <code className="bg-black p-2 rounded text-xs select-all">{window.location.href}</code>
-                    <Button size="icon" variant="ghost" onClick={() => { navigator.clipboard.writeText(window.location.href); toast({ title: "Copied!" }); }}><Share2 className="w-4 h-4" /></Button>
+         <div className="h-screen flex flex-col items-center justify-center bg-background p-4 text-center space-y-8">
+            <Loader2 className="w-12 h-12 animate-spin text-primary opacity-50" />
+            
+            <div>
+              <h2 className="text-2xl font-black font-mono tracking-widest text-primary animate-pulse glitch-effect">WAITING FOR P2...</h2>
+              <p className="text-xs font-mono opacity-50 mt-2 uppercase tracking-[0.2em]">Share the Room ID or Uplink below</p>
+            </div>
+            
+            <div className="flex flex-col items-center gap-6 p-8 border border-primary/20 rounded-lg bg-black/60 shadow-[0_0_30px_rgba(0,255,0,0.05)] w-full max-w-md relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50" />
+                
+                {/* --- NEW ROOM ID SECTION --- */}
+                <div className="flex flex-col items-center">
+                    <span className="text-[10px] font-mono opacity-50 mb-1 tracking-[0.3em]">ROOM ID</span>
+                    <div className="flex items-center gap-3">
+                        <span className="text-5xl md:text-6xl font-black text-cyan-400 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)] tracking-widest">{id}</span>
+                        <Button size="icon" variant="outline" className="h-10 w-10 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 transition-all" onClick={() => { navigator.clipboard.writeText(id.toString()); toast({ title: "Room ID Copied!" }); }}>
+                            <Copy className="w-5 h-5" />
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="w-full h-px bg-primary/10"></div>
+                
+                {/* --- EXISTING UPLINK SECTION --- */}
+                <div className="w-full text-left">
+                    <span className="text-[10px] font-mono opacity-50 tracking-[0.3em] block mb-2 text-center">OR SHARE UPLINK</span>
+                    <div className="flex gap-2 w-full">
+                        <code className="flex-1 bg-black border border-primary/30 p-3 rounded text-xs select-all overflow-hidden text-ellipsis whitespace-nowrap text-primary/70">{window.location.href}</code>
+                        <Button variant="outline" className="border-primary/30 text-primary hover:bg-primary/20 px-4" onClick={() => { navigator.clipboard.writeText(window.location.href); toast({ title: "Uplink Copied!" }); }}>
+                            <Share2 className="w-4 h-4 mr-2" /> COPY
+                        </Button>
+                    </div>
                 </div>
             </div>
          </div>

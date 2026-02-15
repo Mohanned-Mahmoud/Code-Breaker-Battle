@@ -11,7 +11,11 @@ export default defineConfig({
     // --- إعدادات الـ PWA لجعل الموقع تطبيق موبايل ---
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      injectRegister: 'auto',
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'] // سحر الأوفلاين
+      },
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {
         name: 'Encryption War OS',
         short_name: 'EncryptWar',
@@ -19,6 +23,7 @@ export default defineConfig({
         theme_color: '#000000',
         background_color: '#000000',
         display: 'standalone',
+        start_url: '/', // مهم جداً للمتصفح
         orientation: 'portrait',
         icons: [
           {
