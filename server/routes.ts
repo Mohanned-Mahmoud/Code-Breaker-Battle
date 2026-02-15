@@ -104,15 +104,41 @@ export async function registerRoutes(
 
       const targetCode = player === 'p1' ? game.p2Code : game.p1Code;
       const { hits, blips } = calculateFeedback(targetCode!, guess);
-      await storage.createGuess({ gameId: id, player, guess, hits, blips, timestamp: new Date() });
-
       const playerLabel = player === 'p1' ? '[P1]' : '[P2]';
+      const updates: any = {};
+
+      // --- LOGIC FOR STEALTH POWERUPS (EMP & HONEYPOT) ---
+      let displayHits = hits;
+      let displayBlips = blips;
+      let isJammed = player === 'p1' ? game.p1Jammed : game.p2Jammed;
+      let isHoneypoted = player === 'p1' ? game.p1Honeypoted : game.p2Honeypoted;
+
+      if (hits !== 4) { // إذا كسر الكود فعلياً، لا نمنعه من الفوز
+          if (isJammed) {
+              displayHits = -1; displayBlips = -1; // -1 means Corrupted
+              updates[player === 'p1' ? 'p1Jammed' : 'p2Jammed'] = false;
+          } else if (isHoneypoted) {
+              // نظام التزييف (المصيدة): نعطيه أرقام كاذبة ومقنعة لكي يصدقها!
+              displayHits = hits > 0 ? 0 : 1; 
+              displayBlips = blips > 0 ? 0 : (hits === 0 ? 2 : 1);
+              updates[player === 'p1' ? 'p1Honeypoted' : 'p2Honeypoted'] = false;
+          }
+      }
+
+      await storage.createGuess({ gameId: id, player, guess, hits: displayHits, blips: displayBlips, timestamp: new Date() });
+
+      let logStr = "";
+      if (displayHits === -1) {
+          logStr = `${playerLabel} CODE: ${guess} >> HITS: ░░ | CLOSE: ░░ [SIGNAL JAMMED]`;
+      } else {
+          logStr = `${playerLabel} CODE: ${guess} >> HITS: ${displayHits} | CLOSE: ${displayBlips}`;
+      }
+
       await storage.createLog({
-        gameId: id, message: `${playerLabel} CODE: ${guess} >> HITS: ${hits} | CLOSE: ${blips}`,
-        type: hits === 4 ? 'success' : 'info'
+        gameId: id, message: logStr,
+        type: hits === 4 ? 'success' : (isJammed ? 'error' : 'info')
       });
 
-      const updates: any = {};
       let currentTurnCount = (game.turnCount || 0) + 1;
       updates.turnCount = currentTurnCount;
 
@@ -126,8 +152,8 @@ export async function registerRoutes(
                 updates.p1Code = shuffleString(game.p1Code!); updates.p2Code = shuffleString(game.p2Code!);
                 await storage.createLog({ gameId: id, message: `[GLITCH] SYSTEM REBOOT: ALL MASTER CODES SHUFFLED!`, type: 'error' });
             } else if (glitchType === 1) {
-                updates.p1FirewallUsed = false; updates.p1TimeHackUsed = false; updates.p1VirusUsed = false; updates.p1BruteforceUsed = false; updates.p1ChangeDigitUsed = false; updates.p1SwapDigitsUsed = false;
-                updates.p2FirewallUsed = false; updates.p2TimeHackUsed = false; updates.p2VirusUsed = false; updates.p2BruteforceUsed = false; updates.p2ChangeDigitUsed = false; updates.p2SwapDigitsUsed = false;
+                updates.p1FirewallUsed = false; updates.p1TimeHackUsed = false; updates.p1VirusUsed = false; updates.p1BruteforceUsed = false; updates.p1ChangeDigitUsed = false; updates.p1SwapDigitsUsed = false; updates.p1EmpUsed = false; updates.p1SpywareUsed = false; updates.p1HoneypotUsed = false;
+                updates.p2FirewallUsed = false; updates.p2TimeHackUsed = false; updates.p2VirusUsed = false; updates.p2BruteforceUsed = false; updates.p2ChangeDigitUsed = false; updates.p2SwapDigitsUsed = false; updates.p2EmpUsed = false; updates.p2SpywareUsed = false; updates.p2HoneypotUsed = false;
                 await storage.createLog({ gameId: id, message: `[GLITCH] FIREWALL DOWN: ALL POWERUPS RESTORED!`, type: 'error' });
             } else {
                 const r1 = Math.floor(Math.random() * 10).toString(); const r2 = Math.floor(Math.random() * 10).toString();
@@ -150,7 +176,7 @@ export async function registerRoutes(
         }
       }
       await storage.updateGame(id, updates);
-      res.json({ hits, blips });
+      res.json({ hits, blips }); // نرسل الأرقام الحقيقية في الـ response لكن اللوج يسجل المزيفة
     } catch (err) { res.status(400).json({ message: 'Invalid input' }); }
   });
 
@@ -199,11 +225,15 @@ export async function registerRoutes(
           if (type === 'bruteforce' && !game.allowBruteforce) return res.status(400).json({ message: 'Disabled' });
           if (type === 'changeDigit' && !game.allowChangeDigit) return res.status(400).json({ message: 'Disabled' });
           if (type === 'swapDigits' && !game.allowSwapDigits) return res.status(400).json({ message: 'Disabled' });
+          if (type === 'emp' && !game.allowEmp) return res.status(400).json({ message: 'Disabled' });
+          if (type === 'spyware' && !game.allowSpyware) return res.status(400).json({ message: 'Disabled' });
+          if (type === 'honeypot' && !game.allowHoneypot) return res.status(400).json({ message: 'Disabled' });
       }
 
       const updates: any = {}; let logMessage = "";
       const playerLabel = player === 'p1' ? '[P1]' : '[P2]';
       const myCode = player === 'p1' ? game.p1Code : game.p2Code;
+      const targetCode = player === 'p1' ? game.p2Code : game.p1Code;
 
       if (type === 'firewall') {
         if ((player === 'p1' && game.p1FirewallUsed) || (player === 'p2' && game.p2FirewallUsed)) return res.status(400).json({ message: 'Used' });
@@ -213,8 +243,7 @@ export async function registerRoutes(
       else if (type === 'timeHack') {
         if (game.mode !== 'blitz' && game.mode !== 'custom') return res.status(400).json({ message: 'Only available in Blitz or Custom mode' });
         if ((player === 'p1' && game.p1TimeHackUsed) || (player === 'p2' && game.p2TimeHackUsed)) return res.status(400).json({ message: 'Used' });
-        updates[player === 'p1' ? 'p1TimeHackUsed' : 'p2TimeHackUsed'] = true;
-        updates.isTimeHackActive = true; 
+        updates[player === 'p1' ? 'p1TimeHackUsed' : 'p2TimeHackUsed'] = true; updates.isTimeHackActive = true; 
         logMessage = `WARNING: ${playerLabel} LAUNCHED DDOS ATTACK! OPPONENT'S NEXT TURN REDUCED BY 20s.`;
       }
       else if (type === 'virus') {
@@ -229,7 +258,7 @@ export async function registerRoutes(
       else if (type === 'bruteforce') {
         if ((player === 'p1' && game.p1BruteforceUsed) || (player === 'p2' && game.p2BruteforceUsed)) return res.status(400).json({ message: 'Used' });
         updates[player === 'p1' ? 'p1BruteforceUsed' : 'p2BruteforceUsed'] = true;
-        logMessage = `${playerLabel} USED BRUTEFORCE. 1ST DIGIT IS [ ${(player === 'p1' ? game.p2Code : game.p1Code)![0]} ]`;
+        logMessage = `${playerLabel} USED BRUTEFORCE. 1ST DIGIT IS [ ${targetCode![0]} ]`;
       }
       else if (type === 'changeDigit') {
         if ((player === 'p1' && game.p1ChangeDigitUsed) || (player === 'p2' && game.p2ChangeDigitUsed)) return res.status(400).json({ message: 'Used' });
@@ -245,10 +274,29 @@ export async function registerRoutes(
         updates[player === 'p1' ? 'p1SwapDigitsUsed' : 'p2SwapDigitsUsed'] = true;
         logMessage = `SYSTEM: ${playerLabel} SHUFFLED THEIR MASTER CODE.`;
       }
+      // --- NEW: STEALTH AND INTEL POWERUPS ---
+      else if (type === 'emp') {
+        if ((player === 'p1' && game.p1EmpUsed) || (player === 'p2' && game.p2EmpUsed)) return res.status(400).json({ message: 'Used' });
+        updates[player === 'p1' ? 'p1EmpUsed' : 'p2EmpUsed'] = true;
+        updates[player === 'p1' ? 'p2Jammed' : 'p1Jammed'] = true;
+        logMessage = ""; // لا يُظهر أي رسالة في السجل نهائياً!
+      }
+      else if (type === 'honeypot') {
+        if ((player === 'p1' && game.p1HoneypotUsed) || (player === 'p2' && game.p2HoneypotUsed)) return res.status(400).json({ message: 'Used' });
+        updates[player === 'p1' ? 'p1HoneypotUsed' : 'p2HoneypotUsed'] = true;
+        updates[player === 'p1' ? 'p2Honeypoted' : 'p1Honeypoted'] = true;
+        logMessage = ""; // لا يُظهر أي رسالة في السجل نهائياً!
+      }
+      else if (type === 'spyware') {
+        if ((player === 'p1' && game.p1SpywareUsed) || (player === 'p2' && game.p2SpywareUsed)) return res.status(400).json({ message: 'Used' });
+        updates[player === 'p1' ? 'p1SpywareUsed' : 'p2SpywareUsed'] = true;
+        const codeSum = targetCode!.split('').reduce((acc, curr) => acc + parseInt(curr), 0);
+        logMessage = `SYSTEM: ${playerLabel} DEPLOYED SPYWARE. TARGET CODE SUM = ${codeSum}`;
+      }
 
       updates.turnStartedAt = new Date(); 
       await storage.updateGame(id, updates);
-      if (logMessage) await storage.createLog({ gameId: id, message: logMessage, type: 'warning' });
+      if (logMessage !== "") await storage.createLog({ gameId: id, message: logMessage, type: 'warning' });
       res.json(await storage.getGame(id));
     } catch (err) { res.status(400).json({ message: 'Invalid input' }); }
   });

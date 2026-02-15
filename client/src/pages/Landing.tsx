@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, Link } from "wouter";
 import { 
-  Loader2, Plus, Terminal, Lock, Info, Timer, Zap, Settings2, Shield, Edit2, Shuffle, Bug 
+  Loader2, Plus, Terminal, Lock, Info, Timer, Zap, Settings2, Shield, Edit2, Shuffle, Bug, Eye, Ghost, Radio
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@shared/routes";
@@ -27,21 +27,14 @@ export default function Landing() {
   const [mode, setMode] = useState<'normal' | 'blitz' | 'glitch' | 'custom'>('normal');
   
   const [customSettings, setCustomSettings] = useState({
-      timer: false,
-      firewall: true, // هذا الزر يمثل الـ Firewall والـ DDOS معاً
-      virus: false, 
-      bruteforce: true,
-      changeDigit: true,
-      swapDigits: true
+      timer: false, firewall: true, virus: false, bruteforce: true, changeDigit: true, swapDigits: true,
+      emp: false, spyware: false, honeypot: false // NEW POWERUPS ADDED
   });
 
-  // حساب عدد القدرات المفعلة حالياً (بحد أقصى 5 قدرات ممكنة)
+  // حساب عدد القدرات المفعلة حالياً
   const activePowerupsCount = [
-    customSettings.firewall,
-    customSettings.virus,
-    customSettings.bruteforce,
-    customSettings.changeDigit,
-    customSettings.swapDigits
+    customSettings.firewall, customSettings.virus, customSettings.bruteforce, customSettings.changeDigit, customSettings.swapDigits,
+    customSettings.emp, customSettings.spyware, customSettings.honeypot
   ].filter(Boolean).length;
 
   // دالة التحكم في التفعيل لضمان عدم تجاوز 4 قدرات
@@ -115,10 +108,15 @@ export default function Landing() {
                     onChange={(v: boolean) => togglePowerup('firewall', v)} 
                  />
 
-                 <CyberToggle label="VIRUS (DELETE LOGS)" icon={<Bug className="w-3 h-3"/>} colorClass="text-green-500" checked={customSettings.virus} onChange={(v: boolean) => togglePowerup('virus', v)} />
                  <CyberToggle label="BRUTEFORCE" icon={<Zap className="w-3 h-3"/>} colorClass="text-red-500" checked={customSettings.bruteforce} onChange={(v: boolean) => togglePowerup('bruteforce', v)} />
                  <CyberToggle label="CHANGE DIGIT" icon={<Edit2 className="w-3 h-3"/>} colorClass="text-blue-500" checked={customSettings.changeDigit} onChange={(v: boolean) => togglePowerup('changeDigit', v)} />
                  <CyberToggle label="SWAP DIGITS" icon={<Shuffle className="w-3 h-3"/>} colorClass="text-purple-500" checked={customSettings.swapDigits} onChange={(v: boolean) => togglePowerup('swapDigits', v)} />
+                 
+                 {/* --- THE NEW ARSENAL --- */}
+                 <CyberToggle label="VIRUS (DELETE LOGS)" icon={<Bug className="w-3 h-3"/>} colorClass="text-green-500" checked={customSettings.virus} onChange={(v: boolean) => togglePowerup('virus', v)} />
+                 <CyberToggle label="EMP (JAM SIGNAL)" icon={<Radio className="w-3 h-3"/>} colorClass="text-cyan-400" checked={customSettings.emp} onChange={(v: boolean) => togglePowerup('emp', v)} />
+                 <CyberToggle label="SPYWARE (DATA LEAK)" icon={<Eye className="w-3 h-3"/>} colorClass="text-emerald-400" checked={customSettings.spyware} onChange={(v: boolean) => togglePowerup('spyware', v)} />
+                 <CyberToggle label="HONEYPOT (PROXY LIE)" icon={<Ghost className="w-3 h-3"/>} colorClass="text-indigo-400" checked={customSettings.honeypot} onChange={(v: boolean) => togglePowerup('honeypot', v)} />
               </motion.div>
             )}
           </AnimatePresence>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import { Shield, Zap, Terminal, ArrowLeft, Play, RefreshCw, Edit2, Shuffle, Timer, Bug, Settings2 } from "lucide-react";
+import { Shield, Zap, Terminal, ArrowLeft, Play, RefreshCw, Edit2, Shuffle, Timer, Bug, Settings2, Eye, Ghost, Radio } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -170,7 +170,7 @@ export default function HowToPlay() {
                      </div>
                      <div className="p-3 bg-red-900/10 border border-red-500/20 rounded">
                          <span className="text-red-400 font-bold text-sm flex items-center gap-1 mb-1"><Timer className="w-4 h-4" /> BLITZ MODE</span>
-                         <span className="text-xs opacity-70">30 seconds per turn. Firewall powerup is replaced with DDOS attack.</span>
+                         <span className="text-xs opacity-70">30 seconds per turn. If time runs out, your turn is skipped. The Firewall powerup is replaced with DDOS.</span>
                      </div>
                      <div className="p-3 bg-purple-900/10 border border-purple-500/20 rounded">
                          <span className="text-purple-400 font-bold text-sm flex items-center gap-1 mb-1"><Zap className="w-4 h-4" /> GLITCH MODE</span>
@@ -183,7 +183,7 @@ export default function HowToPlay() {
                 </div>
             </div>
 
-            {/* --- ARSENAL SECTION --- */}
+            {/* --- NEW ARSENAL SECTION WITH ALL 8 POWERUPS --- */}
             <div className="bg-black/40 border border-primary/20 p-5 rounded-lg space-y-4 hover:border-primary/50 transition-colors mb-8">
                  <h3 className="flex items-center gap-2 font-bold text-lg text-white">
                     <Zap className="w-5 h-5 text-yellow-500" /> ARSENAL (1-TIME USE)
@@ -213,10 +213,25 @@ export default function HowToPlay() {
                         <div className="text-[10px] font-bold text-white mb-1">CHANGE DIGIT</div>
                         <p className="text-[9px] opacity-60 leading-tight">Mutate one digit of your master code.</p>
                     </div>
-                    <div className="col-span-2 p-3 bg-primary/5 rounded border border-primary/10 text-center flex flex-col justify-center">
+                    <div className="p-3 bg-primary/5 rounded border border-primary/10 text-center flex flex-col justify-center">
                         <Shuffle className="w-5 h-5 mx-auto mb-2 text-purple-500" />
                         <div className="text-[10px] font-bold text-white mb-1">SWAP DIGITS</div>
                         <p className="text-[9px] opacity-60 leading-tight">Swap positions of two digits in your code.</p>
+                    </div>
+                    <div className="p-3 bg-primary/5 rounded border border-primary/10 text-center flex flex-col justify-center">
+                        <Radio className="w-5 h-5 mx-auto mb-2 text-cyan-400" />
+                        <div className="text-[10px] font-bold text-white mb-1">EMP JAMMER</div>
+                        <p className="text-[9px] opacity-60 leading-tight">Jams enemy signal. Their next guess gives corrupted data.</p>
+                    </div>
+                    <div className="p-3 bg-primary/5 rounded border border-primary/10 text-center flex flex-col justify-center">
+                        <Eye className="w-5 h-5 mx-auto mb-2 text-emerald-400" />
+                        <div className="text-[10px] font-bold text-white mb-1">SPYWARE</div>
+                        <p className="text-[9px] opacity-60 leading-tight">Calculates and reveals the sum of enemy digits.</p>
+                    </div>
+                    <div className="p-3 bg-primary/5 rounded border border-primary/10 text-center flex flex-col justify-center">
+                        <Ghost className="w-5 h-5 mx-auto mb-2 text-indigo-400" />
+                        <div className="text-[10px] font-bold text-white mb-1">HONEYPOT</div>
+                        <p className="text-[9px] opacity-60 leading-tight">Generates fake feedback data for the enemy's next guess.</p>
                     </div>
                 </div>
             </div>

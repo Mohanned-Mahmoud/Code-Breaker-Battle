@@ -2,33 +2,69 @@ import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
-  Loader2, Share2, Lock, Shield, Zap, Terminal, Info, Edit2, Shuffle, Timer, Settings2, Bug
+  Loader2, Share2, Lock, Shield, Zap, Terminal, Info, Edit2, Shuffle, Timer, Settings2, Bug, Eye, Ghost, Radio
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { type GameStateResponse, type GameLog } from "@shared/schema";
 
 const useSFX = () => {
-  const playTyping = () => { const a = new Audio("https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3"); a.volume = 0.2; a.play().catch(()=>{}); };
-  const playBeep = () => { const a = new Audio("https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3"); a.volume = 0.3; a.play().catch(()=>{}); };
+  const playTyping = () => {
+    const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3");
+    audio.volume = 0.2;
+    audio.play().catch(() => {});
+  };
+  const playBeep = () => {
+    const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3");
+    audio.volume = 0.3;
+    audio.play().catch(() => {});
+  };
   return { playTyping, playBeep };
 };
 
 function TerminalLog({ logs }: { logs: GameLog[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [logs]);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [logs]);
+  
   return (
-    <div ref={scrollRef} className="font-mono text-xs md:text-sm flex-1 min-h-0 overflow-y-auto p-4 bg-black/60 border border-primary/20 rounded-sm custom-scrollbar relative">
-      <style>{`.custom-scrollbar::-webkit-scrollbar { width: 5px; display: block; } .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0, 20, 0, 0.3); } .custom-scrollbar::-webkit-scrollbar-thumb { background: #00ff00; border-radius: 4px; }`}</style>
+    <div 
+      ref={scrollRef} 
+      className="font-mono text-xs md:text-sm flex-1 min-h-0 overflow-y-auto p-4 bg-black/60 border border-primary/20 rounded-sm custom-scrollbar relative"
+    >
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; display: block; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0, 20, 0, 0.3); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #00ff00; border-radius: 4px; }
+      `}</style>
+      
       <div className="flex flex-col-reverse space-y-reverse space-y-2">
         <AnimatePresence initial={false}>
           {logs.slice().reverse().map((log) => (
             <motion.div key={log.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex gap-2">
               <span className="opacity-40 select-none">[{new Date(log.timestamp!).toLocaleTimeString()}]</span>
-              <span className={cn("flex-1 break-words font-medium", log.message.includes("[P1]") ? "text-cyan-400" : log.message.includes("[P2]") ? "text-fuchsia-400" : log.type === 'success' ? 'text-green-500' : log.type === 'error' ? 'text-red-500' : log.type === 'warning' ? 'text-yellow-500' : 'text-primary/70')}>{">"} {log.message}</span>
+              <span className={cn(
+                "flex-1 break-words font-medium",
+                log.message.includes("[P1]") ? "text-cyan-400" :      
+                log.message.includes("[P2]") ? "text-fuchsia-400" :   
+                log.type === 'success' ? 'text-green-500' : 
+                log.type === 'error' ? 'text-red-500' : 
+                log.type === 'warning' ? 'text-yellow-500' : 'text-primary/70'
+              )}>
+                {">"} {log.message}
+              </span>
             </motion.div>
           ))}
         </AnimatePresence>
@@ -38,34 +74,78 @@ function TerminalLog({ logs }: { logs: GameLog[] }) {
   );
 }
 
-function DigitInput({ value, onChange, disabled, variant = 'default' }: { value: string, onChange: (val: string) => void, disabled?: boolean, variant?: 'default' | 'p1' | 'p2' }) {
-  const inputs = useRef<(HTMLInputElement | null)[]>([]); const { playTyping } = useSFX();
-  const handleChange = (index: number, val: string) => { if (!/^\d*$/.test(val)) return; const newVal = value.split(''); newVal[index] = val.slice(-1); onChange(newVal.join('')); if (val && index < 3) inputs.current[index + 1]?.focus(); playTyping(); };
-  const handleKeyDown = (index: number, e: React.KeyboardEvent) => { if (e.key === 'Backspace' && !value[index] && index > 0) inputs.current[index - 1]?.focus(); };
+function DigitInput({ value, onChange, disabled, variant = 'default' }: { 
+  value: string, onChange: (val: string) => void, disabled?: boolean, variant?: 'default' | 'p1' | 'p2'
+}) {
+  const inputs = useRef<(HTMLInputElement | null)[]>([]);
+  const { playTyping } = useSFX();
+
+  const handleChange = (index: number, val: string) => {
+    if (!/^\d*$/.test(val)) return;
+    const newVal = value.split(''); newVal[index] = val.slice(-1);
+    onChange(newVal.join(''));
+    if (val && index < 3) inputs.current[index + 1]?.focus();
+    playTyping();
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !value[index] && index > 0) inputs.current[index - 1]?.focus();
+  };
+
   return (
     <div className="flex gap-4 justify-center">
       {[0, 1, 2, 3].map((i) => (
-        <input key={i} ref={el => inputs.current[i] = el} type="text" inputMode="numeric" maxLength={1} value={value[i] || ""} disabled={disabled} onChange={(e) => handleChange(i, e.target.value)} onKeyDown={(e) => handleKeyDown(i, e)} className={cn("w-12 h-12 md:w-16 md:h-16 bg-black text-center text-2xl font-bold rounded-sm border-2 transition-all outline-none", "neon-border focus:scale-105 disabled:opacity-50 disabled:cursor-not-allowed", variant === 'p1' ? 'border-cyan-500 text-cyan-500' : variant === 'p2' ? 'border-fuchsia-500 text-fuchsia-500' : 'border-primary text-primary')} />
+        <input
+          key={i} ref={el => inputs.current[i] = el} type="text" inputMode="numeric" maxLength={1} value={value[i] || ""} disabled={disabled}
+          onChange={(e) => handleChange(i, e.target.value)} onKeyDown={(e) => handleKeyDown(i, e)}
+          className={cn(
+            "w-12 h-12 md:w-16 md:h-16 bg-black text-center text-2xl font-bold rounded-sm border-2 transition-all outline-none",
+            "neon-border focus:scale-105 disabled:opacity-50 disabled:cursor-not-allowed",
+            variant === 'p1' ? 'border-cyan-500 text-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 
+            variant === 'p2' ? 'border-fuchsia-500 text-fuchsia-500 shadow-[0_0_10px_rgba(232,121,249,0.5)]' : 'border-primary text-primary'
+          )}
+        />
       ))}
     </div>
   );
 }
 
 export default function GameRoom() {
-  const [, params] = useRoute("/game/:id"); const [, setLocation] = useLocation(); const { toast } = useToast(); const queryClient = useQueryClient(); const { playBeep } = useSFX();
+  const [, params] = useRoute("/game/:id");
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { playBeep } = useSFX();
+  
   const id = parseInt(params?.id || "0");
-  const [guessVal, setGuessVal] = useState(""); const [setupCode, setSetupCode] = useState(""); const [showTransition, setShowTransition] = useState(false);
+  const [guessVal, setGuessVal] = useState("");
+  const [setupCode, setSetupCode] = useState("");
+  const [showTransition, setShowTransition] = useState(false);
+
   const [powerupState, setPowerupState] = useState<{ active: 'change' | 'swap' | null; code: string; step1Index: number | null; }>({ active: null, code: "", step1Index: null });
-  const [myRole, setMyRole] = useState<'p1' | 'p2' | null>(() => { const saved = localStorage.getItem(`role_${id}`); return (saved === 'p1' || saved === 'p2') ? saved : null; });
 
-  const fetchMyCode = async () => { const res = await fetch(`/api/games/${id}/code/${myRole}`); return (await res.json()).code; };
+  const [myRole, setMyRole] = useState<'p1' | 'p2' | null>(() => {
+    const saved = localStorage.getItem(`role_${id}`); return (saved === 'p1' || saved === 'p2') ? saved : null;
+  });
 
-  const { data: game, isLoading, error } = useQuery<GameStateResponse>({ queryKey: ['game', id], queryFn: () => fetch(`/api/games/${id}`).then(res => res.json()), refetchInterval: 1000 });
-  const { data: logs = [] } = useQuery<GameLog[]>({ queryKey: ['logs', id], queryFn: () => fetch(`/api/games/${id}/logs`).then(res => res.json()), refetchInterval: 1000 });
+  const fetchMyCode = async () => {
+    const res = await fetch(`/api/games/${id}/code/${myRole}`); return (await res.json()).code;
+  };
+
+  const { data: game, isLoading, error } = useQuery<GameStateResponse>({
+    queryKey: ['game', id], queryFn: () => fetch(`/api/games/${id}`).then(res => res.json()), refetchInterval: 1000
+  });
+
+  const { data: logs = [] } = useQuery<GameLog[]>({
+    queryKey: ['logs', id], queryFn: () => fetch(`/api/games/${id}/logs`).then(res => res.json()), refetchInterval: 1000
+  });
 
   const setupMutation = useMutation({
     mutationFn: (data: any) => fetch(`/api/games/${id}/setup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(res => res.json()),
-    onSuccess: (data, variables) => { setMyRole(variables.player); localStorage.setItem(`role_${id}`, variables.player); setSetupCode(""); setShowTransition(true); setTimeout(() => setShowTransition(false), 3000); queryClient.invalidateQueries({ queryKey: ['game', id] }); }
+    onSuccess: (data, variables) => {
+      setMyRole(variables.player); localStorage.setItem(`role_${id}`, variables.player); setSetupCode("");
+      setShowTransition(true); setTimeout(() => setShowTransition(false), 3000); queryClient.invalidateQueries({ queryKey: ['game', id] });
+    }
   });
 
   const guessMutation = useMutation({
@@ -75,7 +155,7 @@ export default function GameRoom() {
 
   const powerupMutation = useMutation({
     mutationFn: (args: any) => fetch(`/api/games/${id}/powerup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ player: myRole, ...args }) }).then(res => res.json()),
-    onSuccess: () => { toast({ title: "SYSTEM UPDATE", description: "Powerup Activated" }); queryClient.invalidateQueries({ queryKey: ['game', id] }); },
+    onSuccess: () => { toast({ title: "SYSTEM UPDATE", description: "Powerup Activated Successfully" }); queryClient.invalidateQueries({ queryKey: ['game', id] }); },
     onError: (err) => { toast({ title: "ERROR", description: err.message, variant: "destructive" }); }
   });
 
@@ -89,16 +169,24 @@ export default function GameRoom() {
     onSuccess: () => { toast({ title: "TIMEOUT", description: "You took too long! Turn skipped.", variant: "destructive" }); setGuessVal(""); setPowerupState({ active: null, code: "", step1Index: null }); queryClient.invalidateQueries({ queryKey: ['game', id] }); }
   });
 
-  const activeP = game?.turn; const isMyTurn = myRole === activeP;
-  const g = game as any; const isBlitz = g?.mode === 'blitz'; const isGlitch = g?.mode === 'glitch'; const isCustom = g?.mode === 'custom';
-  const isTimed = isBlitz || (isCustom && g?.customTimer);
+  const activeP = game?.turn;
+  const isMyTurn = myRole === activeP;
   
   // --- CONDITIONAL CHECKS FOR MODES AND CUSTOM SETTINGS ---
-const showFirewallOrDdos = isCustom ? g?.allowFirewall : true; 
-  const showVirus = isCustom ? g?.allowVirus : false; // يتم إخفاؤه في الأطوار العادية للحفاظ على شكل الشبكة 2x2
+  const g = game as any;
+  const isBlitz = g?.mode === 'blitz';
+  const isGlitch = g?.mode === 'glitch';
+  const isCustom = g?.mode === 'custom';
+  const isTimed = isBlitz || (isCustom && g?.customTimer);
+  
+  const showFirewallOrDdos = isCustom ? g?.allowFirewall : true; 
+  const showVirus = isCustom ? g?.allowVirus : false; 
   const showBruteforce = isCustom ? g?.allowBruteforce : true;
   const showChangeDigit = isCustom ? g?.allowChangeDigit : true;
   const showSwapDigits = isCustom ? g?.allowSwapDigits : true;
+  const showEmp = isCustom ? g?.allowEmp : false;
+  const showSpyware = isCustom ? g?.allowSpyware : false;
+  const showHoneypot = isCustom ? g?.allowHoneypot : false;
 
   useEffect(() => {
     if (isTimed && game?.status === 'playing' && isMyTurn) {
@@ -113,7 +201,10 @@ const showFirewallOrDdos = isCustom ? g?.allowFirewall : true;
     return (
       <div className="h-screen flex flex-col items-center justify-center p-4">
         <h1 className="text-5xl font-black glitch-effect uppercase text-center"><span className={game.winner === 'p1' ? "text-cyan-500" : "text-fuchsia-500"}>P{game.winner === 'p1' ? '01' : '02'}</span> VICTORIOUS</h1>
-        <div className="flex gap-4 mt-8"><Button variant="outline" className="neon-border" onClick={() => setLocation("/")}>EXIT ROOM</Button><Button className="neon-border bg-primary/20 hover:bg-primary/40" onClick={() => restartMutation.mutate()} disabled={restartMutation.isPending}>PLAY AGAIN</Button></div>
+        <div className="flex gap-4 mt-8">
+          <Button variant="outline" className="neon-border" onClick={() => setLocation("/")}>EXIT ROOM</Button>
+          <Button className="neon-border bg-primary/20 hover:bg-primary/40" onClick={() => restartMutation.mutate()} disabled={restartMutation.isPending}>{restartMutation.isPending ? "REBOOTING..." : "PLAY AGAIN"}</Button>
+        </div>
       </div>
     );
   }
@@ -127,25 +218,34 @@ const showFirewallOrDdos = isCustom ? g?.allowFirewall : true;
             <h2 className="text-xl font-mono tracking-widest text-primary">WAITING FOR OPPONENT...</h2>
             <div className="p-4 border border-primary/20 rounded bg-primary/5">
                 <p className="text-xs opacity-50 mb-2">SEND THIS UPLINK TO PLAYER 2:</p>
-                <div className="flex gap-2"><code className="bg-black p-2 rounded text-xs select-all">{window.location.href}</code><Button size="icon" variant="ghost" onClick={() => { navigator.clipboard.writeText(window.location.href); toast({ title: "Copied!" }); }}><Share2 className="w-4 h-4" /></Button></div>
+                <div className="flex gap-2">
+                    <code className="bg-black p-2 rounded text-xs select-all">{window.location.href}</code>
+                    <Button size="icon" variant="ghost" onClick={() => { navigator.clipboard.writeText(window.location.href); toast({ title: "Copied!" }); }}><Share2 className="w-4 h-4" /></Button>
+                </div>
             </div>
          </div>
        );
     }
+
     if (showTransition) return <div className="h-screen flex flex-col items-center justify-center bg-black"><h1 className="text-3xl font-bold tracking-widest">ENCRYPTION LOCKED</h1></div>;
+
     return (
       <div className="h-screen flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-sm p-8 bg-black/40 border border-primary/30 rounded-sm space-y-10">
-          <div className="text-center space-y-2"><Lock className="w-10 h-10 mx-auto text-primary opacity-50" /><h1 className="text-2xl font-bold tracking-widest uppercase">PLAYER <span className={targetRole === 'p1' ? "text-cyan-500" : "text-fuchsia-500"}>{targetRole === 'p1' ? '01' : '02'}</span></h1><p className="text-xs font-mono opacity-50">DEFINE YOUR 4-DIGIT MASTER KEY</p></div>
+          <div className="text-center space-y-2">
+            <Lock className="w-10 h-10 mx-auto text-primary opacity-50" />
+            <h1 className="text-2xl font-bold tracking-widest uppercase">PLAYER <span className={targetRole === 'p1' ? "text-cyan-500" : "text-fuchsia-500"}>{targetRole === 'p1' ? '01' : '02'}</span></h1>
+            <p className="text-xs font-mono opacity-50">DEFINE YOUR 4-DIGIT MASTER KEY</p>
+          </div>
           <DigitInput value={setupCode} onChange={setSetupCode} variant={targetRole} />
-          <Button className="w-full h-12 neon-border bg-primary/10 hover:bg-primary/20" disabled={setupCode.length < 4 || setupMutation.isPending} onClick={() => setupMutation.mutate({ player: targetRole, code: setupCode })}>INITIALIZE KEY</Button>
+          <Button className="w-full h-12 neon-border bg-primary/10 hover:bg-primary/20" disabled={setupCode.length < 4 || setupMutation.isPending} onClick={() => setupMutation.mutate({ player: targetRole, code: setupCode })}>{setupMutation.isPending ? "ENCRYPTING..." : "INITIALIZE KEY"}</Button>
         </div>
       </div>
     );
   }
 
-  const p1Powerups = { firewall: game.p1FirewallUsed ?? false, timeHack: g.p1TimeHackUsed ?? false, virus: g.p1VirusUsed ?? false, bruteforce: game.p1BruteforceUsed ?? false, changeDigit: g.p1ChangeDigitUsed ?? false, swapDigits: g.p1SwapDigitsUsed ?? false };
-  const p2Powerups = { firewall: game.p2FirewallUsed ?? false, timeHack: g.p2TimeHackUsed ?? false, virus: g.p2VirusUsed ?? false, bruteforce: game.p2BruteforceUsed ?? false, changeDigit: g.p2ChangeDigitUsed ?? false, swapDigits: g.p2SwapDigitsUsed ?? false };
+  const p1Powerups = { firewall: game.p1FirewallUsed ?? false, timeHack: g.p1TimeHackUsed ?? false, virus: g.p1VirusUsed ?? false, bruteforce: game.p1BruteforceUsed ?? false, changeDigit: g.p1ChangeDigitUsed ?? false, swapDigits: g.p1SwapDigitsUsed ?? false, emp: g.p1EmpUsed ?? false, spyware: g.p1SpywareUsed ?? false, honeypot: g.p1HoneypotUsed ?? false };
+  const p2Powerups = { firewall: game.p2FirewallUsed ?? false, timeHack: g.p2TimeHackUsed ?? false, virus: g.p2VirusUsed ?? false, bruteforce: game.p2BruteforceUsed ?? false, changeDigit: g.p2ChangeDigitUsed ?? false, swapDigits: g.p2SwapDigitsUsed ?? false, emp: g.p2EmpUsed ?? false, spyware: g.p2SpywareUsed ?? false, honeypot: g.p2HoneypotUsed ?? false };
   const myPowerups = myRole === 'p1' ? p1Powerups : p2Powerups;
 
   return (
@@ -213,6 +313,24 @@ const showFirewallOrDdos = isCustom ? g?.allowFirewall : true;
                             <span className="text-[10px] block opacity-70">Swap positions of two digits.</span>
                           </div>
                         )}
+                        {showEmp && (
+                          <div className="border border-primary/20 p-2 rounded bg-black/50">
+                            <strong className="text-cyan-400 block mb-1 flex items-center gap-1"><Radio className="w-3 h-3"/> EMP JAMMER</strong>
+                            <span className="text-[10px] block opacity-70">Jams enemy signals. Next guess returns corrupted data.</span>
+                          </div>
+                        )}
+                        {showSpyware && (
+                          <div className="border border-primary/20 p-2 rounded bg-black/50">
+                            <strong className="text-emerald-400 block mb-1 flex items-center gap-1"><Eye className="w-3 h-3"/> SPYWARE</strong>
+                            <span className="text-[10px] block opacity-70">Calculates and reveals the sum of enemy digits.</span>
+                          </div>
+                        )}
+                        {showHoneypot && (
+                          <div className="border border-primary/20 p-2 rounded bg-black/50">
+                            <strong className="text-indigo-400 block mb-1 flex items-center gap-1"><Ghost className="w-3 h-3"/> HONEYPOT</strong>
+                            <span className="text-[10px] block opacity-70">Generates fake feedback data for the enemy's next guess.</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -221,18 +339,39 @@ const showFirewallOrDdos = isCustom ? g?.allowFirewall : true;
               </DialogContent>
             </Dialog>
             <div className="space-y-1">
-              <h2 className="text-xs opacity-50 font-mono tracking-widest flex gap-1">SESSION { isBlitz && <span className="text-red-500 font-bold">[BLITZ]</span> }{ isGlitch && <span className="text-purple-500 font-bold">[GLITCH]</span> }{ isCustom && <span className="text-blue-500 font-bold"><Settings2 className="w-3 h-3 inline"/></span> }</h2>
+              <h2 className="text-xs opacity-50 font-mono tracking-widest flex gap-1">
+                SESSION 
+                { isBlitz && <span className="text-red-500 font-bold">[BLITZ]</span> }
+                { isGlitch && <span className="text-purple-500 font-bold">[GLITCH]</span> }
+                { isCustom && <span className="text-blue-500 font-bold"><Settings2 className="w-3 h-3 inline"/></span> }
+              </h2>
               <p className="text-lg font-bold tracking-tighter">{id}</p>
             </div>
           </div>
+
           <div className="text-center absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
-            {isTimed && <div className={cn("text-3xl font-black font-mono tracking-widest mb-1 transition-colors text-center", (g?.timeLeft ?? 30) <= 10 ? "text-red-500 animate-pulse drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]" : "text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]")}>00:{String(g?.timeLeft ?? 0).padStart(2, '0')}</div>}
-            <div className={cn("px-4 py-1 border rounded-full text-[10px] font-bold tracking-widest transition-all", isMyTurn ? "border-primary text-primary animate-pulse" : "border-primary/30 text-primary/30")}>{isMyTurn ? "YOUR TURN" : `WAITING...`}</div>
+            {isTimed && (
+              <div className={cn("text-3xl font-black font-mono tracking-widest mb-1 transition-colors text-center", (g?.timeLeft ?? 30) <= 10 ? "text-red-500 animate-pulse drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]" : "text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]")}>
+                 00:{String(g?.timeLeft ?? 0).padStart(2, '0')}
+              </div>
+            )}
+            {isGlitch && (
+              <div className="mb-2 px-2 py-1 text-[10px] font-bold tracking-widest text-purple-400 border border-purple-500/30 rounded bg-purple-500/10 animate-pulse">
+                  GLITCH IN: {3 - ((g?.turnCount || 0) % 3)}
+              </div>
+            )}
+            <div className={cn("px-4 py-1 border rounded-full text-[10px] font-bold tracking-widest transition-all", isMyTurn ? "border-primary text-primary animate-pulse" : "border-primary/30 text-primary/30")}>
+              {isMyTurn ? "YOUR TURN" : `WAITING...`}
+            </div>
           </div>
-          <div className="flex gap-2"><Button size="icon" variant="ghost" className="h-8 w-8 text-primary/40 hover:text-primary" onClick={() => { navigator.clipboard.writeText(window.location.href); toast({ title: "Uplink copied" }); }}><Share2 className="h-4 w-4" /></Button></div>
+          
+          <div className="flex gap-2">
+            <Button size="icon" variant="ghost" className="h-8 w-8 text-primary/40 hover:text-primary" onClick={() => { navigator.clipboard.writeText(window.location.href); toast({ title: "Uplink copied" }); }}><Share2 className="h-4 w-4" /></Button>
+          </div>
         </div>
 
         <div className="flex-1 flex flex-col md:grid md:grid-cols-2 gap-4 min-h-0 overflow-hidden">
+          
           <div className="flex-shrink-0 flex flex-col space-y-4 md:space-y-6 justify-center items-center bg-black/20 p-4 md:p-8 border border-primary/10 rounded-sm relative min-h-[350px]">
             <div className="absolute top-2 left-2 text-[10px] font-mono opacity-30">IDENTITY: <span className={myRole === 'p1' ? "text-cyan-500" : "text-fuchsia-500"}>{myRole === 'p1' ? 'PLAYER 01' : 'PLAYER 02'}</span></div>
             
@@ -241,12 +380,13 @@ const showFirewallOrDdos = isCustom ? g?.allowFirewall : true;
                 <div className="space-y-2 text-center"><h3 className={cn("text-sm font-bold animate-pulse tracking-widest uppercase", powerupState.active === 'change' ? "text-blue-500" : "text-purple-500")}>{powerupState.active === 'change' ? "Select Digit to Mutate" : "Select Two Digits to Swap"}</h3></div>
                 <div className="flex gap-4 justify-center">
                   {powerupState.code.split('').map((digit, i) => {
-                     if (powerupState.active === 'change' && powerupState.step1Index === i) return <input key={i} autoFocus className="w-12 h-12 md:w-16 md:h-16 bg-white text-black text-center text-2xl font-bold rounded-sm outline-none border-2 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)]" maxLength={1} onChange={(e) => { const val = e.target.value; if (/^\d$/.test(val)) { powerupMutation.mutate({ type: 'changeDigit', targetIndex: i, newDigit: val }); setPowerupState({ active: null, code: "", step1Index: null }); } }} />;
+                     if (powerupState.active === 'change' && powerupState.step1Index === i) {return <input key={i} autoFocus className="w-12 h-12 md:w-16 md:h-16 bg-white text-black text-center text-2xl font-bold rounded-sm outline-none border-2 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)]" maxLength={1} onChange={(e) => { const val = e.target.value; if (/^\d$/.test(val)) { powerupMutation.mutate({ type: 'changeDigit', targetIndex: i, newDigit: val }); setPowerupState({ active: null, code: "", step1Index: null }); } }} />;
+                     }
                      const isSelected = powerupState.step1Index === i;
                      return <button key={i} className={cn("w-12 h-12 md:w-16 md:h-16 bg-black text-center text-2xl font-bold rounded-sm border-2 transition-all outline-none neon-border", isSelected ? "border-white text-white scale-110 shadow-[0_0_15px_rgba(255,255,255,0.5)]" : "border-primary/50 text-primary/50 hover:border-primary hover:text-primary")} onClick={() => { if (powerupState.active === 'change') { setPowerupState(prev => ({ ...prev, step1Index: i })); } else if (powerupState.active === 'swap') { if (powerupState.step1Index === null) { setPowerupState(prev => ({ ...prev, step1Index: i })); } else { if (powerupState.step1Index === i) { setPowerupState(prev => ({ ...prev, step1Index: null })); return; } powerupMutation.mutate({ type: 'swapDigits', swapIndex1: powerupState.step1Index, swapIndex2: i }); setPowerupState({ active: null, code: "", step1Index: null }); } } }}>{digit}</button>;
                   })}
                 </div>
-                <Button variant="ghost" className="mt-4 text-xs opacity-50 text-red-400 hover:text-red-300" onClick={() => setPowerupState({ active: null, code: "", step1Index: null })}>ABORT</Button>
+                <Button variant="ghost" className="mt-4 text-xs opacity-50 hover:opacity-100 text-red-400 hover:text-red-300" onClick={() => setPowerupState({ active: null, code: "", step1Index: null })}>ABORT MODIFICATION</Button>
               </div>
             ) : (
               <>
@@ -257,7 +397,7 @@ const showFirewallOrDdos = isCustom ? g?.allowFirewall : true;
                 
                 <DigitInput value={guessVal} onChange={setGuessVal} disabled={!isMyTurn} variant={activeP as 'p1' | 'p2'} />
 
-{(!showFirewallOrDdos && !showVirus && !showBruteforce && !showChangeDigit && !showSwapDigits) ? (
+                {(!showFirewallOrDdos && !showVirus && !showBruteforce && !showChangeDigit && !showSwapDigits && !showEmp && !showSpyware && !showHoneypot) ? (
                    <div className="text-[10px] font-mono opacity-30 border border-primary/10 p-2 rounded w-full max-w-sm text-center">NO POWERUPS ENABLED</div>
                 ) : (
                   <div className="grid grid-cols-2 gap-2 w-full max-w-sm mt-4">
@@ -272,6 +412,11 @@ const showFirewallOrDdos = isCustom ? g?.allowFirewall : true;
                       {showBruteforce && <Button variant="outline" className="w-full border-red-500/50 text-red-500 hover:bg-red-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.bruteforce || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'bruteforce' })}><Zap className="w-3 h-3 mr-1" /> BRUTEFORCE</Button>}
                       {showChangeDigit && <Button variant="outline" className="w-full border-blue-500/50 text-blue-500 hover:bg-blue-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.changeDigit || powerupMutation.isPending} onClick={async () => { const code = await fetchMyCode(); setPowerupState({ active: 'change', code, step1Index: null }); }}><Edit2 className="w-3 h-3 mr-1" /> CHANGE DIGIT</Button>}
                       {showSwapDigits && <Button variant="outline" className="w-full border-purple-500/50 text-purple-500 hover:bg-purple-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.swapDigits || powerupMutation.isPending} onClick={async () => { const code = await fetchMyCode(); setPowerupState({ active: 'swap', code, step1Index: null }); }}><Shuffle className="w-3 h-3 mr-1" /> SWAP DIGITS</Button>}
+                      
+                      {/* --- THE NEW EVIL ARSENAL BUTTONS --- */}
+                      {showEmp && <Button variant="outline" className="w-full border-cyan-500/50 text-cyan-500 hover:bg-cyan-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.emp || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'emp' })}><Radio className="w-3 h-3 mr-1" /> EMP JAMMER</Button>}
+                      {showSpyware && <Button variant="outline" className="w-full border-emerald-500/50 text-emerald-500 hover:bg-emerald-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.spyware || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'spyware' })}><Eye className="w-3 h-3 mr-1" /> SPYWARE</Button>}
+                      {showHoneypot && <Button variant="outline" className="w-full border-indigo-500/50 text-indigo-500 hover:bg-indigo-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.honeypot || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'honeypot' })}><Ghost className="w-3 h-3 mr-1" /> HONEYPOT</Button>}
                   </div>
                 )}
 

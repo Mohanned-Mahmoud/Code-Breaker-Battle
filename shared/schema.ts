@@ -17,11 +17,14 @@ export const games = pgTable("games", {
   
   // --- CUSTOM MODE SETTINGS ---
   customTimer: boolean("custom_timer").default(false),
-  allowFirewall: boolean("allow_firewall").default(true), // Controls both Firewall and DDOS
+  allowFirewall: boolean("allow_firewall").default(true),
   allowVirus: boolean("allow_virus").default(true),
   allowBruteforce: boolean("allow_bruteforce").default(true),
   allowChangeDigit: boolean("allow_change_digit").default(true),
   allowSwapDigits: boolean("allow_swap_digits").default(true),
+  allowEmp: boolean("allow_emp").default(false), // NEW
+  allowSpyware: boolean("allow_spyware").default(false), // NEW
+  allowHoneypot: boolean("allow_honeypot").default(false), // NEW
 
   createdAt: timestamp("created_at").defaultNow(),
 
@@ -34,6 +37,9 @@ export const games = pgTable("games", {
   p1BruteforceUsed: boolean("p1_bruteforce_used").default(false),
   p1ChangeDigitUsed: boolean("p1_change_digit_used").default(false),
   p1SwapDigitsUsed: boolean("p1_swap_digits_used").default(false),
+  p1EmpUsed: boolean("p1_emp_used").default(false), // NEW
+  p1SpywareUsed: boolean("p1_spyware_used").default(false), // NEW
+  p1HoneypotUsed: boolean("p1_honeypot_used").default(false), // NEW
 
   // Player 2
   p2Code: text("p2_code"),
@@ -44,6 +50,15 @@ export const games = pgTable("games", {
   p2BruteforceUsed: boolean("p2_bruteforce_used").default(false),
   p2ChangeDigitUsed: boolean("p2_change_digit_used").default(false),
   p2SwapDigitsUsed: boolean("p2_swap_digits_used").default(false),
+  p2EmpUsed: boolean("p2_emp_used").default(false), // NEW
+  p2SpywareUsed: boolean("p2_spyware_used").default(false), // NEW
+  p2HoneypotUsed: boolean("p2_honeypot_used").default(false), // NEW
+
+  // --- STEALTH EFFECTS STATE ---
+  p1Jammed: boolean("p1_jammed").default(false),
+  p2Jammed: boolean("p2_jammed").default(false),
+  p1Honeypoted: boolean("p1_honeypoted").default(false),
+  p2Honeypoted: boolean("p2_honeypoted").default(false),
 });
 
 export const guesses = pgTable("guesses", {

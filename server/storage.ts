@@ -28,6 +28,9 @@ export class DatabaseStorage implements IStorage {
         insertData.allowBruteforce = customSettings.bruteforce;
         insertData.allowChangeDigit = customSettings.changeDigit;
         insertData.allowSwapDigits = customSettings.swapDigits;
+        insertData.allowEmp = customSettings.emp;
+        insertData.allowSpyware = customSettings.spyware;
+        insertData.allowHoneypot = customSettings.honeypot;
     }
     
     const [game] = await db.insert(games).values(insertData).returning();
@@ -68,12 +71,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deletePlayerLogs(gameId: number, playerLabel: string): Promise<void> {
-    await db.delete(logs).where(
-      and(
-        eq(logs.gameId, gameId),
-        like(logs.message, `%${playerLabel}%`)
-      )
-    );
+    await db.delete(logs).where(and(eq(logs.gameId, gameId), like(logs.message, `%${playerLabel}%`)));
   }
 
   async resetGame(gameId: number): Promise<void> {
@@ -83,8 +81,9 @@ export class DatabaseStorage implements IStorage {
     await db.update(games).set({
       status: 'waiting', turn: 'p1', winner: null, turnCount: 0,
       isFirewallActive: false, isTimeHackActive: false, 
-      p1Code: null, p1Setup: false, p1FirewallUsed: false, p1TimeHackUsed: false, p1VirusUsed: false, p1BruteforceUsed: false, p1ChangeDigitUsed: false, p1SwapDigitsUsed: false,
-      p2Code: null, p2Setup: false, p2FirewallUsed: false, p2TimeHackUsed: false, p2VirusUsed: false, p2BruteforceUsed: false, p2ChangeDigitUsed: false, p2SwapDigitsUsed: false,
+      p1Jammed: false, p2Jammed: false, p1Honeypoted: false, p2Honeypoted: false,
+      p1Code: null, p1Setup: false, p1FirewallUsed: false, p1TimeHackUsed: false, p1VirusUsed: false, p1BruteforceUsed: false, p1ChangeDigitUsed: false, p1SwapDigitsUsed: false, p1EmpUsed: false, p1SpywareUsed: false, p1HoneypotUsed: false,
+      p2Code: null, p2Setup: false, p2FirewallUsed: false, p2TimeHackUsed: false, p2VirusUsed: false, p2BruteforceUsed: false, p2ChangeDigitUsed: false, p2SwapDigitsUsed: false, p2EmpUsed: false, p2SpywareUsed: false, p2HoneypotUsed: false,
     }).where(eq(games.id, gameId));
   }
 
