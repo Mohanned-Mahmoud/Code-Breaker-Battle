@@ -382,7 +382,8 @@ export default function GameRoom() {
             )}
             {isGlitch && (
               <div className="mb-2 px-2 py-1 text-[10px] font-bold tracking-widest text-purple-400 border border-purple-500/30 rounded bg-purple-500/10 animate-pulse">
-                  GLITCH IN: {3 - ((g?.turnCount || 0) % 3)}
+                  {/* Calculate remaining turns based on the random target sent by server */}
+                  GLITCH IN: {Math.max(1, (g?.nextGlitchTurn || 3) - (g?.turnCount || 0))}
               </div>
             )}
             <div className={cn("px-4 py-1 border rounded-full text-[10px] font-bold tracking-widest transition-all", isMyTurn ? "border-primary text-primary animate-pulse" : "border-primary/30 text-primary/30")}>

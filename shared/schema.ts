@@ -16,6 +16,8 @@ export const games = pgTable("games", {
   turnCount: integer("turn_count").default(0),
   winner: text("winner"),
   
+  nextGlitchTurn: integer("next_glitch_turn").default(3),
+
   isFirewallActive: boolean("is_firewall_active").default(false),
   isTimeHackActive: boolean("is_time_hack_active").default(false),
   

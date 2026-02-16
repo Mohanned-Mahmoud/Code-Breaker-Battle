@@ -29,17 +29,132 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // 1V1 MODE ROUTES
   // ==========================================
   app.post(api.games.create.path, async (req, res) => { const game = await storage.createGame(req.body?.mode || 'normal', req.body?.customSettings); res.status(201).json({ id: game.id }); });
+  
   app.get(api.games.get.path, async (req, res) => { 
     const id = Number(req.params.id); const game = await storage.getGame(id); if (!game) return res.status(404).json({ message: 'Game not found' }); 
     const guesses = await storage.getGuesses(id); let timeLeft = 0; const isTimed = game.mode === 'blitz' || (game.mode === 'custom' && game.customTimer); 
     if (isTimed && game.status === 'playing') { const turnStart = game.turnStartedAt ? new Date(game.turnStartedAt).getTime() : new Date().getTime(); const elapsed = Math.floor((new Date().getTime() - turnStart) / 1000); timeLeft = Math.max(0, 30 - elapsed); } 
     const response: GameStateResponse = { ...game, status: game.status as any, turn: game.turn as any, winner: game.winner as any, p1TimeHackUsed: game.p1TimeHackUsed ?? false, p2TimeHackUsed: game.p2TimeHackUsed ?? false, guesses, timeLeft }; res.json(response); 
   });
+  
   app.get('/api/games/:id/code/:player', async (req, res) => { const game = await storage.getGame(Number(req.params.id)); if (!game) return res.status(404).json({ message: 'Not found' }); res.json({ code: req.params.player === 'p1' ? game.p1Code : game.p2Code }); });
+  
   app.post(api.games.setup.path, async (req, res) => { try { const id = Number(req.params.id); const { player, code } = api.games.setup.input.parse(req.body); const game = await storage.getGame(id); if (!game) return res.status(404).json({ message: 'Not found' }); const updates: any = {}; if (player === 'p1') { updates.p1Code = code; updates.p1Setup = true; } else { updates.p2Code = code; updates.p2Setup = true; } const isP1Ready = player === 'p1' ? true : game.p1Setup; const isP2Ready = player === 'p2' ? true : game.p2Setup; if (isP1Ready && isP2Ready) { updates.status = 'playing'; updates.turn = 'p1'; updates.turnStartedAt = new Date(); } await storage.updateGame(id, updates); res.json({ success: true }); } catch (err) { res.status(400).json({ message: 'Invalid input' }); } });
-  app.post(api.games.guess.path, async (req, res) => { try { const id = Number(req.params.id); const { player, guess } = api.games.guess.input.parse(req.body); const game = await storage.getGame(id); if (!game || game.status !== 'playing' || game.turn !== player) return res.status(400).json({ message: 'Invalid' }); const targetCode = player === 'p1' ? game.p2Code : game.p1Code; const { hits, blips } = calculateFeedback(targetCode!, guess); const playerLabel = player === 'p1' ? '[P1]' : '[P2]'; const updates: any = {}; let displayHits = hits; let displayBlips = blips; let isJammed = player === 'p1' ? game.p1Jammed : game.p2Jammed; let isHoneypoted = player === 'p1' ? game.p1Honeypoted : game.p2Honeypoted; if (hits !== 4) { if (isJammed) { displayHits = -1; displayBlips = -1; updates[player === 'p1' ? 'p1Jammed' : 'p2Jammed'] = false; } else if (isHoneypoted) { displayHits = hits > 0 ? 0 : 1; displayBlips = blips > 0 ? 0 : (hits === 0 ? 2 : 1); updates[player === 'p1' ? 'p1Honeypoted' : 'p2Honeypoted'] = false; } } await storage.createGuess({ gameId: id, player, guess, hits: displayHits, blips: displayBlips, timestamp: new Date() }); let logStr = displayHits === -1 ? `${playerLabel} CODE: ${guess} >> HITS: ░░ | CLOSE: ░░ [SIGNAL JAMMED]` : `${playerLabel} CODE: ${guess} >> HITS: ${displayHits} | CLOSE: ${displayBlips}`; await storage.createLog({ gameId: id, message: logStr, type: hits === 4 ? 'success' : (isJammed ? 'error' : 'info') }); let currentTurnCount = (game.turnCount || 0) + 1; updates.turnCount = currentTurnCount; if (hits === 4) { updates.status = 'finished'; updates.winner = player; } else { if (game.mode === 'glitch' && currentTurnCount % 3 === 0) { const glitchType = Math.floor(Math.random() * 3); if (glitchType === 0) { updates.p1Code = shuffleString(game.p1Code!); updates.p2Code = shuffleString(game.p2Code!); await storage.createLog({ gameId: id, message: `[GLITCH] SYSTEM REBOOT: ALL MASTER CODES SHUFFLED!`, type: 'error' }); } else if (glitchType === 1) { updates.p1FirewallUsed = false; updates.p1TimeHackUsed = false; updates.p1VirusUsed = false; updates.p1BruteforceUsed = false; updates.p1ChangeDigitUsed = false; updates.p1SwapDigitsUsed = false; updates.p1EmpUsed = false; updates.p1SpywareUsed = false; updates.p1HoneypotUsed = false; updates.p2FirewallUsed = false; updates.p2TimeHackUsed = false; updates.p2VirusUsed = false; updates.p2BruteforceUsed = false; updates.p2ChangeDigitUsed = false; updates.p2SwapDigitsUsed = false; updates.p2EmpUsed = false; updates.p2SpywareUsed = false; updates.p2HoneypotUsed = false; await storage.createLog({ gameId: id, message: `[GLITCH] FIREWALL DOWN: ALL POWERUPS RESTORED!`, type: 'error' }); } else { const r1 = Math.floor(Math.random() * 10).toString(); const r2 = Math.floor(Math.random() * 10).toString(); updates.p1Code = r1 + game.p1Code!.substring(1); updates.p2Code = r2 + game.p2Code!.substring(1); await storage.createLog({ gameId: id, message: `[GLITCH] DATA CORRUPTION: 1ST DIGIT MUTATED FOR BOTH PLAYERS!`, type: 'error' }); } } if (game.isFirewallActive) { updates.isFirewallActive = false; updates.turnStartedAt = new Date(); await storage.createLog({ gameId: id, message: `SYSTEM: FIREWALL EXTENDED ${playerLabel} TURN.`, type: 'warning' }); } else { updates.turn = player === 'p1' ? 'p2' : 'p1'; if (game.isTimeHackActive) { updates.turnStartedAt = new Date(Date.now() - 20000); updates.isTimeHackActive = false; } else { updates.turnStartedAt = new Date(); } } } await storage.updateGame(id, updates); res.json({ hits, blips }); } catch (err) { res.status(400).json({ message: 'Invalid input' }); } });
+  
+  // ==========================================
+  // UPDATED GUESS ROUTE (WITH RANDOM GLITCHES)
+  // ==========================================
+  app.post(api.games.guess.path, async (req, res) => { 
+    try { 
+      const id = Number(req.params.id); 
+      const { player, guess } = api.games.guess.input.parse(req.body); 
+      const game = await storage.getGame(id); 
+      if (!game || game.status !== 'playing' || game.turn !== player) return res.status(400).json({ message: 'Invalid' }); 
+      
+      const targetCode = player === 'p1' ? game.p2Code : game.p1Code; 
+      const { hits, blips } = calculateFeedback(targetCode!, guess); 
+      const playerLabel = player === 'p1' ? '[P1]' : '[P2]'; 
+      const updates: any = {}; 
+      
+      let displayHits = hits; let displayBlips = blips; 
+      let isJammed = player === 'p1' ? game.p1Jammed : game.p2Jammed; 
+      let isHoneypoted = player === 'p1' ? game.p1Honeypoted : game.p2Honeypoted; 
+      
+      if (hits !== 4) { 
+        if (isJammed) { 
+          displayHits = -1; displayBlips = -1; updates[player === 'p1' ? 'p1Jammed' : 'p2Jammed'] = false; 
+        } else if (isHoneypoted) { 
+          displayHits = hits > 0 ? 0 : 1; displayBlips = blips > 0 ? 0 : (hits === 0 ? 2 : 1); updates[player === 'p1' ? 'p1Honeypoted' : 'p2Honeypoted'] = false; 
+        } 
+      } 
+      
+      await storage.createGuess({ gameId: id, player, guess, hits: displayHits, blips: displayBlips, timestamp: new Date() }); 
+      
+      let logStr = displayHits === -1 
+        ? `${playerLabel} CODE: ${guess} >> HITS: ░░ | CLOSE: ░░ [SIGNAL JAMMED]` 
+        : `${playerLabel} CODE: ${guess} >> HITS: ${displayHits} | CLOSE: ${displayBlips}`; 
+      
+      await storage.createLog({ gameId: id, message: logStr, type: hits === 4 ? 'success' : (isJammed ? 'error' : 'info') }); 
+      
+      let currentTurnCount = (game.turnCount || 0) + 1; 
+      updates.turnCount = currentTurnCount; 
+      
+      let skipTurnSwitch = false; // Flag for the Overclock Extra Turn
+
+      if (hits === 4) { 
+        updates.status = 'finished'; updates.winner = player; 
+      } else { 
+        
+        // --- NEW ENHANCED RANDOM GLITCH SYSTEM ---
+        if (game.mode === 'glitch' && currentTurnCount >= (game.nextGlitchTurn || 3)) { 
+          
+          // GENERATE THE NEXT RANDOM INTERVAL (Between 3 and 8 turns from now)
+          updates.nextGlitchTurn = currentTurnCount + Math.floor(Math.random() * 6) + 3;
+
+          const glitchType = Math.floor(Math.random() * 6); // Picks from 6 possibilities! 
+
+          if (glitchType === 0) { 
+            // Bad: Shuffle
+            updates.p1Code = shuffleString(game.p1Code!); updates.p2Code = shuffleString(game.p2Code!); 
+            await storage.createLog({ gameId: id, message: `[GLITCH] SYSTEM REBOOT: ALL MASTER CODES SHUFFLED!`, type: 'error' }); 
+            
+          } else if (glitchType === 1) { 
+            // Good: Restore Powerups
+            updates.p1FirewallUsed = false; updates.p1TimeHackUsed = false; updates.p1VirusUsed = false; updates.p1BruteforceUsed = false; updates.p1ChangeDigitUsed = false; updates.p1SwapDigitsUsed = false; updates.p1EmpUsed = false; updates.p1SpywareUsed = false; updates.p1HoneypotUsed = false; 
+            updates.p2FirewallUsed = false; updates.p2TimeHackUsed = false; updates.p2VirusUsed = false; updates.p2BruteforceUsed = false; updates.p2ChangeDigitUsed = false; updates.p2SwapDigitsUsed = false; updates.p2EmpUsed = false; updates.p2SpywareUsed = false; updates.p2HoneypotUsed = false; 
+            await storage.createLog({ gameId: id, message: `[GLITCH] FIREWALL DOWN: ALL POWERUPS RESTORED!`, type: 'success' }); 
+            
+          } else if (glitchType === 2) { 
+            // Bad: Mutate First Digit
+            const r1 = Math.floor(Math.random() * 10).toString(); const r2 = Math.floor(Math.random() * 10).toString(); 
+            updates.p1Code = r1 + game.p1Code!.substring(1); updates.p2Code = r2 + game.p2Code!.substring(1); 
+            await storage.createLog({ gameId: id, message: `[GLITCH] DATA CORRUPTION: 1ST DIGIT MUTATED FOR BOTH PLAYERS!`, type: 'error' }); 
+            
+          } else if (glitchType === 3) {
+            // Good: Extra Turn (System Overclock)
+            skipTurnSwitch = true;
+            await storage.createLog({ gameId: id, message: `[GLITCH] SYSTEM OVERCLOCK: ${playerLabel} IS GRANTED A FREE EXTRA TURN!`, type: 'success' });
+            
+          } else if (glitchType === 4) {
+            // Good: Reveal the Sums of the Codes (Data Leak)
+            const p1Sum = game.p1Code!.split('').reduce((acc, curr) => acc + parseInt(curr), 0);
+            const p2Sum = game.p2Code!.split('').reduce((acc, curr) => acc + parseInt(curr), 0);
+            await storage.createLog({ gameId: id, message: `[GLITCH] DATA LEAK: P1 CODE SUM = ${p1Sum} | P2 CODE SUM = ${p2Sum}`, type: 'success' });
+
+          } else if (glitchType === 5) {
+            // Good: Reveal exactly 1 random digit for both players
+            const randomPos = Math.floor(Math.random() * 4);
+            const p1Digit = game.p1Code![randomPos];
+            const p2Digit = game.p2Code![randomPos];
+            await storage.createLog({ gameId: id, message: `[GLITCH] AUTO-DECRYPT: POSITION ${randomPos + 1} IS [${p1Digit}] FOR P1 AND [${p2Digit}] FOR P2!`, type: 'success' });
+          }
+        }
+
+        // Handle Turn Switching properly based on powerups and our new Overclock glitch
+        if (skipTurnSwitch) {
+            updates.turnStartedAt = new Date(); // Keep turn with current player
+        } else if (game.isFirewallActive) { 
+            updates.isFirewallActive = false; updates.turnStartedAt = new Date(); 
+            await storage.createLog({ gameId: id, message: `SYSTEM: FIREWALL EXTENDED ${playerLabel} TURN.`, type: 'warning' }); 
+        } else { 
+            updates.turn = player === 'p1' ? 'p2' : 'p1'; 
+            if (game.isTimeHackActive) { 
+                updates.turnStartedAt = new Date(Date.now() - 20000); updates.isTimeHackActive = false; 
+            } else { 
+                updates.turnStartedAt = new Date(); 
+            } 
+        } 
+      } 
+      
+      await storage.updateGame(id, updates); 
+      res.json({ hits, blips }); 
+    } catch (err) { res.status(400).json({ message: 'Invalid input' }); } 
+  });
+  
   app.post(api.games.timeout.path, async (req, res) => { try { const id = Number(req.params.id); const { player } = req.body; const game = await storage.getGame(id); const isTimed = game?.mode === 'blitz' || (game?.mode === 'custom' && game?.customTimer); if (!game || game.status !== 'playing' || game.turn !== player || !isTimed) return res.status(400).json({ message: 'Invalid' }); const turnStart = game.turnStartedAt ? new Date(game.turnStartedAt).getTime() : new Date().getTime(); const elapsed = (new Date().getTime() - turnStart) / 1000; if (elapsed < 28) return res.status(400).json({ message: 'Not timed out yet' }); const nextTurn = player === 'p1' ? 'p2' : 'p1'; const playerLabel = player === 'p1' ? '[P1]' : '[P2]'; await storage.createLog({ gameId: id, message: `SYSTEM: ${playerLabel} CONNECTION TIMED OUT. TURN SKIPPED.`, type: 'error' }); const updates: any = { turn: nextTurn, isFirewallActive: false }; if (game.isTimeHackActive) { updates.turnStartedAt = new Date(Date.now() - 20000); updates.isTimeHackActive = false; } else { updates.turnStartedAt = new Date(); } await storage.updateGame(id, updates); res.json({ success: true }); } catch (err) { res.status(400).json({ message: 'Error' }); } });
+  
   app.get(api.games.logs.path, async (req, res) => { res.json(await storage.getLogs(Number(req.params.id))); });
+  
   app.post(api.games.powerup.path, async (req, res) => { 
     try { 
       const id = Number(req.params.id); const { player, type, targetIndex, newDigit, swapIndex1, swapIndex2 } = req.body; const game = await storage.getGame(id); if (!game || game.status !== 'playing' || game.turn !== player) return res.status(400).json({ message: 'Invalid' }); const updates: any = {}; let logMessage = ""; const playerLabel = player === 'p1' ? '[P1]' : '[P2]'; const myCode = player === 'p1' ? game.p1Code : game.p2Code; const targetCode = player === 'p1' ? game.p2Code : game.p1Code; 
@@ -55,6 +170,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       updates.turnStartedAt = new Date(); await storage.updateGame(id, updates); if (logMessage !== "") await storage.createLog({ gameId: id, message: logMessage, type: 'warning' }); res.json(await storage.getGame(id)); 
     } catch (err) { res.status(400).json({ message: 'Invalid input' }); } 
   });
+  
   app.post('/api/games/:id/restart', async (req, res) => { const id = Number(req.params.id); await storage.resetGame(id); await storage.createLog({ gameId: id, message: "SYSTEM: RESTART SEQUENCE INITIATED.", type: "warning" }); res.json({ success: true }); });
 
   // ==========================================
@@ -76,6 +192,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!game) return res.status(404).json({ message: 'Room not found' });
     if (game.status !== 'playing' && game.status !== 'waiting') return res.status(400).json({ message: 'Game already finished' });
     if (game.status === 'playing') return res.status(400).json({ message: 'Game already started' });
+    
     const players = await storage.getPartyPlayers(game.id);
     if (players.length >= game.maxPlayers) return res.status(400).json({ message: 'Room is full' });
     if (players.some(p => p.playerName === playerName)) return res.status(400).json({ message: 'Name already taken' });

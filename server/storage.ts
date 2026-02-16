@@ -45,6 +45,9 @@ export class DatabaseStorage implements IStorage {
   async createGame(mode: string = 'normal', customSettings?: any): Promise<Game> {
     const roomId = Math.random().toString(36).substring(2, 7).toUpperCase();
     const insertData: any = { roomId, mode };
+    if (mode === 'glitch') {
+        insertData.nextGlitchTurn = Math.floor(Math.random() * 6) + 3; 
+    }
     if (mode === 'custom' && customSettings) {
         insertData.customTimer = customSettings.timer; insertData.allowFirewall = customSettings.firewall; insertData.allowVirus = customSettings.virus; insertData.allowBruteforce = customSettings.bruteforce; insertData.allowChangeDigit = customSettings.changeDigit; insertData.allowSwapDigits = customSettings.swapDigits; insertData.allowEmp = customSettings.emp; insertData.allowSpyware = customSettings.spyware; insertData.allowHoneypot = customSettings.honeypot;
     }
@@ -60,7 +63,7 @@ export class DatabaseStorage implements IStorage {
   async deletePlayerLogs(gameId: number, playerLabel: string): Promise<void> { await db.delete(logs).where(and(eq(logs.gameId, gameId), like(logs.message, `%${playerLabel}%`))); }
   async resetGame(gameId: number): Promise<void> {
     await db.delete(guesses).where(eq(guesses.gameId, gameId)); await db.delete(logs).where(eq(logs.gameId, gameId));
-    await db.update(games).set({ status: 'waiting', turn: 'p1', winner: null, turnCount: 0, isFirewallActive: false, isTimeHackActive: false, p1Jammed: false, p2Jammed: false, p1Honeypoted: false, p2Honeypoted: false, p1Code: null, p1Setup: false, p1FirewallUsed: false, p1TimeHackUsed: false, p1VirusUsed: false, p1BruteforceUsed: false, p1ChangeDigitUsed: false, p1SwapDigitsUsed: false, p1EmpUsed: false, p1SpywareUsed: false, p1HoneypotUsed: false, p2Code: null, p2Setup: false, p2FirewallUsed: false, p2TimeHackUsed: false, p2VirusUsed: false, p2BruteforceUsed: false, p2ChangeDigitUsed: false, p2SwapDigitsUsed: false, p2EmpUsed: false, p2SpywareUsed: false, p2HoneypotUsed: false }).where(eq(games.id, gameId));
+    await db.update(games).set({ status: 'waiting', turn: 'p1', winner: null, turnCount: 0, nextGlitchTurn: Math.floor(Math.random() * 6) + 3, isFirewallActive: false, isTimeHackActive: false, p1Jammed: false, p2Jammed: false, p1Honeypoted: false, p2Honeypoted: false, p1Code: null, p1Setup: false, p1FirewallUsed: false, p1TimeHackUsed: false, p1VirusUsed: false, p1BruteforceUsed: false, p1ChangeDigitUsed: false, p1SwapDigitsUsed: false, p1EmpUsed: false, p1SpywareUsed: false, p1HoneypotUsed: false, p2Code: null, p2Setup: false, p2FirewallUsed: false, p2TimeHackUsed: false, p2VirusUsed: false, p2BruteforceUsed: false, p2ChangeDigitUsed: false, p2SwapDigitsUsed: false, p2EmpUsed: false, p2SpywareUsed: false, p2HoneypotUsed: false }).where(eq(games.id, gameId));
   }
 
   async createPartyGame(subMode: string = 'free_for_all', maxPlayers: number = 6, customSettings?: any, winCondition?: string, targetPoints?: number): Promise<PartyGame> {
