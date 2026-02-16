@@ -4,10 +4,7 @@ import { storage } from "./storage";
 import { api } from "../shared/routes";
 import { GameStateResponse } from "@shared/schema";
 
-export async function registerRoutes(
-  httpServer: Server,
-  app: Express
-): Promise<Server> {
+export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
 
   function calculateFeedback(secret: string, guess: string) {
     let hits = 0; let blips = 0;
@@ -24,288 +21,382 @@ export async function registerRoutes(
 
   function shuffleString(str: string) {
     const arr = str.split('');
-    for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
+    for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
     return arr.join('');
   }
 
-  app.post(api.games.create.path, async (req, res) => {
-    const mode = req.body?.mode || 'normal';
-    const customSettings = req.body?.customSettings;
-    const game = await storage.createGame(mode, customSettings);
-    res.status(201).json({ id: game.id });
+  // ==========================================
+  // 1V1 MODE ROUTES
+  // ==========================================
+  app.post(api.games.create.path, async (req, res) => { const game = await storage.createGame(req.body?.mode || 'normal', req.body?.customSettings); res.status(201).json({ id: game.id }); });
+  app.get(api.games.get.path, async (req, res) => { 
+    const id = Number(req.params.id); const game = await storage.getGame(id); if (!game) return res.status(404).json({ message: 'Game not found' }); 
+    const guesses = await storage.getGuesses(id); let timeLeft = 0; const isTimed = game.mode === 'blitz' || (game.mode === 'custom' && game.customTimer); 
+    if (isTimed && game.status === 'playing') { const turnStart = game.turnStartedAt ? new Date(game.turnStartedAt).getTime() : new Date().getTime(); const elapsed = Math.floor((new Date().getTime() - turnStart) / 1000); timeLeft = Math.max(0, 30 - elapsed); } 
+    const response: GameStateResponse = { ...game, status: game.status as any, turn: game.turn as any, winner: game.winner as any, p1TimeHackUsed: game.p1TimeHackUsed ?? false, p2TimeHackUsed: game.p2TimeHackUsed ?? false, guesses, timeLeft }; res.json(response); 
+  });
+  app.get('/api/games/:id/code/:player', async (req, res) => { const game = await storage.getGame(Number(req.params.id)); if (!game) return res.status(404).json({ message: 'Not found' }); res.json({ code: req.params.player === 'p1' ? game.p1Code : game.p2Code }); });
+  app.post(api.games.setup.path, async (req, res) => { try { const id = Number(req.params.id); const { player, code } = api.games.setup.input.parse(req.body); const game = await storage.getGame(id); if (!game) return res.status(404).json({ message: 'Not found' }); const updates: any = {}; if (player === 'p1') { updates.p1Code = code; updates.p1Setup = true; } else { updates.p2Code = code; updates.p2Setup = true; } const isP1Ready = player === 'p1' ? true : game.p1Setup; const isP2Ready = player === 'p2' ? true : game.p2Setup; if (isP1Ready && isP2Ready) { updates.status = 'playing'; updates.turn = 'p1'; updates.turnStartedAt = new Date(); } await storage.updateGame(id, updates); res.json({ success: true }); } catch (err) { res.status(400).json({ message: 'Invalid input' }); } });
+  app.post(api.games.guess.path, async (req, res) => { try { const id = Number(req.params.id); const { player, guess } = api.games.guess.input.parse(req.body); const game = await storage.getGame(id); if (!game || game.status !== 'playing' || game.turn !== player) return res.status(400).json({ message: 'Invalid' }); const targetCode = player === 'p1' ? game.p2Code : game.p1Code; const { hits, blips } = calculateFeedback(targetCode!, guess); const playerLabel = player === 'p1' ? '[P1]' : '[P2]'; const updates: any = {}; let displayHits = hits; let displayBlips = blips; let isJammed = player === 'p1' ? game.p1Jammed : game.p2Jammed; let isHoneypoted = player === 'p1' ? game.p1Honeypoted : game.p2Honeypoted; if (hits !== 4) { if (isJammed) { displayHits = -1; displayBlips = -1; updates[player === 'p1' ? 'p1Jammed' : 'p2Jammed'] = false; } else if (isHoneypoted) { displayHits = hits > 0 ? 0 : 1; displayBlips = blips > 0 ? 0 : (hits === 0 ? 2 : 1); updates[player === 'p1' ? 'p1Honeypoted' : 'p2Honeypoted'] = false; } } await storage.createGuess({ gameId: id, player, guess, hits: displayHits, blips: displayBlips, timestamp: new Date() }); let logStr = displayHits === -1 ? `${playerLabel} CODE: ${guess} >> HITS: ░░ | CLOSE: ░░ [SIGNAL JAMMED]` : `${playerLabel} CODE: ${guess} >> HITS: ${displayHits} | CLOSE: ${displayBlips}`; await storage.createLog({ gameId: id, message: logStr, type: hits === 4 ? 'success' : (isJammed ? 'error' : 'info') }); let currentTurnCount = (game.turnCount || 0) + 1; updates.turnCount = currentTurnCount; if (hits === 4) { updates.status = 'finished'; updates.winner = player; } else { if (game.mode === 'glitch' && currentTurnCount % 3 === 0) { const glitchType = Math.floor(Math.random() * 3); if (glitchType === 0) { updates.p1Code = shuffleString(game.p1Code!); updates.p2Code = shuffleString(game.p2Code!); await storage.createLog({ gameId: id, message: `[GLITCH] SYSTEM REBOOT: ALL MASTER CODES SHUFFLED!`, type: 'error' }); } else if (glitchType === 1) { updates.p1FirewallUsed = false; updates.p1TimeHackUsed = false; updates.p1VirusUsed = false; updates.p1BruteforceUsed = false; updates.p1ChangeDigitUsed = false; updates.p1SwapDigitsUsed = false; updates.p1EmpUsed = false; updates.p1SpywareUsed = false; updates.p1HoneypotUsed = false; updates.p2FirewallUsed = false; updates.p2TimeHackUsed = false; updates.p2VirusUsed = false; updates.p2BruteforceUsed = false; updates.p2ChangeDigitUsed = false; updates.p2SwapDigitsUsed = false; updates.p2EmpUsed = false; updates.p2SpywareUsed = false; updates.p2HoneypotUsed = false; await storage.createLog({ gameId: id, message: `[GLITCH] FIREWALL DOWN: ALL POWERUPS RESTORED!`, type: 'error' }); } else { const r1 = Math.floor(Math.random() * 10).toString(); const r2 = Math.floor(Math.random() * 10).toString(); updates.p1Code = r1 + game.p1Code!.substring(1); updates.p2Code = r2 + game.p2Code!.substring(1); await storage.createLog({ gameId: id, message: `[GLITCH] DATA CORRUPTION: 1ST DIGIT MUTATED FOR BOTH PLAYERS!`, type: 'error' }); } } if (game.isFirewallActive) { updates.isFirewallActive = false; updates.turnStartedAt = new Date(); await storage.createLog({ gameId: id, message: `SYSTEM: FIREWALL EXTENDED ${playerLabel} TURN.`, type: 'warning' }); } else { updates.turn = player === 'p1' ? 'p2' : 'p1'; if (game.isTimeHackActive) { updates.turnStartedAt = new Date(Date.now() - 20000); updates.isTimeHackActive = false; } else { updates.turnStartedAt = new Date(); } } } await storage.updateGame(id, updates); res.json({ hits, blips }); } catch (err) { res.status(400).json({ message: 'Invalid input' }); } });
+  app.post(api.games.timeout.path, async (req, res) => { try { const id = Number(req.params.id); const { player } = req.body; const game = await storage.getGame(id); const isTimed = game?.mode === 'blitz' || (game?.mode === 'custom' && game?.customTimer); if (!game || game.status !== 'playing' || game.turn !== player || !isTimed) return res.status(400).json({ message: 'Invalid' }); const turnStart = game.turnStartedAt ? new Date(game.turnStartedAt).getTime() : new Date().getTime(); const elapsed = (new Date().getTime() - turnStart) / 1000; if (elapsed < 28) return res.status(400).json({ message: 'Not timed out yet' }); const nextTurn = player === 'p1' ? 'p2' : 'p1'; const playerLabel = player === 'p1' ? '[P1]' : '[P2]'; await storage.createLog({ gameId: id, message: `SYSTEM: ${playerLabel} CONNECTION TIMED OUT. TURN SKIPPED.`, type: 'error' }); const updates: any = { turn: nextTurn, isFirewallActive: false }; if (game.isTimeHackActive) { updates.turnStartedAt = new Date(Date.now() - 20000); updates.isTimeHackActive = false; } else { updates.turnStartedAt = new Date(); } await storage.updateGame(id, updates); res.json({ success: true }); } catch (err) { res.status(400).json({ message: 'Error' }); } });
+  app.get(api.games.logs.path, async (req, res) => { res.json(await storage.getLogs(Number(req.params.id))); });
+  app.post(api.games.powerup.path, async (req, res) => { 
+    try { 
+      const id = Number(req.params.id); const { player, type, targetIndex, newDigit, swapIndex1, swapIndex2 } = req.body; const game = await storage.getGame(id); if (!game || game.status !== 'playing' || game.turn !== player) return res.status(400).json({ message: 'Invalid' }); const updates: any = {}; let logMessage = ""; const playerLabel = player === 'p1' ? '[P1]' : '[P2]'; const myCode = player === 'p1' ? game.p1Code : game.p2Code; const targetCode = player === 'p1' ? game.p2Code : game.p1Code; 
+      if (type === 'firewall') { updates[player === 'p1' ? 'p1FirewallUsed' : 'p2FirewallUsed'] = true; updates.isFirewallActive = true; logMessage = `${playerLabel} ACTIVATED FIREWALL. TURN EXTENDED.`; } 
+      else if (type === 'timeHack') { updates[player === 'p1' ? 'p1TimeHackUsed' : 'p2TimeHackUsed'] = true; updates.isTimeHackActive = true; logMessage = `WARNING: ${playerLabel} LAUNCHED DDOS ATTACK! OPPONENT'S NEXT TURN REDUCED BY 20s.`; } 
+      else if (type === 'virus') { updates[player === 'p1' ? 'p1VirusUsed' : 'p2VirusUsed'] = true; const opponentLabel = player === 'p1' ? '[P2]' : '[P1]'; await storage.deletePlayerLogs(id, opponentLabel); logMessage = `WARNING: ${playerLabel} UPLOADED A VIRUS! ALL ${opponentLabel} SYSTEM LOGS DELETED.`; } 
+      else if (type === 'bruteforce') { updates[player === 'p1' ? 'p1BruteforceUsed' : 'p2BruteforceUsed'] = true; logMessage = `${playerLabel} USED BRUTEFORCE. 1ST DIGIT IS [ ${targetCode![0]} ]`; } 
+      else if (type === 'changeDigit') { let codeArr = myCode!.split(''); codeArr[targetIndex] = newDigit.toString(); updates[player === 'p1' ? 'p1Code' : 'p2Code'] = codeArr.join(''); updates[player === 'p1' ? 'p1ChangeDigitUsed' : 'p2ChangeDigitUsed'] = true; logMessage = `SYSTEM: ${playerLabel} MUTATED THEIR MASTER CODE.`; } 
+      else if (type === 'swapDigits') { let codeArr = myCode!.split(''); let temp = codeArr[swapIndex1]; codeArr[swapIndex1] = codeArr[swapIndex2]; codeArr[swapIndex2] = temp; updates[player === 'p1' ? 'p1Code' : 'p2Code'] = codeArr.join(''); updates[player === 'p1' ? 'p1SwapDigitsUsed' : 'p2SwapDigitsUsed'] = true; logMessage = `SYSTEM: ${playerLabel} SHUFFLED THEIR MASTER CODE.`; } 
+      else if (type === 'emp') { updates[player === 'p1' ? 'p1EmpUsed' : 'p2EmpUsed'] = true; updates[player === 'p1' ? 'p2Jammed' : 'p1Jammed'] = true; } 
+      else if (type === 'honeypot') { updates[player === 'p1' ? 'p1HoneypotUsed' : 'p2HoneypotUsed'] = true; updates[player === 'p1' ? 'p2Honeypoted' : 'p1Honeypoted'] = true; } 
+      else if (type === 'spyware') { updates[player === 'p1' ? 'p1SpywareUsed' : 'p2SpywareUsed'] = true; const codeSum = targetCode!.split('').reduce((acc, curr) => acc + parseInt(curr), 0); logMessage = `SYSTEM: ${playerLabel} DEPLOYED SPYWARE. TARGET CODE SUM = ${codeSum}`; } 
+      updates.turnStartedAt = new Date(); await storage.updateGame(id, updates); if (logMessage !== "") await storage.createLog({ gameId: id, message: logMessage, type: 'warning' }); res.json(await storage.getGame(id)); 
+    } catch (err) { res.status(400).json({ message: 'Invalid input' }); } 
+  });
+  app.post('/api/games/:id/restart', async (req, res) => { const id = Number(req.params.id); await storage.resetGame(id); await storage.createLog({ gameId: id, message: "SYSTEM: RESTART SEQUENCE INITIATED.", type: "warning" }); res.json({ success: true }); });
+
+  // ==========================================
+  // PARTY MODE ROUTES
+  // ==========================================
+
+  app.post('/api/party/create', async (req, res) => {
+    const { subMode, maxPlayers, customSettings, winCondition, targetPoints } = req.body;
+    const actualWinCond = subMode === 'battle_royale' ? 'elimination' : (winCondition || 'points');
+    const game = await storage.createPartyGame(subMode, maxPlayers, customSettings, actualWinCond, targetPoints || 15);
+    await storage.updatePartyGame(game.id, { winCondition: actualWinCond, targetPoints: targetPoints || 15 });
+    res.status(201).json({ id: game.id, roomId: game.roomId });
   });
 
-  app.get(api.games.get.path, async (req, res) => {
+  app.post('/api/party/join', async (req, res) => {
+    const { roomId, playerName } = req.body;
+    const game = await storage.getPartyGameByRoomId(roomId);
+    if (!game) return res.status(404).json({ message: 'Room not found' });
+    if (game.status !== 'playing' && game.status !== 'waiting') return res.status(400).json({ message: 'Game already finished' });
+    if (game.status === 'playing') return res.status(400).json({ message: 'Game already started' });
+    const players = await storage.getPartyPlayers(game.id);
+    if (players.length >= game.maxPlayers) return res.status(400).json({ message: 'Room is full' });
+    if (players.some(p => p.playerName === playerName)) return res.status(400).json({ message: 'Name already taken' });
+
+    const player = await storage.addPartyPlayer(game.id, playerName);
+    res.json({ gameId: game.id, playerId: player.id });
+  });
+
+  app.get('/api/party/:id', async (req, res) => {
     const id = Number(req.params.id);
-    const game = await storage.getGame(id);
+    const game = await storage.getPartyGame(id);
     if (!game) return res.status(404).json({ message: 'Game not found' });
+    const players = await storage.getPartyPlayers(id);
+    const guesses = await storage.getPartyGuesses(id);
+    const logs = await storage.getPartyLogs(id);
     
-    const guesses = await storage.getGuesses(id);
     let timeLeft = 0;
-    
-    const isTimed = game.mode === 'blitz' || (game.mode === 'custom' && game.customTimer);
-    if (isTimed && game.status === 'playing') {
-       const turnStart = game.turnStartedAt ? new Date(game.turnStartedAt).getTime() : new Date().getTime();
-       const elapsed = Math.floor((new Date().getTime() - turnStart) / 1000);
-       timeLeft = Math.max(0, 30 - elapsed);
+    if (game.customTimer && game.status === 'playing') {
+        const turnStart = game.turnStartedAt ? new Date(game.turnStartedAt).getTime() : new Date().getTime();
+        const elapsed = Math.floor((new Date().getTime() - turnStart) / 1000);
+        timeLeft = Math.max(0, 30 - elapsed);
     }
-
-    const response: GameStateResponse = {
-      ...game,
-      status: game.status as any,
-      turn: game.turn as any,
-      winner: game.winner as any,
-      p1TimeHackUsed: game.p1TimeHackUsed ?? false, 
-      p2TimeHackUsed: game.p2TimeHackUsed ?? false,
-      guesses,
-      timeLeft
-    };
-    res.json(response);
+    res.json({ ...game, players, guesses, logs, timeLeft });
   });
 
-  app.get('/api/games/:id/code/:player', async (req, res) => {
-    const id = Number(req.params.id); const player = req.params.player;
-    const game = await storage.getGame(id);
-    if (!game) return res.status(404).json({ message: 'Game not found' });
-    res.json({ code: player === 'p1' ? game.p1Code : game.p2Code });
-  });
-
-  app.post(api.games.setup.path, async (req, res) => {
+  // === التعديل الجوهري هنا: منع بدء اللعبة إلا لو العدد مكتمل ===
+  app.post('/api/party/:id/start', async (req, res) => {
     try {
-      const id = Number(req.params.id);
-      const { player, code } = api.games.setup.input.parse(req.body);
-      const game = await storage.getGame(id);
-      if (!game) return res.status(404).json({ message: 'Game not found' });
+      const id = Number(req.params.id); const { playerId } = req.body;
+      const game = await storage.getPartyGame(id);
+      if (!game || game.status !== 'waiting') return res.status(400).json({ message: 'Invalid state' });
+
+      const players = await storage.getPartyPlayers(id);
+      if (players.length === 0 || players[0].id !== playerId) return res.status(403).json({ message: 'Only host can start' });
       
-      const updates: any = {};
-      if (player === 'p1') { updates.p1Code = code; updates.p1Setup = true; } 
-      else { updates.p2Code = code; updates.p2Setup = true; }
+      // التعديل: إجبار اكتمال الروم
+      if (players.length !== game.maxPlayers) return res.status(400).json({ message: 'Room must be full to start' });
+      if (!players.every(p => p.isSetup)) return res.status(400).json({ message: 'Not everyone is ready' });
 
-      const isP1Ready = player === 'p1' ? true : game.p1Setup;
-      const isP2Ready = player === 'p2' ? true : game.p2Setup;
-
-      if (isP1Ready && isP2Ready) {
-        updates.status = 'playing'; updates.turn = 'p1'; updates.turnStartedAt = new Date();
-      }
-      await storage.updateGame(id, updates);
-      res.json({ success: true });
-    } catch (err) { res.status(400).json({ message: 'Invalid input' }); }
-  });
-
-  app.post(api.games.guess.path, async (req, res) => {
-    try {
-      const id = Number(req.params.id);
-      const { player, guess } = api.games.guess.input.parse(req.body);
-      const game = await storage.getGame(id);
-      if (!game || game.status !== 'playing' || game.turn !== player) return res.status(400).json({ message: 'Invalid' });
-
-      const targetCode = player === 'p1' ? game.p2Code : game.p1Code;
-      const { hits, blips } = calculateFeedback(targetCode!, guess);
-      const playerLabel = player === 'p1' ? '[P1]' : '[P2]';
-      const updates: any = {};
-
-      // --- LOGIC FOR STEALTH POWERUPS (EMP & HONEYPOT) ---
-      let displayHits = hits;
-      let displayBlips = blips;
-      let isJammed = player === 'p1' ? game.p1Jammed : game.p2Jammed;
-      let isHoneypoted = player === 'p1' ? game.p1Honeypoted : game.p2Honeypoted;
-
-      if (hits !== 4) { // إذا كسر الكود فعلياً، لا نمنعه من الفوز
-          if (isJammed) {
-              displayHits = -1; displayBlips = -1; // -1 means Corrupted
-              updates[player === 'p1' ? 'p1Jammed' : 'p2Jammed'] = false;
-          } else if (isHoneypoted) {
-              // نظام التزييف (المصيدة): نعطيه أرقام كاذبة ومقنعة لكي يصدقها!
-              displayHits = hits > 0 ? 0 : 1; 
-              displayBlips = blips > 0 ? 0 : (hits === 0 ? 2 : 1);
-              updates[player === 'p1' ? 'p1Honeypoted' : 'p2Honeypoted'] = false;
-          }
-      }
-
-      await storage.createGuess({ gameId: id, player, guess, hits: displayHits, blips: displayBlips, timestamp: new Date() });
-
-      let logStr = "";
-      if (displayHits === -1) {
-          logStr = `${playerLabel} CODE: ${guess} >> HITS: ░░ | CLOSE: ░░ [SIGNAL JAMMED]`;
-      } else {
-          logStr = `${playerLabel} CODE: ${guess} >> HITS: ${displayHits} | CLOSE: ${displayBlips}`;
-      }
-
-      await storage.createLog({
-        gameId: id, message: logStr,
-        type: hits === 4 ? 'success' : (isJammed ? 'error' : 'info')
+      const turnOrder = players.map(p => p.id);
+      await storage.updatePartyGame(id, {
+         status: 'playing', activePlayerId: turnOrder[0], turnOrder: JSON.stringify(turnOrder), turnStartedAt: new Date()
       });
-
-      let currentTurnCount = (game.turnCount || 0) + 1;
-      updates.turnCount = currentTurnCount;
-
-      if (hits === 4) {
-        updates.status = 'finished'; updates.winner = player;
-      } else {
-
-        if (game.mode === 'glitch' && currentTurnCount % 3 === 0) {
-            const glitchType = Math.floor(Math.random() * 3);
-            if (glitchType === 0) {
-                updates.p1Code = shuffleString(game.p1Code!); updates.p2Code = shuffleString(game.p2Code!);
-                await storage.createLog({ gameId: id, message: `[GLITCH] SYSTEM REBOOT: ALL MASTER CODES SHUFFLED!`, type: 'error' });
-            } else if (glitchType === 1) {
-                updates.p1FirewallUsed = false; updates.p1TimeHackUsed = false; updates.p1VirusUsed = false; updates.p1BruteforceUsed = false; updates.p1ChangeDigitUsed = false; updates.p1SwapDigitsUsed = false; updates.p1EmpUsed = false; updates.p1SpywareUsed = false; updates.p1HoneypotUsed = false;
-                updates.p2FirewallUsed = false; updates.p2TimeHackUsed = false; updates.p2VirusUsed = false; updates.p2BruteforceUsed = false; updates.p2ChangeDigitUsed = false; updates.p2SwapDigitsUsed = false; updates.p2EmpUsed = false; updates.p2SpywareUsed = false; updates.p2HoneypotUsed = false;
-                await storage.createLog({ gameId: id, message: `[GLITCH] FIREWALL DOWN: ALL POWERUPS RESTORED!`, type: 'error' });
-            } else {
-                const r1 = Math.floor(Math.random() * 10).toString(); const r2 = Math.floor(Math.random() * 10).toString();
-                updates.p1Code = r1 + game.p1Code!.substring(1); updates.p2Code = r2 + game.p2Code!.substring(1);
-                await storage.createLog({ gameId: id, message: `[GLITCH] DATA CORRUPTION: 1ST DIGIT MUTATED FOR BOTH PLAYERS!`, type: 'error' });
-            }
-        }
-
-        if (game.isFirewallActive) {
-          updates.isFirewallActive = false; updates.turnStartedAt = new Date();
-          await storage.createLog({ gameId: id, message: `SYSTEM: FIREWALL EXTENDED ${playerLabel} TURN.`, type: 'warning' });
-        } else {
-          updates.turn = player === 'p1' ? 'p2' : 'p1';
-          if (game.isTimeHackActive) {
-             updates.turnStartedAt = new Date(Date.now() - 20000); 
-             updates.isTimeHackActive = false;
-          } else {
-             updates.turnStartedAt = new Date();
-          }
-        }
-      }
-      await storage.updateGame(id, updates);
-      res.json({ hits, blips }); // نرسل الأرقام الحقيقية في الـ response لكن اللوج يسجل المزيفة
-    } catch (err) { res.status(400).json({ message: 'Invalid input' }); }
+      await storage.createPartyLog({ partyGameId: id, message: `SYSTEM: SQUAD PROTOCOL INITIATED. HACKING COMMENCED.`, type: 'warning' });
+      res.json({ success: true });
+    } catch (err) { res.status(400).json({ message: 'Error starting game' }); }
   });
 
-  app.post(api.games.timeout.path, async (req, res) => {
+  app.post('/api/party/:id/setup', async (req, res) => {
     try {
-      const id = Number(req.params.id); const { player } = req.body;
-      const game = await storage.getGame(id);
+      const id = Number(req.params.id); const { playerId, code } = req.body;
+      await storage.updatePartyPlayer(playerId, { code, isSetup: true });
       
-      const isTimed = game?.mode === 'blitz' || (game?.mode === 'custom' && game?.customTimer);
-      if (!game || game.status !== 'playing' || game.turn !== player || !isTimed) return res.status(400).json({ message: 'Invalid' });
+      const game = await storage.getPartyGame(id);
+      if (game && game.status === 'playing') {
+          const p = await storage.getPartyPlayer(playerId);
+          await storage.createPartyLog({ partyGameId: id, message: `SYSTEM: ${p?.playerName} HAS REBOOTED THEIR KEY AND IS BACK ONLINE.`, type: 'info' });
+      }
+      res.json({ success: true });
+    } catch (err) { res.status(400).json({ message: 'Error in setup' }); }
+  });
+
+  app.post('/api/party/:id/restart', async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      await storage.restartPartyGame(id);
+      await storage.createPartyLog({ partyGameId: id, message: "SYSTEM: SQUAD ROOM REBOOTED. PLEASE RE-ENTER CODES.", type: "warning" });
+      res.json({ success: true });
+    } catch (err) { res.status(400).json({ message: 'Error restarting game' }); }
+  });
+
+  app.post('/api/party/:id/timeout', async (req, res) => {
+    try {
+      const id = Number(req.params.id); const { playerId } = req.body;
+      const game = await storage.getPartyGame(id);
+      if (!game || game.status !== 'playing' || game.activePlayerId !== playerId || !game.customTimer) return res.status(400).json({ message: 'Invalid' });
 
       const turnStart = game.turnStartedAt ? new Date(game.turnStartedAt).getTime() : new Date().getTime();
       const elapsed = (new Date().getTime() - turnStart) / 1000;
       if (elapsed < 28) return res.status(400).json({ message: 'Not timed out yet' });
 
-      const nextTurn = player === 'p1' ? 'p2' : 'p1';
-      const playerLabel = player === 'p1' ? '[P1]' : '[P2]';
+      const attacker = await storage.getPartyPlayer(playerId);
+      await storage.createPartyLog({ partyGameId: id, message: `SYSTEM: ${attacker?.playerName || 'HACKER'} TIMED OUT. TURN SKIPPED.`, type: 'error' });
 
-      await storage.createLog({ gameId: id, message: `SYSTEM: ${playerLabel} CONNECTION TIMED OUT. TURN SKIPPED.`, type: 'error' });
-
-      const updates: any = { turn: nextTurn, isFirewallActive: false };
-      if (game.isTimeHackActive) {
-          updates.turnStartedAt = new Date(Date.now() - 20000); 
-          updates.isTimeHackActive = false;
-      } else {
-          updates.turnStartedAt = new Date();
+      const players = await storage.getPartyPlayers(id);
+      let turnOrder = JSON.parse(game.turnOrder!);
+      let currentIndex = turnOrder.indexOf(playerId);
+      let nextIndex = (currentIndex + 1) % turnOrder.length;
+      let nextPlayerId = turnOrder[nextIndex];
+      
+      let loopCount = 0;
+      while (loopCount < turnOrder.length) {
+          const nextPlayer = players.find(p => p.id === nextPlayerId);
+          if (nextPlayer && !nextPlayer.isEliminated && nextPlayer.isSetup) break;
+          nextIndex = (nextIndex + 1) % turnOrder.length;
+          nextPlayerId = turnOrder[nextIndex]; loopCount++;
       }
-      await storage.updateGame(id, updates);
+
+      await storage.updatePartyGame(id, { activePlayerId: nextPlayerId, turnCount: (game.turnCount || 0) + 1, turnStartedAt: new Date() });
       res.json({ success: true });
     } catch (err) { res.status(400).json({ message: 'Error' }); }
   });
 
-  app.get(api.games.logs.path, async (req, res) => { res.json(await storage.getLogs(Number(req.params.id))); });
-
-  app.post(api.games.powerup.path, async (req, res) => {
+  app.post('/api/party/:id/skip', async (req, res) => {
     try {
       const id = Number(req.params.id);
-      const { player, type, targetIndex, newDigit, swapIndex1, swapIndex2 } = req.body; 
-      const game = await storage.getGame(id);
-      if (!game || game.status !== 'playing' || game.turn !== player) return res.status(400).json({ message: 'Invalid' });
-
-      if (game.mode === 'custom') {
-          // --- التحديث هنا: قدرة الـ DDOS تعتمد على الـ Firewall أيضاً ---
-          if ((type === 'firewall' || type === 'timeHack') && !game.allowFirewall) return res.status(400).json({ message: 'Disabled' });
-          if (type === 'virus' && !game.allowVirus) return res.status(400).json({ message: 'Disabled' });
-          if (type === 'bruteforce' && !game.allowBruteforce) return res.status(400).json({ message: 'Disabled' });
-          if (type === 'changeDigit' && !game.allowChangeDigit) return res.status(400).json({ message: 'Disabled' });
-          if (type === 'swapDigits' && !game.allowSwapDigits) return res.status(400).json({ message: 'Disabled' });
-          if (type === 'emp' && !game.allowEmp) return res.status(400).json({ message: 'Disabled' });
-          if (type === 'spyware' && !game.allowSpyware) return res.status(400).json({ message: 'Disabled' });
-          if (type === 'honeypot' && !game.allowHoneypot) return res.status(400).json({ message: 'Disabled' });
+      const { playerId } = req.body;
+      const game = await storage.getPartyGame(id);
+      
+      if (!game || game.status !== 'playing' || game.activePlayerId !== playerId) {
+          return res.status(400).json({ message: 'Invalid turn' });
       }
 
-      const updates: any = {}; let logMessage = "";
-      const playerLabel = player === 'p1' ? '[P1]' : '[P2]';
-      const myCode = player === 'p1' ? game.p1Code : game.p2Code;
-      const targetCode = player === 'p1' ? game.p2Code : game.p1Code;
+      const attacker = await storage.getPartyPlayer(playerId);
+      await storage.createPartyLog({ partyGameId: id, message: `SYSTEM: ${attacker?.playerName} OFFLINE. TURN MANUALLY SKIPPED.`, type: 'warning' });
 
-      if (type === 'firewall') {
-        if ((player === 'p1' && game.p1FirewallUsed) || (player === 'p2' && game.p2FirewallUsed)) return res.status(400).json({ message: 'Used' });
-        updates[player === 'p1' ? 'p1FirewallUsed' : 'p2FirewallUsed'] = true; updates.isFirewallActive = true; 
-        logMessage = `${playerLabel} ACTIVATED FIREWALL. TURN EXTENDED.`;
-      } 
-      else if (type === 'timeHack') {
-        if (game.mode !== 'blitz' && game.mode !== 'custom') return res.status(400).json({ message: 'Only available in Blitz or Custom mode' });
-        if ((player === 'p1' && game.p1TimeHackUsed) || (player === 'p2' && game.p2TimeHackUsed)) return res.status(400).json({ message: 'Used' });
-        updates[player === 'p1' ? 'p1TimeHackUsed' : 'p2TimeHackUsed'] = true; updates.isTimeHackActive = true; 
-        logMessage = `WARNING: ${playerLabel} LAUNCHED DDOS ATTACK! OPPONENT'S NEXT TURN REDUCED BY 20s.`;
-      }
-      else if (type === 'virus') {
-        if ((player === 'p1' && game.p1VirusUsed) || (player === 'p2' && game.p2VirusUsed)) return res.status(400).json({ message: 'Used' });
-        updates[player === 'p1' ? 'p1VirusUsed' : 'p2VirusUsed'] = true;
-        
-        const opponentLabel = player === 'p1' ? '[P2]' : '[P1]';
-        await storage.deletePlayerLogs(id, opponentLabel);
-        
-        logMessage = `WARNING: ${playerLabel} UPLOADED A VIRUS! ALL ${opponentLabel} SYSTEM LOGS DELETED.`;
-      }
-      else if (type === 'bruteforce') {
-        if ((player === 'p1' && game.p1BruteforceUsed) || (player === 'p2' && game.p2BruteforceUsed)) return res.status(400).json({ message: 'Used' });
-        updates[player === 'p1' ? 'p1BruteforceUsed' : 'p2BruteforceUsed'] = true;
-        logMessage = `${playerLabel} USED BRUTEFORCE. 1ST DIGIT IS [ ${targetCode![0]} ]`;
-      }
-      else if (type === 'changeDigit') {
-        if ((player === 'p1' && game.p1ChangeDigitUsed) || (player === 'p2' && game.p2ChangeDigitUsed)) return res.status(400).json({ message: 'Used' });
-        let codeArr = myCode!.split(''); codeArr[targetIndex] = newDigit.toString();
-        updates[player === 'p1' ? 'p1Code' : 'p2Code'] = codeArr.join('');
-        updates[player === 'p1' ? 'p1ChangeDigitUsed' : 'p2ChangeDigitUsed'] = true;
-        logMessage = `SYSTEM: ${playerLabel} MUTATED THEIR MASTER CODE.`;
-      }
-      else if (type === 'swapDigits') {
-        if ((player === 'p1' && game.p1SwapDigitsUsed) || (player === 'p2' && game.p2SwapDigitsUsed)) return res.status(400).json({ message: 'Used' });
-        let codeArr = myCode!.split(''); let temp = codeArr[swapIndex1]; codeArr[swapIndex1] = codeArr[swapIndex2]; codeArr[swapIndex2] = temp;
-        updates[player === 'p1' ? 'p1Code' : 'p2Code'] = codeArr.join('');
-        updates[player === 'p1' ? 'p1SwapDigitsUsed' : 'p2SwapDigitsUsed'] = true;
-        logMessage = `SYSTEM: ${playerLabel} SHUFFLED THEIR MASTER CODE.`;
-      }
-      // --- NEW: STEALTH AND INTEL POWERUPS ---
-      else if (type === 'emp') {
-        if ((player === 'p1' && game.p1EmpUsed) || (player === 'p2' && game.p2EmpUsed)) return res.status(400).json({ message: 'Used' });
-        updates[player === 'p1' ? 'p1EmpUsed' : 'p2EmpUsed'] = true;
-        updates[player === 'p1' ? 'p2Jammed' : 'p1Jammed'] = true;
-        logMessage = ""; // لا يُظهر أي رسالة في السجل نهائياً!
-      }
-      else if (type === 'honeypot') {
-        if ((player === 'p1' && game.p1HoneypotUsed) || (player === 'p2' && game.p2HoneypotUsed)) return res.status(400).json({ message: 'Used' });
-        updates[player === 'p1' ? 'p1HoneypotUsed' : 'p2HoneypotUsed'] = true;
-        updates[player === 'p1' ? 'p2Honeypoted' : 'p1Honeypoted'] = true;
-        logMessage = ""; // لا يُظهر أي رسالة في السجل نهائياً!
-      }
-      else if (type === 'spyware') {
-        if ((player === 'p1' && game.p1SpywareUsed) || (player === 'p2' && game.p2SpywareUsed)) return res.status(400).json({ message: 'Used' });
-        updates[player === 'p1' ? 'p1SpywareUsed' : 'p2SpywareUsed'] = true;
-        const codeSum = targetCode!.split('').reduce((acc, curr) => acc + parseInt(curr), 0);
-        logMessage = `SYSTEM: ${playerLabel} DEPLOYED SPYWARE. TARGET CODE SUM = ${codeSum}`;
+      const players = await storage.getPartyPlayers(id);
+      let turnOrder = JSON.parse(game.turnOrder!);
+      let currentIndex = turnOrder.indexOf(playerId);
+      let nextIndex = (currentIndex + 1) % turnOrder.length;
+      let nextPlayerId = turnOrder[nextIndex];
+
+      let loopCount = 0;
+      while (loopCount < turnOrder.length) {
+          const nextPlayer = players.find(p => p.id === nextPlayerId);
+          if (nextPlayer && !nextPlayer.isEliminated && nextPlayer.isSetup) break;
+          nextIndex = (nextIndex + 1) % turnOrder.length;
+          nextPlayerId = turnOrder[nextIndex]; loopCount++;
       }
 
-      updates.turnStartedAt = new Date(); 
-      await storage.updateGame(id, updates);
-      if (logMessage !== "") await storage.createLog({ gameId: id, message: logMessage, type: 'warning' });
-      res.json(await storage.getGame(id));
-    } catch (err) { res.status(400).json({ message: 'Invalid input' }); }
+      await storage.updatePartyGame(id, {
+          activePlayerId: nextPlayerId,
+          turnCount: (game.turnCount || 0) + 1,
+          turnStartedAt: new Date()
+      });
+      res.json({ success: true });
+    } catch (err) { res.status(400).json({ message: 'Error skipping turn' }); }
   });
 
-  app.post('/api/games/:id/restart', async (req, res) => {
-    const id = Number(req.params.id);
-    await storage.resetGame(id);
-    await storage.createLog({ gameId: id, message: "SYSTEM: RESTART SEQUENCE INITIATED.", type: "warning" });
-    res.json({ success: true });
+  app.post('/api/party/:id/powerup', async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const { attackerId, targetId, type, targetIndex, newDigit, swapIndex1, swapIndex2 } = req.body;
+      const game = await storage.getPartyGame(id);
+      if (!game || game.status !== 'playing') return res.status(400).json({ message: 'Game not active' });
+
+      const attacker = await storage.getPartyPlayer(attackerId);
+      if (!attacker) return res.status(400).json({ message: 'Invalid attacker' });
+      
+      const isGhost = attacker.isGhost && attacker.isEliminated;
+      if (game.activePlayerId !== attackerId && !isGhost) return res.status(400).json({ message: 'Not your turn' });
+
+      const target = targetId ? await storage.getPartyPlayer(targetId) : null;
+      let logMessage = ""; let updates: any = {}; let gameUpdates: any = {};
+
+      if (type === 'firewall') {
+          if (attacker.firewallUsed) return res.status(400).json({ message: 'Firewall already used' });
+          updates.firewallUsed = true; updates.isFirewallActive = true;
+          logMessage = `${attacker.playerName} ACTIVATED FIREWALL. NEXT TURN BLOCKED.`;
+      } else if (type === 'timeHack') {
+          if (attacker.timeHackUsed) return res.status(400).json({ message: 'DDoS already used' });
+          updates.timeHackUsed = true; gameUpdates.turnStartedAt = new Date(Date.now() - 20000);
+          logMessage = `WARNING: ${attacker.playerName} LAUNCHED DDOS ATTACK! TIME REDUCED BY 20s.`;
+      } else if (type === 'virus') {
+          if (attacker.virusUsed) return res.status(400).json({ message: 'Virus already used' });
+          updates.virusUsed = true; await storage.clearPartyLogs(id);
+          logMessage = `WARNING: ${attacker.playerName} UPLOADED A VIRUS! SYSTEM LOGS DELETED!`;
+      } else if (type === 'bruteforce') {
+          if (attacker.bruteforceUsed) return res.status(400).json({ message: 'Bruteforce already used' });
+          if (!target || !target.isSetup) return res.status(400).json({ message: 'Valid target required' });
+          updates.bruteforceUsed = true;
+          logMessage = `${attacker.playerName} USED BRUTEFORCE ON ${target.playerName}. 1ST DIGIT IS [ ${target.code![0]} ]`;
+      } else if (type === 'changeDigit') {
+          if (attacker.changeDigitUsed) return res.status(400).json({ message: 'Change Digit already used' });
+          let codeArr = (attacker.code || "0000").split(''); codeArr[targetIndex] = newDigit.toString();
+          updates.code = codeArr.join(''); updates.changeDigitUsed = true;
+          logMessage = `SYSTEM: ${attacker.playerName} MUTATED THEIR MASTER CODE.`;
+      } else if (type === 'swapDigits') {
+          if (attacker.swapDigitsUsed) return res.status(400).json({ message: 'Swap Digits already used' });
+          let codeArr = (attacker.code || "0000").split(''); let temp = codeArr[swapIndex1]; codeArr[swapIndex1] = codeArr[swapIndex2]; codeArr[swapIndex2] = temp;
+          updates.code = codeArr.join(''); updates.swapDigitsUsed = true;
+          logMessage = `SYSTEM: ${attacker.playerName} SHUFFLED THEIR MASTER CODE.`;
+      } else if (type === 'emp') {
+          if (attacker.empUsed) return res.status(400).json({ message: 'EMP already used' });
+          if (!target) return res.status(400).json({ message: 'Target required' });
+          updates.empUsed = true; await storage.updatePartyPlayer(targetId, { isJammed: true });
+      } else if (type === 'honeypot') {
+          if (attacker.honeypotUsed) return res.status(400).json({ message: 'Honeypot already used' });
+          updates.honeypotUsed = true; updates.isHoneypoted = true;
+      } else if (type === 'spyware') {
+          if (attacker.spywareUsed) return res.status(400).json({ message: 'Spyware already used' });
+          if (!target || !target.isSetup) return res.status(400).json({ message: 'Valid target required' });
+          updates.spywareUsed = true;
+          const codeSum = target.code!.split('').reduce((acc, curr) => acc + parseInt(curr), 0);
+          logMessage = `SYSTEM: ${attacker.playerName} DEPLOYED SPYWARE ON ${target.playerName}. CODE SUM = ${codeSum}`;
+      }
+
+      if (isGhost) {
+          const currentStrikes = attacker.successfulDefenses || 0; 
+          const newStrikes = currentStrikes + 1;
+          updates.successfulDefenses = newStrikes;
+
+          if (newStrikes >= 2) {
+              updates.firewallUsed = true; updates.timeHackUsed = true; updates.virusUsed = true;
+              updates.bruteforceUsed = true; updates.changeDigitUsed = true; updates.swapDigitsUsed = true;
+              updates.empUsed = true; updates.spywareUsed = true; updates.honeypotUsed = true;
+              logMessage = `👻 [GHOST SABOTAGE - FINAL STRIKE] ` + logMessage;
+          } else {
+              logMessage = `👻 [GHOST SABOTAGE - STRIKE 1/2] ` + logMessage;
+          }
+      }
+
+      await storage.updatePartyPlayer(attackerId, updates);
+      if (Object.keys(gameUpdates).length > 0) await storage.updatePartyGame(id, gameUpdates);
+      if (logMessage) await storage.createPartyLog({ partyGameId: id, message: logMessage, type: 'warning' });
+      res.json({ success: true });
+    } catch (err) { res.status(400).json({ message: 'Error in powerup' }); }
+  });
+
+  app.post('/api/party/:id/guess', async (req, res) => {
+    try {
+       const id = Number(req.params.id);
+       const { attackerId, targetId, guess } = req.body;
+       const game = await storage.getPartyGame(id);
+       if (!game || game.status !== 'playing' || game.activePlayerId !== attackerId) return res.status(400).json({ message: 'Invalid turn' });
+
+       const attacker = await storage.getPartyPlayer(attackerId);
+       const target = await storage.getPartyPlayer(targetId);
+       if (!attacker || !target || (target.isEliminated && game.subMode !== 'battle_royale') || !target.isSetup) return res.status(400).json({ message: 'Target is rebooting or invalid' });
+
+       let { hits, blips } = calculateFeedback(target.code!, guess);
+       let displayHits = hits; let displayBlips = blips;
+
+       if (hits !== 4) {
+           if (attacker.isJammed) {
+               displayHits = -1; displayBlips = -1; await storage.updatePartyPlayer(attackerId, { isJammed: false });
+           } else if (target.isHoneypoted) {
+               displayHits = hits > 0 ? 0 : 1; displayBlips = blips > 0 ? 0 : (hits === 0 ? 2 : 1);
+               await storage.updatePartyPlayer(targetId, { isHoneypoted: false });
+           }
+       }
+
+       await storage.createPartyGuess({ partyGameId: id, attackerId, targetId, guess, hits: displayHits, blips: displayBlips });
+       
+       let logStr = displayHits === -1 
+         ? `[${attacker.playerName}] guessed [${guess}] on [${target.playerName}] >> HITS: ░░ | CLOSE: ░░ [SIGNAL JAMMED]` 
+         : `[${attacker.playerName}] guessed [${guess}] on [${target.playerName}] >> HITS: ${displayHits} | CLOSE: ${displayBlips}`;
+       await storage.createPartyLog({ partyGameId: id, message: logStr, type: hits === 4 ? 'success' : 'info' });
+
+       let updates: any = {};
+       const isPointsMode = game.winCondition === 'points' && game.subMode !== 'battle_royale';
+       let currentAttackerPoints = attacker.points || 0; 
+       
+       let isTargetCrashed = false; 
+
+       if (hits === 4) {
+           if (isPointsMode) {
+               currentAttackerPoints += 3;
+               await storage.updatePartyPlayer(attackerId, { points: currentAttackerPoints });
+               await storage.createPartyLog({ partyGameId: id, message: `SYSTEM: ${attacker.playerName} CRACKED ${target.playerName}! (+3 PTS)`, type: 'success' });
+               
+               await storage.updatePartyPlayer(targetId, { code: "", isSetup: false });
+               isTargetCrashed = true; 
+               await storage.createPartyLog({ partyGameId: id, message: `SYSTEM: ${target.playerName}'s system crashed! Awaiting manual reboot...`, type: 'error' });
+
+               if (currentAttackerPoints >= (game.targetPoints || 15)) {
+                   updates.status = 'finished'; updates.winnerId = attackerId;
+                   await storage.createPartyLog({ partyGameId: id, message: `WINNER: ${attacker.playerName} REACHED ${game.targetPoints || 15} PTS!`, type: 'success' });
+               }
+           } else {
+               await storage.updatePartyPlayer(targetId, { isEliminated: true, isGhost: game.subMode === 'battle_royale', successfulDefenses: 0 });
+               await storage.createPartyLog({ partyGameId: id, message: `SYSTEM: ${target.playerName} HAS BEEN COMPROMISED!`, type: 'error' });
+           }
+       } else if (hits >= 2 && isPointsMode) {
+           currentAttackerPoints += 1;
+           await storage.updatePartyPlayer(attackerId, { points: currentAttackerPoints });
+           await storage.createPartyLog({ partyGameId: id, message: `[INFO] ${attacker.playerName} gained a Partial Hit (+1 PT).`, type: 'info' });
+
+           if (currentAttackerPoints >= (game.targetPoints || 15)) {
+               updates.status = 'finished'; updates.winnerId = attackerId;
+               await storage.createPartyLog({ partyGameId: id, message: `WINNER: ${attacker.playerName} REACHED ${game.targetPoints || 15} PTS!`, type: 'success' });
+           }
+       }
+
+       if (updates.status !== 'finished') {
+           const players = await storage.getPartyPlayers(id);
+           
+           if (isTargetCrashed) {
+               const t = players.find(p => p.id === targetId);
+               if (t) t.isSetup = false; 
+           }
+
+           const alivePlayers = players.filter(p => !p.isEliminated);
+           
+           if (!isPointsMode && alivePlayers.length <= 1) {
+               updates.status = 'finished'; updates.winnerId = alivePlayers[0]?.id;
+               await storage.createPartyLog({ partyGameId: id, message: `SYSTEM: ${alivePlayers[0]?.playerName || 'UNKNOWN'} IS THE LAST HACKER STANDING!`, type: 'success' });
+           } else if (!attacker.isFirewallActive) {
+               let turnOrder = JSON.parse(game.turnOrder!);
+               let currentIndex = turnOrder.indexOf(attackerId);
+               let nextIndex = (currentIndex + 1) % turnOrder.length;
+               let nextPlayerId = turnOrder[nextIndex];
+               
+               let loopCount = 0;
+               while (loopCount < turnOrder.length) {
+                   const nextPlayer = players.find(p => p.id === nextPlayerId);
+                   if (nextPlayer && !nextPlayer.isEliminated && nextPlayer.isSetup) {
+                       break; 
+                   }
+                   nextIndex = (nextIndex + 1) % turnOrder.length;
+                   nextPlayerId = turnOrder[nextIndex]; 
+                   loopCount++;
+               }
+               updates.activePlayerId = nextPlayerId; updates.turnCount = (game.turnCount || 0) + 1; updates.turnStartedAt = new Date();
+           } else {
+               await storage.updatePartyPlayer(attackerId, { isFirewallActive: false });
+           }
+       }
+
+       await storage.updatePartyGame(id, updates);
+       res.json({ hits, blips });
+    } catch (err) { res.status(400).json({ message: 'Invalid input' }); }
   });
 
   return httpServer;

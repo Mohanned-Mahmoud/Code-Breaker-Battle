@@ -1,321 +1,167 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
-import { Shield, Zap, Terminal, ArrowLeft, Play, RefreshCw, Edit2, Shuffle, Timer, Bug, Settings2, Eye, Ghost, Radio } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  ArrowLeft, Terminal, User, Users, Zap, Shield, Bug, Edit2, Shuffle, Radio, Eye, Ghost, Skull, Timer, Crosshair, Target
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-// --- STATIC DATA ---
-const TUTORIAL_LOGS = [
-    "SYSTEM_BOOT_SEQUENCE_INITIATED...",
-    "LOADING_TUTORIAL_MODULES...",
-    "MODULE_LOADED: DECRYPTION_LOGIC",
-    "MODULE_LOADED: BATTLE_MECHANICS",
-    "MODULE_LOADED: TIME_PROTOCOLS",
-    "WELCOME_RECRUIT. PREPARE_FOR_BRIEFING.",
-    "OBJECTIVE: GUESS THE 4-DIGIT ENEMY CODE.",
-    "TIP: USE LOGIC, NOT LUCK.",
-    "STATUS: WAITING_FOR_INPUT..."
-];
-
-// --- COMPONENTS ---
-const MockDigit = ({ val, status }: { val: string, status: 'hit' | 'close' | 'none' }) => (
-  <div className={cn(
-    "w-10 h-10 md:w-12 md:h-12 flex items-center justify-center text-xl font-bold rounded-sm border-2 transition-all duration-500",
-    status === 'hit' ? "border-green-500 text-green-500 shadow-[0_0_15px_rgba(34,197,94,0.5)] bg-green-500/10 scale-110" :
-    status === 'close' ? "border-yellow-500 text-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.5)] bg-yellow-500/10" :
-    "border-primary/30 text-primary/30 bg-black/50"
-  )}>
-    {val}
-  </div>
-);
-
-const TypewriterLog = ({ logs }: { logs: string[] }) => {
-    const scrollRef = useRef<HTMLDivElement>(null);
-    const [displayedLogs, setDisplayedLogs] = useState<string[]>([]);
-
-    useEffect(() => {
-        setDisplayedLogs([]); 
-        let currentIndex = 0;
-        
-        const interval = setInterval(() => {
-            if (currentIndex < logs.length) {
-                setDisplayedLogs(prev => [...prev, logs[currentIndex]]);
-                currentIndex++;
-                
-                if (scrollRef.current) {
-                    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-                }
-            } else {
-                clearInterval(interval);
-            }
-        }, 800);
-        
-        return () => clearInterval(interval);
-    }, [logs]);
-
-    return (
-        <div ref={scrollRef} className="font-mono text-xs md:text-sm flex-1 min-h-0 overflow-y-auto p-4 bg-black/60 border border-primary/20 rounded-sm custom-scrollbar space-y-2 h-full">
-            {displayedLogs.map((log, i) => {
-                const safeLog = log || ""; 
-                return (
-                    <div key={i} className="animate-in fade-in slide-in-from-left-2 duration-300">
-                        <span className="opacity-40 mr-2">[{new Date().toLocaleTimeString()}]</span>
-                        <span className={safeLog.includes("ERROR") ? "text-red-500" : safeLog.includes("SUCCESS") ? "text-green-500" : "text-primary/70"}>
-                            {">"} {safeLog}
-                        </span>
-                    </div>
-                );
-            })}
-             <div className="sticky bottom-0 left-0 animate-pulse w-2 h-4 bg-primary/50 mt-2" />
-        </div>
-    );
-};
+import { cn } from "@/lib/utils";
 
 export default function HowToPlay() {
   const [, setLocation] = useLocation();
-  const [demoInput, setDemoInput] = useState("");
-  const [demoResult, setDemoResult] = useState<{hits: number, blips: number} | null>(null);
-
-  const TARGET_CODE = "7392"; 
-
-  const handleSimulate = () => {
-    if (demoInput.length !== 4) return;
-    
-    let hits = 0;
-    let blips = 0;
-    const secretArr = TARGET_CODE.split('');
-    const guessArr = demoInput.split('');
-    const secretUsed = [false, false, false, false];
-    const guessUsed = [false, false, false, false];
-
-    for (let i = 0; i < 4; i++) {
-      if (guessArr[i] === secretArr[i]) {
-        hits++;
-        secretUsed[i] = true;
-        guessUsed[i] = true;
-      }
-    }
-    for (let i = 0; i < 4; i++) {
-      if (!guessUsed[i]) {
-        for (let j = 0; j < 4; j++) {
-          if (!secretUsed[j] && guessArr[i] === secretArr[j]) {
-            blips++;
-            secretUsed[j] = true;
-            break;
-          }
-        }
-      }
-    }
-    setDemoResult({ hits, blips });
-  };
+  const [activeTab, setActiveTab] = useState<'1v1' | 'party' | 'powerups'>('1v1');
 
   return (
-    <div className="h-[100dvh] w-full overflow-hidden flex flex-col relative bg-background text-primary selection:bg-primary/30">
-      
-      <div className="absolute inset-0 z-0 opacity-10 pointer-events-none" 
-           style={{ backgroundImage: 'linear-gradient(rgba(0, 255, 0, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 255, 0, 0.1) 1px, transparent 1px)', backgroundSize: '40px 40px' }}>
-      </div>
+    <div className="h-[100dvh] w-full bg-background flex flex-col items-center p-4 overflow-hidden relative font-mono">
+      {/* Background Decor */}
+      <div className="fixed inset-0 pointer-events-none z-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(#00ff00 1px, transparent 1px), linear-gradient(90deg, #00ff00 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
-      <div className="relative z-10 flex justify-between items-center p-4 border-b border-primary/20 bg-black/80 backdrop-blur">
-          <div className="flex items-center gap-4">
-             <Button size="icon" variant="ghost" className="h-8 w-8 text-primary hover:text-cyan-400" onClick={() => setLocation("/")}>
-                <ArrowLeft className="h-5 w-5" />
-             </Button>
-            <div>
-              <h2 className="text-xl font-black tracking-tighter glitch-effect">TRAINING_SIM</h2>
-              <p className="text-[10px] opacity-50 font-mono tracking-widest">V.2.1 // UPDATED</p>
-            </div>
+      <div className="w-full max-w-4xl z-10 flex flex-col h-full">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-primary/30 pb-4 mb-6 shrink-0 mt-4">
+          <Button variant="ghost" onClick={() => setLocation('/')} className="text-primary/60 hover:text-primary hover:bg-primary/10 tracking-[0.2em] text-[10px]">
+            <ArrowLeft className="mr-2 h-4 w-4" /> ABORT
+          </Button>
+          <div className="flex items-center gap-3 text-primary">
+            <Terminal className="w-6 h-6" />
+            <h1 className="text-2xl md:text-3xl font-black tracking-[0.3em] uppercase glitch-effect">Operator Manual</h1>
           </div>
-          <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/5">
-             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-             <span className="text-[10px] font-bold tracking-widest">ONLINE</span>
-          </div>
-      </div>
+        </div>
 
-      <div className="flex-1 overflow-y-auto md:overflow-hidden p-4 grid grid-cols-1 md:grid-cols-12 gap-6 z-10 max-w-7xl mx-auto w-full">
-        
-        <div className="md:col-span-5 flex flex-col gap-6 overflow-y-auto pr-2 custom-scrollbar pb-20">
+        {/* Navigation Tabs */}
+        <div className="flex gap-2 w-full mb-6 shrink-0 overflow-x-auto custom-scrollbar pb-2">
+          <button onClick={() => setActiveTab('1v1')} className={cn("flex-1 min-w-[120px] py-3 px-4 border transition-all flex items-center justify-center gap-2 font-bold tracking-widest text-xs", activeTab === '1v1' ? "bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(0,255,0,0.2)]" : "border-primary/20 text-primary/50 hover:border-primary/50")}>
+            <User className="w-4 h-4" /> 1V1 BATTLE
+          </button>
+          <button onClick={() => setActiveTab('party')} className={cn("flex-1 min-w-[120px] py-3 px-4 border transition-all flex items-center justify-center gap-2 font-bold tracking-widest text-xs", activeTab === 'party' ? "bg-fuchsia-500/20 border-fuchsia-500 text-fuchsia-500 shadow-[0_0_15px_rgba(232,121,249,0.2)]" : "border-fuchsia-500/20 text-fuchsia-500/50 hover:border-fuchsia-500/50")}>
+            <Users className="w-4 h-4" /> PARTY MODE
+          </button>
+          <button onClick={() => setActiveTab('powerups')} className={cn("flex-1 min-w-[120px] py-3 px-4 border transition-all flex items-center justify-center gap-2 font-bold tracking-widest text-xs", activeTab === 'powerups' ? "bg-blue-500/20 border-blue-500 text-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.2)]" : "border-blue-500/20 text-blue-500/50 hover:border-blue-500/50")}>
+            <Zap className="w-4 h-4" /> ARSENAL
+          </button>
+        </div>
+
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar border border-white/10 bg-black/40 p-4 md:p-8 rounded">
+          <AnimatePresence mode="wait">
             
-            <div className="bg-black/40 border border-primary/20 p-5 rounded-lg space-y-4 hover:border-primary/50 transition-colors group">
-                <h3 className="flex items-center gap-2 font-bold text-lg text-white group-hover:text-cyan-400 transition-colors">
-                    <Terminal className="w-5 h-5" /> THE LOGIC
-                </h3>
-                <div className="space-y-3">
-                    <div className="flex items-center gap-3 p-3 bg-green-900/10 border border-green-500/20 rounded-md">
-                        <MockDigit val="7" status="hit" />
-                        <div>
-                            <span className="text-green-400 font-bold block text-sm">HIT</span>
-                            <span className="text-xs opacity-70">Right Number, Right Place.</span>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-yellow-900/10 border border-yellow-500/20 rounded-md">
-                        <MockDigit val="3" status="close" />
-                        <div>
-                            <span className="text-yellow-400 font-bold block text-sm">CLOSE</span>
-                            <span className="text-xs opacity-70">Right Number, Wrong Place.</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            {/* 1V1 RULES */}
+            {activeTab === '1v1' && (
+              <motion.div key="1v1" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-8 text-primary/80">
+                <section>
+                  <h2 className="text-xl font-bold text-primary mb-3 flex items-center gap-2 border-b border-primary/20 pb-2"><Target className="w-5 h-5"/> THE BASICS</h2>
+                  <p className="text-sm leading-relaxed mb-4">You and your opponent must both define a secret <strong>4-digit Master Key</strong>. Take turns guessing each other's key. The first hacker to crack the code wins.</p>
+                  <div className="bg-primary/5 border border-primary/20 p-4 rounded space-y-2">
+                    <p className="text-sm"><span className="text-green-400 font-bold">HITS:</span> A digit is correct AND in the exact right position.</p>
+                    <p className="text-sm"><span className="text-yellow-400 font-bold">CLOSE:</span> A digit is correct but in the wrong position.</p>
+                  </div>
+                </section>
 
-            {/* --- GAME MODES SECTION --- */}
-            <div className="bg-black/40 border border-primary/20 p-5 rounded-lg space-y-4 hover:border-primary/50 transition-colors">
-                 <h3 className="flex items-center gap-2 font-bold text-lg text-white">
-                    <Terminal className="w-5 h-5 text-cyan-500" /> GAME MODES
-                </h3>
-                <div className="space-y-3">
-                     <div className="p-3 bg-primary/5 border border-primary/20 rounded">
-                         <span className="text-cyan-400 font-bold text-sm block mb-1">NORMAL MODE</span>
-                         <span className="text-xs opacity-70">Classic turn-based tactical hacking. Unlimited time per turn.</span>
-                     </div>
-                     <div className="p-3 bg-red-900/10 border border-red-500/20 rounded">
-                         <span className="text-red-400 font-bold text-sm flex items-center gap-1 mb-1"><Timer className="w-4 h-4" /> BLITZ MODE</span>
-                         <span className="text-xs opacity-70">30 seconds per turn. If time runs out, your turn is skipped. The Firewall powerup is replaced with DDOS.</span>
-                     </div>
-                     <div className="p-3 bg-purple-900/10 border border-purple-500/20 rounded">
-                         <span className="text-purple-400 font-bold text-sm flex items-center gap-1 mb-1"><Zap className="w-4 h-4" /> GLITCH MODE</span>
-                         <span className="text-xs opacity-70">Pure chaos. Every 3 turns, a random system virus triggers (Shuffles codes, Mutates digits, or Restores powerups).</span>
-                     </div>
-                     <div className="p-3 bg-blue-900/10 border border-blue-500/20 rounded">
-                         <span className="text-blue-400 font-bold text-sm flex items-center gap-1 mb-1"><Settings2 className="w-4 h-4" /> CUSTOM MODE</span>
-                         <span className="text-xs opacity-70">Configure your own rules. Toggle the timer and select exactly which powerups are allowed (Max 4).</span>
-                     </div>
-                </div>
-            </div>
+                <section>
+                  <h2 className="text-xl font-bold text-primary mb-3 border-b border-primary/20 pb-2">GAME MODES</h2>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="border border-primary/20 p-4 bg-black/50">
+                      <h3 className="font-bold text-primary mb-1">NORMAL</h3>
+                      <p className="text-xs opacity-70">Standard turn-based battle. No time limits. Pure logic and deduction.</p>
+                    </div>
+                    <div className="border border-red-500/30 p-4 bg-red-900/10">
+                      <h3 className="font-bold text-red-500 mb-1">BLITZ</h3>
+                      <p className="text-xs opacity-70 text-red-200">You only have <strong>30 seconds</strong> per turn. If the timer hits zero, your turn is skipped!</p>
+                    </div>
+                    <div className="border border-purple-500/30 p-4 bg-purple-900/10 md:col-span-2">
+                      <h3 className="font-bold text-purple-500 mb-1">GLITCH</h3>
+                      <p className="text-xs opacity-70 text-purple-200">Every 3 turns, the system suffers a catastrophic failure: Codes might shuffle, a digit might mutate, or all powerups might instantly regenerate.</p>
+                    </div>
+                  </div>
+                </section>
+              </motion.div>
+            )}
 
-            {/* --- NEW ARSENAL SECTION WITH ALL 8 POWERUPS --- */}
-            <div className="bg-black/40 border border-primary/20 p-5 rounded-lg space-y-4 hover:border-primary/50 transition-colors mb-8">
-                 <h3 className="flex items-center gap-2 font-bold text-lg text-white">
-                    <Zap className="w-5 h-5 text-yellow-500" /> ARSENAL (1-TIME USE)
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 bg-primary/5 rounded border border-primary/10 text-center flex flex-col justify-center relative overflow-hidden">
-                        <div className="absolute top-0 right-0 bg-primary/20 text-[8px] px-1 rounded-bl">VARIES</div>
-                        <Shield className="w-5 h-5 mx-auto mb-2 text-yellow-500" />
-                        <div className="text-[10px] font-bold text-white mb-1">FIREWALL / DDOS</div>
-                        <p className="text-[9px] opacity-60 leading-tight">
-                            <span className="text-yellow-400 font-bold">Normal:</span> Extra turn.<br/>
-                            <span className="text-orange-400 font-bold mt-1 block">Timed:</span> -20s from enemy.
-                        </p>
+            {/* PARTY RULES */}
+            {activeTab === 'party' && (
+              <motion.div key="party" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-8 text-fuchsia-500/80">
+                <section>
+                  <h2 className="text-xl font-bold text-fuchsia-500 mb-3 flex items-center gap-2 border-b border-fuchsia-500/20 pb-2"><Users className="w-5 h-5"/> SQUAD MECHANICS</h2>
+                  <p className="text-sm leading-relaxed mb-4">Play with 3 to 6 players. In your turn, you must <strong>Select a Target</strong> from the grid, then use a Powerup or launch a Guess against them.</p>
+                </section>
+
+                <section>
+                  <h2 className="text-xl font-bold text-fuchsia-500 mb-3 border-b border-fuchsia-500/20 pb-2">WIN CONDITIONS</h2>
+                  <div className="space-y-4">
+                    <div className="border border-cyan-500/30 p-4 bg-cyan-900/10 rounded">
+                      <h3 className="font-bold text-cyan-400 mb-2 flex items-center gap-2"><Target className="w-4 h-4"/> POINTS SYSTEM</h3>
+                      <ul className="text-xs space-y-2 text-cyan-100/70 list-disc list-inside pl-4">
+                        <li><strong>Cracking a Code (4 HITS):</strong> Grants <span className="text-green-400 font-bold">+3 PTS</span>.</li>
+                        <li><strong>Partial Hit (2+ HITS):</strong> Grants <span className="text-yellow-400 font-bold">+1 PT</span>.</li>
+                        <li><strong>System Crash:</strong> If your code is cracked, your system crashes! You must <strong>manually enter a new 4-digit key</strong> to reboot and continue playing. You cannot attack while rebooting.</li>
+                        <li>First hacker to reach the Target Score wins.</li>
+                      </ul>
                     </div>
-                    <div className="p-3 bg-primary/5 rounded border border-primary/10 text-center flex flex-col justify-center">
-                        <Bug className="w-5 h-5 mx-auto mb-2 text-green-500" />
-                        <div className="text-[10px] font-bold text-white mb-1">VIRUS</div>
-                        <p className="text-[9px] opacity-60 leading-tight">Deletes all opponent's system logs permanently.</p>
+                    <div className="border border-red-500/30 p-4 bg-red-900/10 rounded">
+                      <h3 className="font-bold text-red-500 mb-2 flex items-center gap-2"><Skull className="w-4 h-4"/> ELIMINATION (BATTLE ROYALE)</h3>
+                      <p className="text-xs text-red-200/70">If your code is cracked, you are eliminated! However, if <strong>GHOST PROTOCOL</strong> is active, dead players can still use their unused powerups to sabotage the living.</p>
                     </div>
-                    <div className="p-3 bg-primary/5 rounded border border-primary/10 text-center flex flex-col justify-center">
-                        <Zap className="w-5 h-5 mx-auto mb-2 text-red-500" />
-                        <div className="text-[10px] font-bold text-white mb-1">BRUTEFORCE</div>
-                        <p className="text-[9px] opacity-60 leading-tight">Reveal the 1st digit of enemy code permanently.</p>
-                    </div>
-                    <div className="p-3 bg-primary/5 rounded border border-primary/10 text-center flex flex-col justify-center">
-                        <Edit2 className="w-5 h-5 mx-auto mb-2 text-blue-500" />
-                        <div className="text-[10px] font-bold text-white mb-1">CHANGE DIGIT</div>
-                        <p className="text-[9px] opacity-60 leading-tight">Mutate one digit of your master code.</p>
-                    </div>
-                    <div className="p-3 bg-primary/5 rounded border border-primary/10 text-center flex flex-col justify-center">
-                        <Shuffle className="w-5 h-5 mx-auto mb-2 text-purple-500" />
-                        <div className="text-[10px] font-bold text-white mb-1">SWAP DIGITS</div>
-                        <p className="text-[9px] opacity-60 leading-tight">Swap positions of two digits in your code.</p>
-                    </div>
-                    <div className="p-3 bg-primary/5 rounded border border-primary/10 text-center flex flex-col justify-center">
-                        <Radio className="w-5 h-5 mx-auto mb-2 text-cyan-400" />
-                        <div className="text-[10px] font-bold text-white mb-1">EMP JAMMER</div>
-                        <p className="text-[9px] opacity-60 leading-tight">Jams enemy signal. Their next guess gives corrupted data.</p>
-                    </div>
-                    <div className="p-3 bg-primary/5 rounded border border-primary/10 text-center flex flex-col justify-center">
-                        <Eye className="w-5 h-5 mx-auto mb-2 text-emerald-400" />
-                        <div className="text-[10px] font-bold text-white mb-1">SPYWARE</div>
-                        <p className="text-[9px] opacity-60 leading-tight">Calculates and reveals the sum of enemy digits.</p>
-                    </div>
-                    <div className="p-3 bg-primary/5 rounded border border-primary/10 text-center flex flex-col justify-center">
-                        <Ghost className="w-5 h-5 mx-auto mb-2 text-indigo-400" />
-                        <div className="text-[10px] font-bold text-white mb-1">HONEYPOT</div>
-                        <p className="text-[9px] opacity-60 leading-tight">Generates fake feedback data for the enemy's next guess.</p>
-                    </div>
+                  </div>
+                </section>
+              </motion.div>
+            )}
+
+            {/* POWERUPS RULES */}
+            {activeTab === 'powerups' && (
+              <motion.div key="powerups" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-4">
+                <p className="text-sm text-blue-400/80 mb-6">Equip these cyber-weapons in Custom or Party mode. Most powerups can only be used <strong>ONCE</strong> per match.</p>
+                
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div className="p-3 border border-yellow-500/30 bg-yellow-500/5 flex gap-3">
+                    <Shield className="w-8 h-8 text-yellow-500 shrink-0" />
+                    <div><h4 className="font-bold text-yellow-500 text-sm">FIREWALL</h4><p className="text-[10px] text-yellow-200/60 mt-1">Blocks the next player's turn entirely. Great for defense.</p></div>
+                  </div>
+                  
+                  <div className="p-3 border border-orange-500/30 bg-orange-500/5 flex gap-3">
+                    <Timer className="w-8 h-8 text-orange-500 shrink-0" />
+                    <div><h4 className="font-bold text-orange-500 text-sm">DDoS ATTACK</h4><p className="text-[10px] text-orange-200/60 mt-1">In Blitz mode, reduces the active player's timer by 20 seconds instantly.</p></div>
+                  </div>
+
+                  <div className="p-3 border border-green-500/30 bg-green-500/5 flex gap-3">
+                    <Bug className="w-8 h-8 text-green-500 shrink-0" />
+                    <div><h4 className="font-bold text-green-500 text-sm">VIRUS</h4><p className="text-[10px] text-green-200/60 mt-1">Deletes the global system logs. Opponents lose their guess history.</p></div>
+                  </div>
+
+                  <div className="p-3 border border-red-500/30 bg-red-500/5 flex gap-3">
+                    <Zap className="w-8 h-8 text-red-500 shrink-0" />
+                    <div><h4 className="font-bold text-red-500 text-sm">BRUTEFORCE</h4><p className="text-[10px] text-red-200/60 mt-1">Select a target. Instantly reveals the first digit of their Master Key.</p></div>
+                  </div>
+
+                  <div className="p-3 border border-blue-500/30 bg-blue-500/5 flex gap-3">
+                    <Edit2 className="w-8 h-8 text-blue-500 shrink-0" />
+                    <div><h4 className="font-bold text-blue-500 text-sm">CHANGE DIGIT</h4><p className="text-[10px] text-blue-200/60 mt-1">Mutate one digit of your own code to confuse attackers tracking your numbers.</p></div>
+                  </div>
+
+                  <div className="p-3 border border-purple-500/30 bg-purple-500/5 flex gap-3">
+                    <Shuffle className="w-8 h-8 text-purple-500 shrink-0" />
+                    <div><h4 className="font-bold text-purple-500 text-sm">SWAP DIGITS</h4><p className="text-[10px] text-purple-200/60 mt-1">Swap the positions of two digits in your own code.</p></div>
+                  </div>
+
+                  <div className="p-3 border border-cyan-500/30 bg-cyan-500/5 flex gap-3">
+                    <Radio className="w-8 h-8 text-cyan-400 shrink-0" />
+                    <div><h4 className="font-bold text-cyan-400 text-sm">EMP (STEALTH)</h4><p className="text-[10px] text-cyan-200/60 mt-1">Jams the target. Their next guess against anyone will return "░░" (Corrupted Data).</p></div>
+                  </div>
+
+                  <div className="p-3 border border-emerald-500/30 bg-emerald-500/5 flex gap-3">
+                    <Eye className="w-8 h-8 text-emerald-400 shrink-0" />
+                    <div><h4 className="font-bold text-emerald-400 text-sm">SPYWARE</h4><p className="text-[10px] text-emerald-200/60 mt-1">Select a target. Reveals the mathematical SUM of all 4 digits in their key.</p></div>
+                  </div>
+
+                  <div className="p-3 border border-indigo-500/30 bg-indigo-500/5 flex gap-3 md:col-span-2">
+                    <Ghost className="w-8 h-8 text-indigo-400 shrink-0" />
+                    <div><h4 className="font-bold text-indigo-400 text-sm">HONEYPOT (STEALTH)</h4><p className="text-[10px] text-indigo-200/60 mt-1">Sets a trap on your own code. The next time someone guesses your code, they receive completely FAKE (but mathematically plausible) feedback to ruin their logic.</p></div>
+                  </div>
                 </div>
-            </div>
+              </motion.div>
+            )}
+
+          </AnimatePresence>
         </div>
-
-        <div className="md:col-span-4 flex flex-col bg-black/60 border border-primary/30 rounded-lg p-6 relative overflow-hidden shadow-[0_0_50px_rgba(0,255,0,0.05)]">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50" />
-            
-            <div className="text-center mb-6">
-                <div className="inline-block px-3 py-1 bg-primary/10 rounded-full border border-primary/20 text-[10px] tracking-widest font-bold mb-2 text-cyan-400">
-                    INTERACTIVE DEMO
-                </div>
-                <h3 className="text-xl font-bold text-white">CRACK THE CODE</h3>
-                <p className="text-xs opacity-50 mt-1">Try to guess the secret code: <span className="text-white font-bold tracking-widest">{TARGET_CODE}</span></p>
-            </div>
-
-            <div className="flex-1 flex flex-col items-center justify-center gap-6">
-                <div className="flex gap-2">
-                    {[0, 1, 2, 3].map((i) => {
-                        let status: 'hit' | 'close' | 'none' = 'none';
-                        if (demoResult && demoInput[i]) {
-                             if (demoInput[i] === TARGET_CODE[i]) status = 'hit';
-                             else if (TARGET_CODE.includes(demoInput[i])) status = 'close';
-                        }
-                        return <MockDigit key={i} val={demoInput[i] || ""} status={status} />;
-                    })}
-                </div>
-
-                <div className="w-full max-w-[200px]">
-                    <input 
-                        type="text" 
-                        maxLength={4}
-                        value={demoInput}
-                        onChange={(e) => {
-                            const val = e.target.value.replace(/[^0-9]/g, '');
-                            setDemoInput(val);
-                            setDemoResult(null); 
-                        }}
-                        placeholder="TYPE 4 DIGITS"
-                        className="w-full bg-black border-b-2 border-primary/50 text-center text-xl font-mono py-2 focus:outline-none focus:border-primary text-white placeholder:text-primary/20 tracking-widest"
-                    />
-                </div>
-
-                <div className="flex gap-2 w-full">
-                     <Button 
-                        className="flex-1 neon-border"
-                        disabled={demoInput.length < 4}
-                        onClick={handleSimulate}
-                    >
-                        <Play className="w-4 h-4 mr-2" /> SIMULATE
-                    </Button>
-                    <Button variant="outline" size="icon" onClick={() => { setDemoInput(""); setDemoResult(null); }}>
-                        <RefreshCw className="w-4 h-4" />
-                    </Button>
-                </div>
-
-                {demoResult && (
-                    <div className="w-full p-3 bg-primary/10 border border-primary/30 rounded animate-in zoom-in duration-300 text-center">
-                        <div className="text-xs font-mono opacity-70 mb-1">SCAN RESULTS:</div>
-                        <div className="flex justify-center gap-4 font-bold text-lg">
-                            <span className="text-green-400">{demoResult.hits} HITS</span>
-                            <span className="text-yellow-400">{demoResult.blips} CLOSE</span>
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
-
-        <div className="md:col-span-3 h-[300px] md:h-auto flex flex-col">
-            <div className="bg-black border border-primary/20 border-b-0 rounded-t-lg p-2 flex items-center gap-2">
-                <Terminal className="w-3 h-3 text-primary/50" />
-                <span className="text-[10px] font-mono opacity-50 tracking-widest">SYSTEM_LOGS</span>
-            </div>
-            <div className="flex-1 bg-black/80 rounded-b-lg overflow-hidden border border-primary/20">
-                <TypewriterLog logs={TUTORIAL_LOGS} />
-            </div>
-             <Button 
-                className="w-full mt-4 h-12 neon-border tracking-widest font-black bg-primary text-black hover:bg-primary/90 flex-shrink-0"
-                onClick={() => setLocation("/")}
-            >
-                START MISSION
-            </Button>
-        </div>
-
       </div>
     </div>
   );

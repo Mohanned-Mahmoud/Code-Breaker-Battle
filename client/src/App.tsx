@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
 import GameRoom from "@/pages/GameRoom";
+import PartyRoom from "@/pages/PartyRoom"; // <--- الاستيراد الجديد
 import HowToPlay from "@/pages/HowToPlay";
 
 function Router() {
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/how-to-play" component={HowToPlay} />
       
       <Route path="/game/:id" component={GameRoom} />
+      <Route path="/party/:id" component={PartyRoom} /> {/* <--- المسار الجديد */}
       <Route component={NotFound} />
     </Switch>
   );
