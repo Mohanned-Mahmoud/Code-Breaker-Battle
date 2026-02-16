@@ -71,9 +71,37 @@ function UnifiedCyberInput({ value, onChange, disabled, colorTheme = "fuchsia" }
   );
 }
 
-function TerminalLog({ logs }: { logs: any[] }) {
+function TerminalLog({ logs, players = [] }: { logs: any[], players?: any[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [logs]);
+
+  // Function to search for player names in the log and wrap them in colored spans
+  const renderMessage = (msg: string) => {
+    if (!players || players.length === 0) return msg;
+    
+    let parts = [{ text: msg, color: null as string | null }];
+    
+    players.forEach(p => {
+      const newParts: typeof parts = [];
+      parts.forEach(part => {
+        if (part.color) {
+          newParts.push(part);
+        } else {
+          const split = part.text.split(p.playerName);
+          split.forEach((s: string, i: number) => {
+            newParts.push({ text: s, color: null });
+            if (i < split.length - 1) {
+              newParts.push({ text: p.playerName, color: p.playerColor || "#E879F9" });
+            }
+          });
+        }
+      });
+      parts = newParts;
+    });
+
+    return parts.map((p, i) => p.color ? <span key={i} style={{ color: p.color }} className="font-bold">{p.text}</span> : <span key={i}>{p.text}</span>);
+  };
+
   return (
     <div ref={scrollRef} className="font-mono text-[10px] sm:text-xs w-full h-[200px] md:h-[250px] overflow-y-auto p-3 sm:p-4 bg-black/60 border border-fuchsia-500/20 rounded-sm custom-scrollbar relative">
       <div className="flex flex-col-reverse space-y-reverse space-y-2">
@@ -82,7 +110,7 @@ function TerminalLog({ logs }: { logs: any[] }) {
             <motion.div key={log.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex gap-2">
               <span className="opacity-40 select-none">[{new Date(log.timestamp).toLocaleTimeString()}]</span>
               <span className={cn("flex-1 break-words font-medium", log.type === 'success' ? 'text-green-500' : log.type === 'error' ? 'text-red-500' : log.type === 'warning' ? 'text-yellow-500' : 'text-fuchsia-500/70')}>
-                {">"} {log.message}
+                {">"} {renderMessage(log.message)}
               </span>
             </motion.div>
           ))}
@@ -100,6 +128,10 @@ export default function PartyRoom() {
   
   const id = parseInt(params?.id || "0");
   const [playerName, setPlayerName] = useState("");
+  const COLORS = ["#E879F9", "#22D3EE", "#4ADE80", "#F87171", "#FBBF24", "#A78BFA"]; // Color Palette
+  
+  // Load saved preference or default to Fuchsia
+  const [playerColor, setPlayerColor] = useState(() => localStorage.getItem('preferred_hacker_color') || COLORS[0]);
   
   const [setupDigits, setSetupDigits] = useState(['', '', '', '']);
   const [guessDigits, setGuessDigits] = useState(['', '', '', '']);
@@ -112,6 +144,7 @@ export default function PartyRoom() {
     return saved ? parseInt(saved) : null;
   });
 
+  // 1. Fetch gameData first
   const { data: gameData, isLoading, error } = useQuery<any>({
     queryKey: ['partyGame', id],
     queryFn: async () => {
@@ -122,14 +155,29 @@ export default function PartyRoom() {
     refetchInterval: 1000
   });
 
+  // 2. NOW we can safely use gameData to compute takenColors
+  const takenColors = gameData?.players?.map((p: any) => p.playerColor) || [];
+
+  // Automatically switch the color if the user's preferred color is already taken
+  useEffect(() => {
+    if (takenColors.includes(playerColor)) {
+      const available = COLORS.find(c => !takenColors.includes(c));
+      if (available) setPlayerColor(available);
+    }
+  }, [takenColors, playerColor, COLORS]);
+
   const joinMutation = useMutation({
     mutationFn: async (name: string) => {
-      const res = await fetch('/api/party/join', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roomId: gameData?.roomId, playerName: name }) });
+      const res = await fetch('/api/party/join', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ roomId: gameData?.roomId, playerName: name, playerColor }) 
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Join failed");
       return data;
     },
-    onSuccess: (data) => { setMyPlayerId(data.playerId); localStorage.setItem(`party_player_${id}`, data.playerId.toString()); queryClient.invalidateQueries({ queryKey: ['partyGame', id] }); },
+    onSuccess: (data) => { setMyPlayerId(data.playerId); localStorage.setItem(`party_player_${id}`, data.playerId.toString()); localStorage.setItem('preferred_hacker_color', playerColor);queryClient.invalidateQueries({ queryKey: ['partyGame', id] }); },
     onError: (err: any) => toast({ title: "ACCESS DENIED", description: err.message, variant: "destructive" })
   });
 
@@ -240,12 +288,34 @@ export default function PartyRoom() {
   // --- LOBBY JOIN ---
   if (!myPlayerId || !myPlayer) {
     return (
-      <div className="h-[100dvh] flex flex-col items-center justify-center p-4 bg-background overflow-y-auto">
-        <div className="max-w-md w-full p-6 sm:p-8 border border-fuchsia-500/30 bg-black/60 shadow-[0_0_30px_rgba(232,121,249,0.1)] text-center space-y-6 my-auto">
+      <div className="min-h-[100dvh] flex flex-col p-4 bg-background">
+        <div className="max-w-md w-full p-6 sm:p-8 border border-fuchsia-500/30 bg-black/60 shadow-[0_0_30px_rgba(232,121,249,0.1)] text-center space-y-6 m-auto my-8">
           <Users className="w-12 h-12 mx-auto text-fuchsia-500 opacity-50" />
           <h1 className="text-2xl sm:text-3xl font-black font-mono tracking-widest text-fuchsia-500">JOIN SQUAD</h1>
           <p className="text-[10px] sm:text-xs font-mono opacity-50 uppercase">Mode: {gameData.subMode.replace(/_/g, ' ')}</p>
           <input type="text" placeholder="ENTER ALIAS..." value={playerName} onChange={(e) => setPlayerName(e.target.value.toUpperCase())} maxLength={10} className="w-full bg-black/80 border border-fuchsia-500/50 text-fuchsia-500 px-4 py-3 font-mono text-center tracking-widest focus:outline-none focus:border-fuchsia-500 uppercase" />
+          
+          {/* COLOR PICKER */}
+          <div className="flex justify-center gap-3 py-2">
+            {COLORS.map(c => {
+              const isTaken = takenColors.includes(c);
+              return (
+                <button
+                  key={c}
+                  onClick={() => !isTaken && setPlayerColor(c)}
+                  disabled={isTaken}
+                  className={cn(
+                    "w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 transition-all",
+                    isTaken ? "opacity-10 cursor-not-allowed grayscale" : "hover:scale-110",
+                    playerColor === c ? "border-white scale-110 shadow-[0_0_10px_rgba(255,255,255,0.5)]" : (!isTaken && "border-transparent opacity-50")
+                  )}
+                  style={{ backgroundColor: c }}
+                  title={isTaken ? "Color Taken" : "Select Color"}
+                />
+              );
+            })}
+          </div>
+
           <Button className="w-full h-12 border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-500 hover:bg-fuchsia-500 hover:text-black font-bold tracking-widest" disabled={!playerName || joinMutation.isPending} onClick={() => joinMutation.mutate(playerName)}>INFILTRATE</Button>
         </div>
       </div>
@@ -261,8 +331,8 @@ export default function PartyRoom() {
     
     return (
       // تم تغيير min-h-[100dvh] إلى h-[100dvh] هنا أيضاً
-      <div className="h-[100dvh] w-full flex flex-col items-center p-4 bg-background overflow-y-auto custom-scrollbar relative">
-        <div className="max-w-md w-full p-6 sm:p-8 border border-fuchsia-500/30 bg-black/60 shadow-[0_0_30px_rgba(232,121,249,0.1)] text-center flex flex-col items-center gap-4 sm:gap-6 relative overflow-hidden mt-6 sm:mt-10 mb-10">
+      <div className="min-h-[100dvh] w-full flex flex-col p-4 bg-background custom-scrollbar relative">
+        <div className="max-w-md w-full p-6 sm:p-8 border border-fuchsia-500/30 bg-black/60 shadow-[0_0_30px_rgba(232,121,249,0.1)] text-center flex flex-col items-center gap-4 sm:gap-6 relative overflow-hidden m-auto my-8">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-fuchsia-500 to-transparent opacity-50" />
           
           <div className="flex flex-col items-center w-full mt-2">
@@ -316,7 +386,7 @@ export default function PartyRoom() {
             <div className="flex flex-col gap-2 w-full">
               {gameData.players.map((p: any) => (
                 <div key={p.id} className="flex justify-between items-center text-[10px] sm:text-sm font-mono border-b border-fuchsia-500/10 pb-2">
-                  <span className={p.id === myPlayerId ? "text-fuchsia-500 font-bold" : "text-fuchsia-500/70"}>
+                  <span className={p.id === myPlayerId ? "font-bold" : "opacity-80"} style={{ color: p.playerColor || '#E879F9' }}>
                     {p.playerName} {p.id === gameData.players[0].id && "👑"}
                   </span>
                   <span className={p.isSetup ? "text-green-500 text-[9px] sm:text-xs" : "text-yellow-500 text-[9px] sm:text-xs animate-pulse"}>
@@ -391,7 +461,7 @@ export default function PartyRoom() {
            </div>
            <div className="text-center sm:text-right hidden sm:block order-3 sm:order-none">
               <h2 className="text-[10px] sm:text-xs font-mono tracking-widest text-fuchsia-500/50">MY ALIAS</h2>
-              <p className={cn("text-sm sm:text-lg font-black tracking-widest", myPlayer.isEliminated ? "text-red-500 line-through" : "text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]")}>{myPlayer.playerName}</p>
+              <p className={cn("text-sm sm:text-lg font-black tracking-widest", myPlayer.isEliminated ? "text-red-500 line-through" : "drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]")} style={{ color: myPlayer.isEliminated ? undefined : (myPlayer.playerColor || '#E879F9') }}>{myPlayer.playerName}</p>
            </div>
         </div>
 
@@ -417,7 +487,7 @@ export default function PartyRoom() {
                       {opp.isGhost && <Ghost className="absolute top-1 right-1 sm:top-2 sm:right-2 w-3 h-3 sm:w-5 sm:h-5 text-purple-500 opacity-50 z-20" />}
                       
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full z-0 gap-1 sm:gap-0">
-                        <span className="font-black tracking-widest text-[11px] sm:text-lg text-white truncate max-w-full">{opp.playerName}</span>
+                        <span className="font-black tracking-widest text-[11px] sm:text-lg truncate max-w-full" style={{ color: opp.playerColor || '#E879F9' }}>{opp.playerName}</span>
                         {gameData.winCondition === 'points' && <span className="text-yellow-400 font-bold text-[8px] sm:text-xs whitespace-nowrap">{opp.points || 0}/{gameData.targetPoints} PTS</span>}
                       </div>
                       <div className="text-[7px] sm:text-[10px] opacity-60 tracking-widest uppercase z-0 mt-1">
@@ -484,7 +554,7 @@ export default function PartyRoom() {
 
                      <div className="p-3 sm:p-4 border border-fuchsia-500/30 bg-black/60 rounded flex flex-col lg:flex-row items-center gap-3 sm:gap-4">
                         <div className="flex-1 w-full text-center lg:text-left">
-                          <p className="text-[9px] sm:text-[10px] font-mono tracking-widest text-fuchsia-500/50 mb-1 sm:mb-2">TARGET: {selectedTarget ? opponents.find((o:any)=>o.id===selectedTarget)?.playerName : "NONE"}</p>
+                          <p className="text-[9px] sm:text-[10px] font-mono tracking-widest text-fuchsia-500/50 mb-1 sm:mb-2">TARGET: {selectedTarget ? <span style={{ color: opponents.find((o:any)=>o.id===selectedTarget)?.playerColor || '#E879F9'}}>{opponents.find((o:any)=>o.id===selectedTarget)?.playerName}</span> : "NONE"}</p>
                           <UnifiedCyberInput value={guessDigits.join('')} onChange={(val: string) => setGuessDigits(val.split(''))} disabled={!isMyTurn || myPlayer.isEliminated || myPlayer.isGhost || !selectedTarget} colorTheme="fuchsia" />
                         </div>
                         
@@ -548,7 +618,7 @@ export default function PartyRoom() {
                <div className="p-2 border-b border-fuchsia-500/20 bg-fuchsia-500/10 flex items-center gap-2">
                  <Terminal className="w-3 h-3 sm:w-4 sm:h-4 text-fuchsia-500" /><span className="text-[9px] sm:text-[10px] font-mono tracking-widest text-fuchsia-500 uppercase">Global System Logs</span>
                </div>
-               <TerminalLog logs={gameData.logs || []} />
+               <TerminalLog logs={gameData.logs || []} players={gameData.players} />
              </div>
           </div>
 

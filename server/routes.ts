@@ -70,7 +70,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.post('/api/party/join', async (req, res) => {
-    const { roomId, playerName } = req.body;
+    const { roomId, playerName, playerColor } = req.body; 
+    
     const game = await storage.getPartyGameByRoomId(roomId);
     if (!game) return res.status(404).json({ message: 'Room not found' });
     if (game.status !== 'playing' && game.status !== 'waiting') return res.status(400).json({ message: 'Game already finished' });
@@ -78,8 +79,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const players = await storage.getPartyPlayers(game.id);
     if (players.length >= game.maxPlayers) return res.status(400).json({ message: 'Room is full' });
     if (players.some(p => p.playerName === playerName)) return res.status(400).json({ message: 'Name already taken' });
-
-    const player = await storage.addPartyPlayer(game.id, playerName);
+    if (players.some(p => p.playerColor === playerColor)) return res.status(400).json({ message: 'Color already taken by another hacker' });    
+    
+    // Moved inside the scope of the app.post block so `player` is available for res.json
+    const player = await storage.addPartyPlayer(game.id, playerName, playerColor);
     res.json({ gameId: game.id, playerId: player.id });
   });
 

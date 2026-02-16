@@ -23,7 +23,8 @@ export interface IStorage {
   getPartyGameByRoomId(roomId: string): Promise<PartyGame | undefined>;
   updatePartyGame(id: number, updates: Partial<PartyGame>): Promise<PartyGame>;
   
-  addPartyPlayer(partyGameId: number, playerName: string): Promise<PartyPlayer>;
+  // FIXED: Added playerColor to the interface
+  addPartyPlayer(partyGameId: number, playerName: string, playerColor?: string): Promise<PartyPlayer>;
   getPartyPlayer(id: number): Promise<PartyPlayer | undefined>;
   getPartyPlayers(partyGameId: number): Promise<PartyPlayer[]>;
   updatePartyPlayer(id: number, updates: Partial<PartyPlayer>): Promise<PartyPlayer>;
@@ -73,7 +74,13 @@ export class DatabaseStorage implements IStorage {
   async getPartyGame(id: number): Promise<PartyGame | undefined> { const [game] = await db.select().from(partyGames).where(eq(partyGames.id, id)); return game; }
   async getPartyGameByRoomId(roomId: string): Promise<PartyGame | undefined> { const [game] = await db.select().from(partyGames).where(eq(partyGames.roomId, roomId)); return game; }
   async updatePartyGame(id: number, updates: Partial<PartyGame>): Promise<PartyGame> { const [updated] = await db.update(partyGames).set(updates).where(eq(partyGames.id, id)).returning(); return updated; }
-  async addPartyPlayer(partyGameId: number, playerName: string): Promise<PartyPlayer> { const [player] = await db.insert(partyPlayers).values({ partyGameId, playerName }).returning(); return player; }
+  
+  // FIXED: Added playerColor argument and included it in the db insert
+  async addPartyPlayer(partyGameId: number, playerName: string, playerColor: string = "#E879F9"): Promise<PartyPlayer> { 
+    const [player] = await db.insert(partyPlayers).values({ partyGameId, playerName, playerColor }).returning(); 
+    return player; 
+  }
+
   async getPartyPlayer(id: number): Promise<PartyPlayer | undefined> { const [player] = await db.select().from(partyPlayers).where(eq(partyPlayers.id, id)); return player; }
   async getPartyPlayers(partyGameId: number): Promise<PartyPlayer[]> { return await db.select().from(partyPlayers).where(eq(partyPlayers.partyGameId, partyGameId)).orderBy(partyPlayers.joinedAt); }
   async updatePartyPlayer(id: number, updates: Partial<PartyPlayer>): Promise<PartyPlayer> { const [updated] = await db.update(partyPlayers).set(updates).where(eq(partyPlayers.id, id)).returning(); return updated; }

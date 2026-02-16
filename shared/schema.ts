@@ -139,6 +139,8 @@ export const partyPlayers = pgTable("party_players", {
   id: serial("id").primaryKey(),
   partyGameId: integer("party_game_id").notNull(),
   playerName: text("player_name").notNull(), // Player Name or Alias
+
+  playerColor: text("player_color").notNull().default("#E879F9"),
   
   // Core Data
   code: text("code"),
