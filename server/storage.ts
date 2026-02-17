@@ -15,6 +15,7 @@ export interface IStorage {
   getGuesses(gameId: number): Promise<Guess[]>;
   createLog(log: any): Promise<any>;
   getLogs(gameId: number): Promise<any[]>;
+  getAllLogs(gameId: number): Promise<any[]>;
   deletePlayerLogs(gameId: number, playerLabel: string): Promise<void>; 
   resetGame(gameId: number): Promise<void>; 
   
@@ -33,7 +34,9 @@ export interface IStorage {
   getPartyGuesses(partyGameId: number): Promise<PartyGuess[]>;
   
   createPartyLog(log: Omit<PartyLog, "id" | "timestamp">): Promise<PartyLog>;
+  
   getPartyLogs(partyGameId: number): Promise<PartyLog[]>;
+  getAllPartyLogs(partyGameId: number): Promise<PartyLog[]>;
   clearPartyLogs(partyGameId: number): Promise<void>;
 
   restartPartyGame(partyGameId: number): Promise<void>;
@@ -48,8 +51,18 @@ export class DatabaseStorage implements IStorage {
     if (mode === 'glitch') {
         insertData.nextGlitchTurn = Math.floor(Math.random() * 6) + 3; 
     }
+    // FIXED: Now saves allowPhishing to the database properly!
     if (mode === 'custom' && customSettings) {
-        insertData.customTimer = customSettings.timer; insertData.allowFirewall = customSettings.firewall; insertData.allowVirus = customSettings.virus; insertData.allowBruteforce = customSettings.bruteforce; insertData.allowChangeDigit = customSettings.changeDigit; insertData.allowSwapDigits = customSettings.swapDigits; insertData.allowEmp = customSettings.emp; insertData.allowSpyware = customSettings.spyware; insertData.allowHoneypot = customSettings.honeypot;
+        insertData.customTimer = customSettings.timer; 
+        insertData.allowFirewall = customSettings.firewall; 
+        insertData.allowVirus = customSettings.virus; 
+        insertData.allowBruteforce = customSettings.bruteforce; 
+        insertData.allowChangeDigit = customSettings.changeDigit; 
+        insertData.allowSwapDigits = customSettings.swapDigits; 
+        insertData.allowEmp = customSettings.emp; 
+        insertData.allowSpyware = customSettings.spyware; 
+        insertData.allowHoneypot = customSettings.honeypot;
+        insertData.allowPhishing = customSettings.phishing; 
     }
     const [game] = await db.insert(games).values(insertData).returning(); return game;
   }
@@ -59,11 +72,22 @@ export class DatabaseStorage implements IStorage {
   async createGuess(guess: any): Promise<Guess> { const [newGuess] = await db.insert(guesses).values(guess).returning(); return newGuess; }
   async getGuesses(gameId: number): Promise<Guess[]> { return await db.select().from(guesses).where(eq(guesses.gameId, gameId)); }
   async createLog(log: any): Promise<any> { const [newLog] = await db.insert(logs).values(log).returning(); return newLog; }
-  async getLogs(gameId: number): Promise<any[]> { return await db.select().from(logs).where(eq(logs.gameId, gameId)).orderBy(logs.timestamp); }
-  async deletePlayerLogs(gameId: number, playerLabel: string): Promise<void> { await db.delete(logs).where(and(eq(logs.gameId, gameId), like(logs.message, `%${playerLabel}%`))); }
+  
+  async getLogs(gameId: number): Promise<any[]> { 
+    return await db.select().from(logs).where(and(eq(logs.gameId, gameId), eq(logs.isCorrupted, false))).orderBy(logs.timestamp); 
+  }
+  
+  async getAllLogs(gameId: number): Promise<any[]> { 
+    return await db.select().from(logs).where(eq(logs.gameId, gameId)).orderBy(logs.timestamp); 
+  }
+
+  async deletePlayerLogs(gameId: number, playerLabel: string): Promise<void> { 
+    await db.update(logs).set({ isCorrupted: true }).where(and(eq(logs.gameId, gameId), like(logs.message, `%${playerLabel}%`))); 
+  }
+
   async resetGame(gameId: number): Promise<void> {
     await db.delete(guesses).where(eq(guesses.gameId, gameId)); await db.delete(logs).where(eq(logs.gameId, gameId));
-    await db.update(games).set({ status: 'waiting', turn: 'p1', winner: null, turnCount: 0, nextGlitchTurn: Math.floor(Math.random() * 6) + 3, isFirewallActive: false, isTimeHackActive: false, p1Jammed: false, p2Jammed: false, p1Honeypoted: false, p2Honeypoted: false, p1Code: null, p1Setup: false, p1FirewallUsed: false, p1TimeHackUsed: false, p1VirusUsed: false, p1BruteforceUsed: false, p1ChangeDigitUsed: false, p1SwapDigitsUsed: false, p1EmpUsed: false, p1SpywareUsed: false, p1HoneypotUsed: false, p2Code: null, p2Setup: false, p2FirewallUsed: false, p2TimeHackUsed: false, p2VirusUsed: false, p2BruteforceUsed: false, p2ChangeDigitUsed: false, p2SwapDigitsUsed: false, p2EmpUsed: false, p2SpywareUsed: false, p2HoneypotUsed: false }).where(eq(games.id, gameId));
+    await db.update(games).set({ status: 'waiting', turn: 'p1', winner: null, turnCount: 0, nextGlitchTurn: Math.floor(Math.random() * 6) + 3, isFirewallActive: false, isTimeHackActive: false, p1Jammed: false, p2Jammed: false, p1Honeypoted: false, p2Honeypoted: false, p1Code: null, p1Setup: false, p1FirewallUsed: false, p1TimeHackUsed: false, p1VirusUsed: false, p1BruteforceUsed: false, p1ChangeDigitUsed: false, p1SwapDigitsUsed: false, p1EmpUsed: false, p1SpywareUsed: false, p1HoneypotUsed: false, p1PhishingUsed: false, p2Code: null, p2Setup: false, p2FirewallUsed: false, p2TimeHackUsed: false, p2VirusUsed: false, p2BruteforceUsed: false, p2ChangeDigitUsed: false, p2SwapDigitsUsed: false, p2EmpUsed: false, p2SpywareUsed: false, p2HoneypotUsed: false, p2PhishingUsed: false }).where(eq(games.id, gameId));
   }
 
   async createPartyGame(subMode: string = 'free_for_all', maxPlayers: number = 6, customSettings?: any, winCondition?: string, targetPoints?: number): Promise<PartyGame> {
@@ -71,7 +95,19 @@ export class DatabaseStorage implements IStorage {
     const insertData: any = { roomId, subMode, maxPlayers };
     if (winCondition) insertData.winCondition = winCondition;
     if (targetPoints) insertData.targetPoints = targetPoints;
-    if (customSettings) { insertData.customTimer = customSettings.timer; insertData.allowFirewall = customSettings.firewall; insertData.allowVirus = customSettings.virus; insertData.allowBruteforce = customSettings.bruteforce; insertData.allowChangeDigit = customSettings.changeDigit; insertData.allowSwapDigits = customSettings.swapDigits; insertData.allowEmp = customSettings.emp; insertData.allowSpyware = customSettings.spyware; insertData.allowHoneypot = customSettings.honeypot; }
+    // FIXED: Now saves allowPhishing to Party mode too!
+    if (customSettings) { 
+        insertData.customTimer = customSettings.timer; 
+        insertData.allowFirewall = customSettings.firewall; 
+        insertData.allowVirus = customSettings.virus; 
+        insertData.allowBruteforce = customSettings.bruteforce; 
+        insertData.allowChangeDigit = customSettings.changeDigit; 
+        insertData.allowSwapDigits = customSettings.swapDigits; 
+        insertData.allowEmp = customSettings.emp; 
+        insertData.allowSpyware = customSettings.spyware; 
+        insertData.allowHoneypot = customSettings.honeypot; 
+        insertData.allowPhishing = customSettings.phishing;
+    }
     const [game] = await db.insert(partyGames).values(insertData).returning(); return game;
   }
   async getPartyGame(id: number): Promise<PartyGame | undefined> { const [game] = await db.select().from(partyGames).where(eq(partyGames.id, id)); return game; }
@@ -90,10 +126,17 @@ export class DatabaseStorage implements IStorage {
   async createPartyGuess(guess: any): Promise<PartyGuess> { const [newGuess] = await db.insert(partyGuesses).values(guess).returning(); return newGuess; }
   async getPartyGuesses(partyGameId: number): Promise<PartyGuess[]> { return await db.select().from(partyGuesses).where(eq(partyGuesses.partyGameId, partyGameId)); }
   async createPartyLog(log: any): Promise<PartyLog> { const [newLog] = await db.insert(partyLogs).values(log).returning(); return newLog; }
-  async getPartyLogs(partyGameId: number): Promise<PartyLog[]> { return await db.select().from(partyLogs).where(eq(partyLogs.partyGameId, partyGameId)).orderBy(partyLogs.timestamp); }
+  
+  async getPartyLogs(partyGameId: number): Promise<PartyLog[]> { 
+    return await db.select().from(partyLogs).where(and(eq(partyLogs.partyGameId, partyGameId), eq(partyLogs.isCorrupted, false))).orderBy(partyLogs.timestamp); 
+  }
+
+  async getAllPartyLogs(partyGameId: number): Promise<PartyLog[]> { 
+    return await db.select().from(partyLogs).where(eq(partyLogs.partyGameId, partyGameId)).orderBy(partyLogs.timestamp); 
+  }
   
   async clearPartyLogs(partyGameId: number): Promise<void> {
-    await db.delete(partyLogs).where(eq(partyLogs.partyGameId, partyGameId));
+    await db.update(partyLogs).set({ isCorrupted: true }).where(eq(partyLogs.partyGameId, partyGameId));
   }
 
   // --- RESTART FIXED ---
@@ -108,7 +151,7 @@ export class DatabaseStorage implements IStorage {
     await db.update(partyPlayers).set({
         code: null, isSetup: false, isEliminated: false, isGhost: false, points: 0, reignTime: 0, successfulDefenses: 0,
         firewallUsed: false, timeHackUsed: false, virusUsed: false, bruteforceUsed: false, changeDigitUsed: false, swapDigitsUsed: false, empUsed: false, spywareUsed: false, honeypotUsed: false,
-        isFirewallActive: false, isJammed: false, isHoneypoted: false
+        isFirewallActive: false, isJammed: false, isHoneypoted: false, phishingUsed: false
     }).where(eq(partyPlayers.partyGameId, partyGameId));
   }
 

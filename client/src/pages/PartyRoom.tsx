@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
-  Loader2, Share2, Lock, Terminal, Crosshair, Skull, Crown, Ghost, Users, Activity, Shield, Bug, Zap, Edit2, Shuffle, Radio, Eye, Timer
+  Loader2, Share2, Lock, Terminal, Crosshair, Skull, Crown, Ghost, Users, Activity, Shield, Bug, Zap, Edit2, Shuffle, Radio, Eye, Timer, Anchor, FileDown
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -143,6 +143,63 @@ export default function PartyRoom() {
     const saved = localStorage.getItem(`party_player_${id}`);
     return saved ? parseInt(saved) : null;
   });
+
+  const downloadMasterLog = async () => {
+    try {
+      const res = await fetch(`/api/party/${id}/master-logs`);
+      const masterLogs = await res.json();
+      
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) { toast({ title: "POPUP BLOCKED", description: "Allow popups to download the log.", variant: "destructive" }); return; }
+
+      let htmlContent = `
+        <html>
+          <head>
+            <title>Party_Master_Log_${id}</title>
+            <style>
+              body { background-color: #050505; color: #00ff00; font-family: 'Courier New', Courier, monospace; padding: 40px; }
+              .header { text-align: center; color: #E879F9; margin-bottom: 30px; letter-spacing: 2px; }
+              .meta { color: #888; font-size: 12px; margin-bottom: 20px; border-bottom: 1px dashed #333; padding-bottom: 10px; }
+              .log-entry { margin-bottom: 8px; line-height: 1.4; font-size: 14px; }
+              .time { color: #555; margin-right: 10px; }
+              .msg-success { color: #22c55e; }
+              .msg-error { color: #ef4444; }
+              .msg-warning { color: #eab308; }
+              .msg-info { color: #aaaaaa; }
+              .corrupted { opacity: 0.7; }
+              .corrupted-tag { color: #ef4444; font-size: 10px; margin-left: 5px; border: 1px solid #ef4444; padding: 1px 4px; border-radius: 2px;}
+              @media print { body { background-color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+            </style>
+          </head>
+          <body>
+            <div class="header"><h2>SQUAD_WAR_OS // MASTER LOG ARCHIVE</h2></div>
+            <div class="meta">ROOM ID: ${id} | EXTRACTION DATE: ${new Date().toLocaleString()} | STATUS: DECRYPTED</div>
+      `;
+
+      masterLogs.forEach((log: any) => {
+          const time = new Date(log.timestamp).toLocaleTimeString();
+          let msgClass = 'msg-info';
+          if (log.type === 'success') msgClass = 'msg-success';
+          else if (log.type === 'error') msgClass = 'msg-error';
+          else if (log.type === 'warning') msgClass = 'msg-warning';
+
+          let rawMessage = log.message;
+          if (gameData?.players) {
+            gameData.players.forEach((p: any) => {
+               const split = rawMessage.split(p.playerName);
+               if (split.length > 1) rawMessage = split.join(`<span style="color: ${p.playerColor || '#E879F9'}; font-weight: bold;">${p.playerName}</span>`);
+            });
+          }
+
+          const corruptedMark = log.isCorrupted ? `<span class="corrupted-tag">RECOVERED FROM VIRUS</span>` : '';
+          htmlContent += `<div class="log-entry ${log.isCorrupted ? 'corrupted' : ''}"><span class="time">[${time}]</span><span class="${msgClass}">> ${rawMessage}</span> ${corruptedMark}</div>`;
+      });
+
+      htmlContent += `<script>window.onload = () => { window.print(); }</script></body></html>`;
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+    } catch (err) { toast({ title: "ERROR", description: "Failed to fetch master logs.", variant: "destructive" }); }
+  };
 
   // 1. Fetch gameData first
   const { data: gameData, isLoading, error } = useQuery<any>({
@@ -408,8 +465,11 @@ export default function PartyRoom() {
       <div className="h-[100dvh] flex flex-col items-center justify-center p-4 text-center space-y-4 sm:space-y-6 bg-background overflow-y-auto">
         <Crown className="w-16 h-16 sm:w-20 sm:h-20 text-yellow-500 animate-bounce" />
         <h1 className="text-3xl sm:text-5xl font-black glitch-effect uppercase text-yellow-500">{winner?.playerName || "SOMEONE"} WINS!</h1>
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-6 sm:mt-8 w-full max-w-xs sm:max-w-md">
-          <Button variant="outline" className="border-fuchsia-500 text-fuchsia-500 hover:bg-fuchsia-500/10 w-full" onClick={() => setLocation('/')}>EXIT SQUAD ROOM</Button>
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-6 sm:mt-8 w-full max-w-xs sm:max-w-2xl justify-center">
+          <Button variant="outline" className="border-fuchsia-500 text-fuchsia-500 hover:bg-fuchsia-500/10 w-full" onClick={() => setLocation('/')}>EXIT ROOM</Button>
+          
+          <Button variant="outline" className="border-green-500 text-green-500 hover:bg-green-500/10 w-full" onClick={downloadMasterLog}><FileDown className="w-4 h-4 mr-2"/> ARCHIVE LOG</Button>
+
           <Button className="bg-fuchsia-500 text-black hover:bg-fuchsia-400 font-bold tracking-widest shadow-[0_0_15px_rgba(232,121,249,0.4)] w-full" onClick={() => restartMutation.mutate()} disabled={restartMutation.isPending}>
             {restartMutation.isPending ? "REBOOTING..." : "PLAY AGAIN"}
           </Button>

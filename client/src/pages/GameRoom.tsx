@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
-  Loader2, Share2, Lock, Shield, Zap, Terminal, Info, Edit2, Shuffle, Timer, Settings2, Bug, Eye, Ghost, Radio, Copy
+  Loader2, Share2, Lock, Shield, Zap, Terminal, Info, Edit2, Shuffle, Timer, Settings2, Bug, Eye, EyeOff, Ghost, Radio, Copy, Anchor, FileDown
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -121,12 +121,66 @@ export default function GameRoom() {
   const [guessVal, setGuessVal] = useState("");
   const [setupCode, setSetupCode] = useState("");
   const [showTransition, setShowTransition] = useState(false);
+  const [showMyCode, setShowMyCode] = useState(false); // <--- NEW TOGGLE STATE
 
   const [powerupState, setPowerupState] = useState<{ active: 'change' | 'swap' | null; code: string; step1Index: number | null; }>({ active: null, code: "", step1Index: null });
 
   const [myRole, setMyRole] = useState<'p1' | 'p2' | null>(() => {
     const saved = localStorage.getItem(`role_${id}`); return (saved === 'p1' || saved === 'p2') ? saved : null;
   });
+
+  const downloadMasterLog = async () => {
+    try {
+      const res = await fetch(`/api/games/${id}/master-logs`);
+      const masterLogs = await res.json();
+      
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) { toast({ title: "POPUP BLOCKED", description: "Allow popups to download the log.", variant: "destructive" }); return; }
+
+      let htmlContent = `
+        <html>
+          <head>
+            <title>Master_Log_Room_${id}</title>
+            <style>
+              body { background-color: #050505; color: #00ff00; font-family: 'Courier New', Courier, monospace; padding: 40px; }
+              .header { text-align: center; color: #E879F9; margin-bottom: 30px; letter-spacing: 2px; }
+              .meta { color: #888; font-size: 12px; margin-bottom: 20px; border-bottom: 1px dashed #333; padding-bottom: 10px; }
+              .log-entry { margin-bottom: 8px; line-height: 1.4; font-size: 14px; }
+              .time { color: #555; margin-right: 10px; }
+              .msg-success { color: #22c55e; }
+              .msg-error { color: #ef4444; }
+              .msg-warning { color: #eab308; }
+              .msg-info { color: #aaaaaa; }
+              .msg-p1 { color: #22d3ee; }
+              .msg-p2 { color: #e879f9; }
+              .corrupted { opacity: 0.7; }
+              .corrupted-tag { color: #ef4444; font-size: 10px; margin-left: 5px; border: 1px solid #ef4444; padding: 1px 4px; border-radius: 2px;}
+              @media print { body { background-color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+            </style>
+          </head>
+          <body>
+            <div class="header"><h2>ENCRYPTION_WAR_OS // MASTER LOG ARCHIVE</h2></div>
+            <div class="meta">ROOM ID: ${id} | EXTRACTION DATE: ${new Date().toLocaleString()} | STATUS: DECRYPTED</div>
+      `;
+
+      masterLogs.forEach((log: any) => {
+          const time = new Date(log.timestamp).toLocaleTimeString();
+          let msgClass = 'msg-info';
+          if (log.type === 'success') msgClass = 'msg-success';
+          else if (log.type === 'error') msgClass = 'msg-error';
+          else if (log.type === 'warning') msgClass = 'msg-warning';
+          if (log.message.includes("[P1]")) msgClass = 'msg-p1';
+          if (log.message.includes("[P2]")) msgClass = 'msg-p2';
+
+          const corruptedMark = log.isCorrupted ? `<span class="corrupted-tag">RECOVERED FROM VIRUS</span>` : '';
+          htmlContent += `<div class="log-entry ${log.isCorrupted ? 'corrupted' : ''}"><span class="time">[${time}]</span><span class="${msgClass}">> ${log.message}</span> ${corruptedMark}</div>`;
+      });
+
+      htmlContent += `<script>window.onload = () => { window.print(); }</script></body></html>`;
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+    } catch (err) { toast({ title: "ERROR", description: "Failed to fetch master logs.", variant: "destructive" }); }
+  };
 
   const fetchMyCode = async () => {
     const res = await fetch(`/api/games/${id}/code/${myRole}`); return (await res.json()).code;
@@ -187,6 +241,7 @@ export default function GameRoom() {
   const showEmp = isCustom ? g?.allowEmp : false;
   const showSpyware = isCustom ? g?.allowSpyware : false;
   const showHoneypot = isCustom ? g?.allowHoneypot : false;
+  const showPhishing = isCustom ? g?.allowPhishing : isGlitch; // NEW
 
   useEffect(() => {
     if (isTimed && game?.status === 'playing' && isMyTurn) {
@@ -201,9 +256,10 @@ export default function GameRoom() {
     return (
       <div className="h-screen flex flex-col items-center justify-center p-4">
         <h1 className="text-5xl font-black glitch-effect uppercase text-center"><span className={game.winner === 'p1' ? "text-cyan-500" : "text-fuchsia-500"}>P{game.winner === 'p1' ? '01' : '02'}</span> VICTORIOUS</h1>
-        <div className="flex gap-4 mt-8">
-          <Button variant="outline" className="neon-border" onClick={() => setLocation("/")}>EXIT ROOM</Button>
-          <Button className="neon-border bg-primary/20 hover:bg-primary/40" onClick={() => restartMutation.mutate()} disabled={restartMutation.isPending}>{restartMutation.isPending ? "REBOOTING..." : "PLAY AGAIN"}</Button>
+        <div className="flex flex-col sm:flex-row gap-4 mt-8 justify-center">
+          <Button variant="outline" className="neon-border w-full sm:w-auto" onClick={() => setLocation("/")}>EXIT ROOM</Button>
+          <Button variant="outline" className="border-green-500 text-green-500 hover:bg-green-500/10 w-full sm:w-auto" onClick={downloadMasterLog}><FileDown className="w-4 h-4 mr-2" /> UNCORRUPTED LOG</Button>
+          <Button className="neon-border bg-primary/20 hover:bg-primary/40 w-full sm:w-auto" onClick={() => restartMutation.mutate()} disabled={restartMutation.isPending}>{restartMutation.isPending ? "REBOOTING..." : "PLAY AGAIN"}</Button>
         </div>
       </div>
     );
@@ -269,8 +325,8 @@ export default function GameRoom() {
     );
   }
 
-  const p1Powerups = { firewall: game.p1FirewallUsed ?? false, timeHack: g.p1TimeHackUsed ?? false, virus: g.p1VirusUsed ?? false, bruteforce: game.p1BruteforceUsed ?? false, changeDigit: g.p1ChangeDigitUsed ?? false, swapDigits: g.p1SwapDigitsUsed ?? false, emp: g.p1EmpUsed ?? false, spyware: g.p1SpywareUsed ?? false, honeypot: g.p1HoneypotUsed ?? false };
-  const p2Powerups = { firewall: game.p2FirewallUsed ?? false, timeHack: g.p2TimeHackUsed ?? false, virus: g.p2VirusUsed ?? false, bruteforce: game.p2BruteforceUsed ?? false, changeDigit: g.p2ChangeDigitUsed ?? false, swapDigits: g.p2SwapDigitsUsed ?? false, emp: g.p2EmpUsed ?? false, spyware: g.p2SpywareUsed ?? false, honeypot: g.p2HoneypotUsed ?? false };
+  const p1Powerups = { firewall: game.p1FirewallUsed ?? false, timeHack: g.p1TimeHackUsed ?? false, virus: g.p1VirusUsed ?? false, bruteforce: game.p1BruteforceUsed ?? false, changeDigit: g.p1ChangeDigitUsed ?? false, swapDigits: g.p1SwapDigitsUsed ?? false, emp: g.p1EmpUsed ?? false, spyware: g.p1SpywareUsed ?? false, honeypot: g.p1HoneypotUsed ?? false, phishing: g.p1PhishingUsed ?? false };
+  const p2Powerups = { firewall: game.p2FirewallUsed ?? false, timeHack: g.p2TimeHackUsed ?? false, virus: g.p2VirusUsed ?? false, bruteforce: game.p2BruteforceUsed ?? false, changeDigit: g.p2ChangeDigitUsed ?? false, swapDigits: g.p2SwapDigitsUsed ?? false, emp: g.p2EmpUsed ?? false, spyware: g.p2SpywareUsed ?? false, honeypot: g.p2HoneypotUsed ?? false, phishing: g.p2PhishingUsed ?? false };
   const myPowerups = myRole === 'p1' ? p1Powerups : p2Powerups;
 
   return (
@@ -356,6 +412,12 @@ export default function GameRoom() {
                             <span className="text-[10px] block opacity-70">Generates fake feedback data for the enemy's next guess.</span>
                           </div>
                         )}
+                        {showPhishing && (
+                          <div className="border border-primary/20 p-2 rounded bg-black/50">
+                            <strong className="text-pink-400 block mb-1 flex items-center gap-1"><Anchor className="w-3 h-3"/> PHISHING</strong>
+                            <span className="text-[10px] block opacity-70">Steals a random unused powerup from the enemy's arsenal.</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -399,8 +461,38 @@ export default function GameRoom() {
         <div className="flex-1 flex flex-col md:grid md:grid-cols-2 gap-4 min-h-0 overflow-hidden">
           
           <div className="flex-shrink-0 flex flex-col space-y-4 md:space-y-6 justify-center items-center bg-black/20 p-4 md:p-8 border border-primary/10 rounded-sm relative min-h-[350px]">
-            <div className="absolute top-2 left-2 text-[10px] font-mono opacity-30">IDENTITY: <span className={myRole === 'p1' ? "text-cyan-500" : "text-fuchsia-500"}>{myRole === 'p1' ? 'PLAYER 01' : 'PLAYER 02'}</span></div>
             
+            {/* --- RESPONSIVE IDENTITY & CODE REVEAL PANEL --- */}
+            <div className="absolute top-0 left-0 w-full p-2 sm:p-3 flex justify-between items-start z-20 pointer-events-none">
+              
+              {/* Left Side: Identity */}
+              <div className="text-[9px] sm:text-[10px] font-mono opacity-80 bg-black/60 px-2 py-1 rounded pointer-events-auto border border-primary/20 backdrop-blur-sm flex items-center gap-1 sm:gap-2">
+                <span className="opacity-50 hidden sm:inline">IDENTITY:</span>
+                <span className="sm:hidden opacity-50">ID:</span>
+                <span className={myRole === 'p1' ? "text-cyan-400 font-bold drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]" : "text-fuchsia-400 font-bold drop-shadow-[0_0_5px_rgba(232,121,249,0.5)]"}>
+                  {myRole === 'p1' ? 'PLAYER 01' : 'PLAYER 02'}
+                </span>
+              </div>
+              
+              {/* Right Side: Hidden Code (Glitch Mode Only) */}
+              {isGlitch && (
+                <div className="pointer-events-auto flex items-center bg-black/80 border border-primary/40 px-2 py-1 rounded shadow-[0_0_15px_rgba(0,255,0,0.1)] backdrop-blur-md gap-2">
+                  <Lock className="w-3 h-3 text-primary/40 hidden sm:block" />
+                  <span className="text-[9px] sm:text-[10px] font-mono opacity-50 hidden sm:block uppercase">Master Code:</span>
+                  
+                  <span className={cn("font-mono text-[10px] sm:text-xs tracking-widest font-black w-10 text-center", showMyCode ? "text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.8)]" : "text-primary/50 translate-y-[1px]")}>
+                    {showMyCode ? (myRole === 'p1' ? game.p1Code : game.p2Code) : "••••"}
+                  </span>
+                  
+                  <div className="w-px h-3 bg-primary/30 mx-0.5"></div>
+                  
+                  <button onClick={() => setShowMyCode(!showMyCode)} className="opacity-50 hover:opacity-100 text-primary hover:text-white transition-all hover:scale-110 active:scale-95 px-1">
+                    {showMyCode ? <EyeOff className="w-3 h-3 sm:w-4 sm:h-4" /> : <Eye className="w-3 h-3 sm:w-4 sm:h-4" />}
+                  </button>
+                </div>
+              )}
+            </div>
+
             {powerupState.active ? (
               <div className="space-y-6 w-full flex flex-col items-center animate-in fade-in duration-300">
                 <div className="space-y-2 text-center"><h3 className={cn("text-sm font-bold animate-pulse tracking-widest uppercase", powerupState.active === 'change' ? "text-blue-500" : "text-purple-500")}>{powerupState.active === 'change' ? "Select Digit to Mutate" : "Select Two Digits to Swap"}</h3></div>
@@ -443,6 +535,7 @@ export default function GameRoom() {
                       {showEmp && <Button variant="outline" className="w-full border-cyan-500/50 text-cyan-500 hover:bg-cyan-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.emp || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'emp' })}><Radio className="w-3 h-3 mr-1" /> EMP JAMMER</Button>}
                       {showSpyware && <Button variant="outline" className="w-full border-emerald-500/50 text-emerald-500 hover:bg-emerald-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.spyware || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'spyware' })}><Eye className="w-3 h-3 mr-1" /> SPYWARE</Button>}
                       {showHoneypot && <Button variant="outline" className="w-full border-indigo-500/50 text-indigo-500 hover:bg-indigo-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.honeypot || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'honeypot' })}><Ghost className="w-3 h-3 mr-1" /> HONEYPOT</Button>}
+                      {showPhishing && <Button variant="outline" className="w-full border-pink-500/50 text-pink-400 hover:bg-pink-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.phishing || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'phishing' })}><Anchor className="w-3 h-3 mr-1" /> PHISHING</Button>}                  
                   </div>
                 )}
 

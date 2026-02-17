@@ -79,29 +79,23 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       let currentTurnCount = (game.turnCount || 0) + 1; 
       updates.turnCount = currentTurnCount; 
       
-      let skipTurnSwitch = false; // Flag for the Overclock Extra Turn
+      let skipTurnSwitch = false; 
 
       if (hits === 4) { 
         updates.status = 'finished'; updates.winner = player; 
       } else { 
         
-        // --- NEW ENHANCED RANDOM GLITCH SYSTEM ---
         if (game.mode === 'glitch' && currentTurnCount >= (game.nextGlitchTurn || 3)) { 
-          
-          // GENERATE THE NEXT RANDOM INTERVAL (Between 3 and 8 turns from now)
           updates.nextGlitchTurn = currentTurnCount + Math.floor(Math.random() * 6) + 3;
-
-          const glitchType = Math.floor(Math.random() * 6); // Picks from 6 possibilities! 
+          const glitchType = Math.floor(Math.random() * 6); 
 
           if (glitchType === 0) { 
-            // Bad: Shuffle
             updates.p1Code = shuffleString(game.p1Code!); updates.p2Code = shuffleString(game.p2Code!); 
             await storage.createLog({ gameId: id, message: `[GLITCH] SYSTEM REBOOT: ALL MASTER CODES SHUFFLED!`, type: 'error' }); 
             
           } else if (glitchType === 1) { 
-            // Good: Restore Powerups
-            updates.p1FirewallUsed = false; updates.p1TimeHackUsed = false; updates.p1VirusUsed = false; updates.p1BruteforceUsed = false; updates.p1ChangeDigitUsed = false; updates.p1SwapDigitsUsed = false; updates.p1EmpUsed = false; updates.p1SpywareUsed = false; updates.p1HoneypotUsed = false; 
-            updates.p2FirewallUsed = false; updates.p2TimeHackUsed = false; updates.p2VirusUsed = false; updates.p2BruteforceUsed = false; updates.p2ChangeDigitUsed = false; updates.p2SwapDigitsUsed = false; updates.p2EmpUsed = false; updates.p2SpywareUsed = false; updates.p2HoneypotUsed = false; 
+            updates.p1FirewallUsed = false; updates.p1TimeHackUsed = false; updates.p1VirusUsed = false; updates.p1BruteforceUsed = false; updates.p1ChangeDigitUsed = false; updates.p1SwapDigitsUsed = false; updates.p1EmpUsed = false; updates.p1SpywareUsed = false; updates.p1HoneypotUsed = false; updates.p1PhishingUsed = false;
+            updates.p2FirewallUsed = false; updates.p2TimeHackUsed = false; updates.p2VirusUsed = false; updates.p2BruteforceUsed = false; updates.p2ChangeDigitUsed = false; updates.p2SwapDigitsUsed = false; updates.p2EmpUsed = false; updates.p2SpywareUsed = false; updates.p2HoneypotUsed = false; updates.p2PhishingUsed = false;
             await storage.createLog({ gameId: id, message: `[GLITCH] FIREWALL DOWN: ALL POWERUPS RESTORED!`, type: 'success' }); 
             
           } else if (glitchType === 2) { 
@@ -132,7 +126,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
         // Handle Turn Switching properly based on powerups and our new Overclock glitch
         if (skipTurnSwitch) {
-            updates.turnStartedAt = new Date(); // Keep turn with current player
+            updates.turnStartedAt = new Date(); 
         } else if (game.isFirewallActive) { 
             updates.isFirewallActive = false; updates.turnStartedAt = new Date(); 
             await storage.createLog({ gameId: id, message: `SYSTEM: FIREWALL EXTENDED ${playerLabel} TURN.`, type: 'warning' }); 
@@ -154,10 +148,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post(api.games.timeout.path, async (req, res) => { try { const id = Number(req.params.id); const { player } = req.body; const game = await storage.getGame(id); const isTimed = game?.mode === 'blitz' || (game?.mode === 'custom' && game?.customTimer); if (!game || game.status !== 'playing' || game.turn !== player || !isTimed) return res.status(400).json({ message: 'Invalid' }); const turnStart = game.turnStartedAt ? new Date(game.turnStartedAt).getTime() : new Date().getTime(); const elapsed = (new Date().getTime() - turnStart) / 1000; if (elapsed < 28) return res.status(400).json({ message: 'Not timed out yet' }); const nextTurn = player === 'p1' ? 'p2' : 'p1'; const playerLabel = player === 'p1' ? '[P1]' : '[P2]'; await storage.createLog({ gameId: id, message: `SYSTEM: ${playerLabel} CONNECTION TIMED OUT. TURN SKIPPED.`, type: 'error' }); const updates: any = { turn: nextTurn, isFirewallActive: false }; if (game.isTimeHackActive) { updates.turnStartedAt = new Date(Date.now() - 20000); updates.isTimeHackActive = false; } else { updates.turnStartedAt = new Date(); } await storage.updateGame(id, updates); res.json({ success: true }); } catch (err) { res.status(400).json({ message: 'Error' }); } });
   
   app.get(api.games.logs.path, async (req, res) => { res.json(await storage.getLogs(Number(req.params.id))); });
-  
+  app.get('/api/games/:id/master-logs', async (req, res) => { res.json(await storage.getAllLogs(Number(req.params.id))); });
+
   app.post(api.games.powerup.path, async (req, res) => { 
     try { 
       const id = Number(req.params.id); const { player, type, targetIndex, newDigit, swapIndex1, swapIndex2 } = req.body; const game = await storage.getGame(id); if (!game || game.status !== 'playing' || game.turn !== player) return res.status(400).json({ message: 'Invalid' }); const updates: any = {}; let logMessage = ""; const playerLabel = player === 'p1' ? '[P1]' : '[P2]'; const myCode = player === 'p1' ? game.p1Code : game.p2Code; const targetCode = player === 'p1' ? game.p2Code : game.p1Code; 
+      
       if (type === 'firewall') { updates[player === 'p1' ? 'p1FirewallUsed' : 'p2FirewallUsed'] = true; updates.isFirewallActive = true; logMessage = `${playerLabel} ACTIVATED FIREWALL. TURN EXTENDED.`; } 
       else if (type === 'timeHack') { updates[player === 'p1' ? 'p1TimeHackUsed' : 'p2TimeHackUsed'] = true; updates.isTimeHackActive = true; logMessage = `WARNING: ${playerLabel} LAUNCHED DDOS ATTACK! OPPONENT'S NEXT TURN REDUCED BY 20s.`; } 
       else if (type === 'virus') { updates[player === 'p1' ? 'p1VirusUsed' : 'p2VirusUsed'] = true; const opponentLabel = player === 'p1' ? '[P2]' : '[P1]'; await storage.deletePlayerLogs(id, opponentLabel); logMessage = `WARNING: ${playerLabel} UPLOADED A VIRUS! ALL ${opponentLabel} SYSTEM LOGS DELETED.`; } 
@@ -167,6 +163,57 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       else if (type === 'emp') { updates[player === 'p1' ? 'p1EmpUsed' : 'p2EmpUsed'] = true; updates[player === 'p1' ? 'p2Jammed' : 'p1Jammed'] = true; } 
       else if (type === 'honeypot') { updates[player === 'p1' ? 'p1HoneypotUsed' : 'p2HoneypotUsed'] = true; updates[player === 'p1' ? 'p2Honeypoted' : 'p1Honeypoted'] = true; } 
       else if (type === 'spyware') { updates[player === 'p1' ? 'p1SpywareUsed' : 'p2SpywareUsed'] = true; const codeSum = targetCode!.split('').reduce((acc, curr) => acc + parseInt(curr), 0); logMessage = `SYSTEM: ${playerLabel} DEPLOYED SPYWARE. TARGET CODE SUM = ${codeSum}`; } 
+      
+      // --- PERFECTLY SYNCED PHISHING ATTACK LOGIC (1v1) ---
+      else if (type === 'phishing') {
+          const playerUsedProp = player === 'p1' ? 'p1PhishingUsed' : 'p2PhishingUsed';
+          if ((game as any)[playerUsedProp]) return res.status(400).json({ message: 'Phishing already used' });
+
+          const oppPrefix = player === 'p1' ? 'p2' : 'p1';
+          const myPrefix = player === 'p1' ? 'p1' : 'p2';
+          
+          const isCustom = game.mode === 'custom';
+          const isGlitch = game.mode === 'glitch';
+          const isBlitz = game.mode === 'blitz';
+          const isTimed = isBlitz || (isCustom && game.customTimer);
+
+          // This perfectly matches the frontend UI rules! If they don't see it, we can't steal it!
+          const showFirewallOrDdos = isCustom ? game.allowFirewall : true; 
+          const showVirus = isCustom ? game.allowVirus : isGlitch; 
+          const showBruteforce = isCustom ? game.allowBruteforce : true;
+          const showChangeDigit = isCustom ? game.allowChangeDigit : true;
+          const showSwapDigits = isCustom ? game.allowSwapDigits : true;
+          const showEmp = isCustom ? game.allowEmp : isGlitch;
+          const showSpyware = isCustom ? game.allowSpyware : isGlitch;
+          const showHoneypot = isCustom ? game.allowHoneypot : isGlitch;
+
+          const availablePowerups = [
+              { id: 'Firewall', name: 'FIREWALL', enabled: !isTimed && showFirewallOrDdos },
+              { id: 'TimeHack', name: 'DDOS ATTACK', enabled: isTimed && showFirewallOrDdos },
+              { id: 'Virus', name: 'VIRUS', enabled: showVirus },
+              { id: 'Bruteforce', name: 'BRUTEFORCE', enabled: showBruteforce },
+              { id: 'ChangeDigit', name: 'CHANGE DIGIT', enabled: showChangeDigit },
+              { id: 'SwapDigits', name: 'SWAP DIGITS', enabled: showSwapDigits },
+              { id: 'Emp', name: 'EMP JAMMER', enabled: showEmp },
+              { id: 'Spyware', name: 'SPYWARE', enabled: showSpyware },
+              { id: 'Honeypot', name: 'HONEYPOT', enabled: showHoneypot }
+          ];
+
+          // Filter out disabled ones, AND ones the enemy has already used
+          const availableToSteal = availablePowerups.filter(p => p.enabled && !(game as any)[`${oppPrefix}${p.id}Used`]);
+
+          updates[playerUsedProp] = true;
+
+          if (availableToSteal.length === 0) {
+              logMessage = `🎣 SYSTEM: ${playerLabel} LAUNCHED PHISHING ATTACK, BUT ENEMY ARSENAL IS EMPTY!`;
+          } else {
+              const stolen = availableToSteal[Math.floor(Math.random() * availableToSteal.length)];
+              updates[`${oppPrefix}${stolen.id}Used`] = true; // Disable for enemy
+              updates[`${myPrefix}${stolen.id}Used`] = false; // Give to attacker
+              logMessage = `🎣 SYSTEM: ${playerLabel} DEPLOYED PHISHING LINK AND STOLE [${stolen.name}]!`;
+          }
+      }
+
       updates.turnStartedAt = new Date(); await storage.updateGame(id, updates); if (logMessage !== "") await storage.createLog({ gameId: id, message: logMessage, type: 'warning' }); res.json(await storage.getGame(id)); 
     } catch (err) { res.status(400).json({ message: 'Invalid input' }); } 
   });
@@ -220,7 +267,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ ...game, players, guesses, logs, timeLeft });
   });
 
-  // === التعديل الجوهري هنا: منع بدء اللعبة إلا لو العدد مكتمل ===
+  app.get('/api/party/:id/master-logs', async (req, res) => { res.json(await storage.getAllPartyLogs(Number(req.params.id))); });
+
   app.post('/api/party/:id/start', async (req, res) => {
     try {
       const id = Number(req.params.id); const { playerId } = req.body;
@@ -390,6 +438,48 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           updates.spywareUsed = true;
           const codeSum = target.code!.split('').reduce((acc, curr) => acc + parseInt(curr), 0);
           logMessage = `SYSTEM: ${attacker.playerName} DEPLOYED SPYWARE ON ${target.playerName}. CODE SUM = ${codeSum}`;
+      } 
+      // --- PERFECTLY SYNCED PHISHING ATTACK LOGIC (Party Mode) ---
+      else if (type === 'phishing') {
+          if (attacker.phishingUsed) return res.status(400).json({ message: 'Phishing already used' });
+          if (!target || !target.isSetup) return res.status(400).json({ message: 'Valid target required' });
+          
+          updates.phishingUsed = true;
+          
+          const showFirewall = game.allowFirewall ?? true;
+          const showVirus = game.allowVirus ?? true;
+          const showBruteforce = game.allowBruteforce ?? true;
+          const showChangeDigit = game.allowChangeDigit ?? true;
+          const showSwapDigits = game.allowSwapDigits ?? true;
+          const showEmp = game.allowEmp ?? false;
+          const showSpyware = game.allowSpyware ?? false;
+          const showHoneypot = game.allowHoneypot ?? false;
+          const showTimer = game.customTimer ?? false;
+
+          const availablePowerups = [
+              { id: 'firewall', name: 'FIREWALL', enabled: showFirewall },
+              { id: 'timeHack', name: 'DDOS ATTACK', enabled: showTimer },
+              { id: 'virus', name: 'VIRUS', enabled: showVirus },
+              { id: 'bruteforce', name: 'BRUTEFORCE', enabled: showBruteforce },
+              { id: 'changeDigit', name: 'CHANGE DIGIT', enabled: showChangeDigit },
+              { id: 'swapDigits', name: 'SWAP DIGITS', enabled: showSwapDigits },
+              { id: 'emp', name: 'EMP JAMMER', enabled: showEmp },
+              { id: 'spyware', name: 'SPYWARE', enabled: showSpyware },
+              { id: 'honeypot', name: 'HONEYPOT', enabled: showHoneypot }
+          ];
+
+          const availableToSteal = availablePowerups.filter(p => p.enabled && !(target as any)[`${p.id}Used`]);
+
+          if (availableToSteal.length === 0) {
+              logMessage = `🎣 SYSTEM: ${attacker.playerName} LAUNCHED PHISHING ATTACK ON ${target.playerName}, BUT THEIR ARSENAL IS EMPTY!`;
+          } else {
+              const stolen = availableToSteal[Math.floor(Math.random() * availableToSteal.length)];
+              
+              await storage.updatePartyPlayer(targetId, { [`${stolen.id}Used`]: true }); 
+              updates[`${stolen.id}Used`] = false; 
+              
+              logMessage = `🎣 SYSTEM: ${attacker.playerName} DEPLOYED PHISHING LINK ON ${target.playerName} AND STOLE [${stolen.name}]!`;
+          }
       }
 
       if (isGhost) {
@@ -400,7 +490,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           if (newStrikes >= 2) {
               updates.firewallUsed = true; updates.timeHackUsed = true; updates.virusUsed = true;
               updates.bruteforceUsed = true; updates.changeDigitUsed = true; updates.swapDigitsUsed = true;
-              updates.empUsed = true; updates.spywareUsed = true; updates.honeypotUsed = true;
+              updates.empUsed = true; updates.spywareUsed = true; updates.honeypotUsed = true; updates.phishingUsed = true;
               logMessage = `👻 [GHOST SABOTAGE - FINAL STRIKE] ` + logMessage;
           } else {
               logMessage = `👻 [GHOST SABOTAGE - STRIKE 1/2] ` + logMessage;

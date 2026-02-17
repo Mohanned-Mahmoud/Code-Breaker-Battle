@@ -31,6 +31,7 @@ export const games = pgTable("games", {
   allowEmp: boolean("allow_emp").default(false), // NEW
   allowSpyware: boolean("allow_spyware").default(false), // NEW
   allowHoneypot: boolean("allow_honeypot").default(false), // NEW
+  allowPhishing: boolean("allow_phishing").default(false), // NEW
 
   createdAt: timestamp("created_at").defaultNow(),
 
@@ -46,6 +47,7 @@ export const games = pgTable("games", {
   p1EmpUsed: boolean("p1_emp_used").default(false), // NEW
   p1SpywareUsed: boolean("p1_spyware_used").default(false), // NEW
   p1HoneypotUsed: boolean("p1_honeypot_used").default(false), // NEW
+  p1PhishingUsed: boolean("p1_phishing_used").default(false), // NEW
 
   // Player 2
   p2Code: text("p2_code"),
@@ -59,6 +61,7 @@ export const games = pgTable("games", {
   p2EmpUsed: boolean("p2_emp_used").default(false), // NEW
   p2SpywareUsed: boolean("p2_spyware_used").default(false), // NEW
   p2HoneypotUsed: boolean("p2_honeypot_used").default(false), // NEW
+  p2PhishingUsed: boolean("p2_phishing_used").default(false), // NEW
 
   // --- STEALTH EFFECTS STATE ---
   p1Jammed: boolean("p1_jammed").default(false),
@@ -83,6 +86,7 @@ export const logs = pgTable("logs", {
   type: text("type").notNull(),
   message: text("message").notNull(),
   timestamp: timestamp("timestamp").defaultNow(),
+  isCorrupted: boolean("is_corrupted").default(false),
 });
 
 export const insertGameSchema = createInsertSchema(games);
@@ -133,6 +137,7 @@ export const partyGames = pgTable("party_games", {
   allowEmp: boolean("allow_emp").default(false),
   allowSpyware: boolean("allow_spyware").default(false),
   allowHoneypot: boolean("allow_honeypot").default(false),
+  allowPhishing: boolean("allow_phishing").default(false), // NEW
 
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -165,6 +170,7 @@ export const partyPlayers = pgTable("party_players", {
   empUsed: boolean("emp_used").default(false),
   spywareUsed: boolean("spyware_used").default(false),
   honeypotUsed: boolean("honeypot_used").default(false),
+  phishingUsed: boolean("phishing_used").default(false), // NEW
 
   // Applied Status Effects (If someone attacks them)
   isFirewallActive: boolean("is_firewall_active").default(false),
@@ -191,6 +197,7 @@ export const partyLogs = pgTable("party_logs", {
   type: text("type").notNull(), // success, error, warning
   message: text("message").notNull(),
   timestamp: timestamp("timestamp").defaultNow(),
+  isCorrupted: boolean("is_corrupted").default(false),
 });
 
 // Party Zod Schemas & Types

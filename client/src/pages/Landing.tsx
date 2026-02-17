@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, Link } from "wouter";
 import { 
-  Loader2, Plus, Terminal, Lock, Info, Timer, Zap, Settings2, Shield, Edit2, Shuffle, Bug, Eye, Ghost, Radio, LogIn, User, Users, ArrowLeft, Crosshair, Skull, Crown
+  Loader2, Plus, Terminal, Lock, Info, Timer, Zap, Settings2, Shield, Edit2, Shuffle, Bug, Eye, Ghost, Radio, LogIn, User, Users, ArrowLeft, Crosshair, Skull, Crown, Anchor
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@shared/routes";
@@ -41,12 +41,12 @@ export default function Landing() {
 
   const [customSettings, setCustomSettings] = useState({
       timer: false, firewall: true, virus: false, bruteforce: true, changeDigit: true, swapDigits: true,
-      emp: false, spyware: false, honeypot: false
+      emp: false, spyware: false, honeypot: false, phishing: false // Added Phishing Here
   });
 
   const activePowerupsCount = [
     customSettings.firewall, customSettings.virus, customSettings.bruteforce, customSettings.changeDigit, customSettings.swapDigits,
-    customSettings.emp, customSettings.spyware, customSettings.honeypot
+    customSettings.emp, customSettings.spyware, customSettings.honeypot, customSettings.phishing // Added Phishing Here
   ].filter(Boolean).length;
 
   // === التعديل هنا: تطبيق الـ Limit فقط على طور 1v1 وترك البارتي مود مفتوح بلا حدود ===
@@ -85,15 +85,8 @@ export default function Landing() {
     onSuccess: (data) => { setLocation(`/party/${data.id}`); }
   });
 
-  const handleJoinRoom = () => {
-    if (!joinId.trim()) return;
-    setLocation(`/game/${joinId}`);
-  };
-
-  const handleJoinPartyRoom = () => {
-    if (!joinPartyId.trim()) return;
-    setLocation(`/party/${joinPartyId}`);
-  };
+  const handleJoinRoom = () => { if (!joinId.trim()) return; setLocation(`/game/${joinId}`); };
+  const handleJoinPartyRoom = () => { if (!joinPartyId.trim()) return; setLocation(`/party/${joinPartyId}`); };
 
   return (
     <div className="h-[100dvh] w-full overflow-y-auto overflow-x-hidden bg-background custom-scrollbar relative">
@@ -130,12 +123,7 @@ export default function Landing() {
                      <span className="font-mono font-black tracking-[0.2em] text-2xl uppercase">PARTY MODE</span>
                      <span className="text-[10px] font-mono opacity-50 mt-2 tracking-widest uppercase">3 to 6 Players Chaos</span>
                   </button>
-
-                  <Link href="/how-to-play">
-                    <Button variant="outline" className="w-full h-12 neon-border text-primary hover:bg-primary/10 tracking-[0.2em] font-mono border-primary/40 text-xs mt-4">
-                      <Info className="mr-2 h-3 w-3" /> HOW TO PLAY
-                    </Button>
-                  </Link>
+                  <Link href="/how-to-play"><Button variant="outline" className="w-full h-12 neon-border text-primary hover:bg-primary/10 tracking-[0.2em] font-mono border-primary/40 text-xs mt-4"><Info className="mr-2 h-3 w-3" /> HOW TO PLAY</Button></Link>
                 </motion.div>
               )}
 
@@ -177,6 +165,7 @@ export default function Landing() {
                              <CyberToggle label="EMP (JAM SIGNAL)" icon={<Radio className="w-3 h-3"/>} colorClass="text-cyan-400" checked={customSettings.emp} onChange={(v: boolean) => togglePowerup('emp', v)} />
                              <CyberToggle label="SPYWARE (DATA LEAK)" icon={<Eye className="w-3 h-3"/>} colorClass="text-emerald-400" checked={customSettings.spyware} onChange={(v: boolean) => togglePowerup('spyware', v)} />
                              <CyberToggle label="HONEYPOT (PROXY LIE)" icon={<Ghost className="w-3 h-3"/>} colorClass="text-indigo-400" checked={customSettings.honeypot} onChange={(v: boolean) => togglePowerup('honeypot', v)} />
+                             <CyberToggle label="PHISHING (STEAL)" icon={<Anchor className="w-3 h-3"/>} colorClass="text-pink-400" checked={customSettings.phishing} onChange={(v: boolean) => togglePowerup('phishing', v)} />
                            </div>
                         </motion.div>
                       )}
@@ -206,32 +195,14 @@ export default function Landing() {
                     <div className="grid grid-cols-3 gap-2 w-full">
                       <button onClick={() => setPartySubMode('free_for_all')} className={cn("flex flex-col items-center p-3 rounded border transition-all text-center", partySubMode === 'free_for_all' ? "border-cyan-500 bg-cyan-500/20 text-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.2)]" : "border-fuchsia-500/20 text-fuchsia-500/50 hover:text-fuchsia-500")}><Crosshair className="w-5 h-5 mb-2" /><span className="text-[9px] font-bold tracking-wider">FREE FOR ALL</span></button>
                       <button onClick={() => setPartySubMode('battle_royale')} className={cn("flex flex-col items-center p-3 rounded border transition-all text-center", partySubMode === 'battle_royale' ? "border-red-500 bg-red-500/20 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]" : "border-fuchsia-500/20 text-fuchsia-500/50 hover:text-fuchsia-500")}><Skull className="w-5 h-5 mb-2" /><span className="text-[9px] font-bold tracking-wider">BATTLE ROYALE</span></button>
-                      {/* KING OF HILL - SOON BUTTON */}
-                      <button disabled className="flex flex-col items-center justify-center p-3 rounded border border-fuchsia-500/10 text-fuchsia-500/30 opacity-60 cursor-not-allowed relative overflow-hidden">
-                        <Crown className="w-5 h-5 mb-2" />
-                        <span className="text-[9px] font-bold tracking-wider">KING OF HILL</span>
-                        <div className="absolute top-2 right-2 px-1 bg-yellow-500/20 border border-yellow-500/50 text-yellow-500 text-[6px] font-black rounded animate-pulse">SOON</div>
-                      </button>
+                      <button disabled className="flex flex-col items-center justify-center p-3 rounded border border-fuchsia-500/10 text-fuchsia-500/30 opacity-60 cursor-not-allowed relative overflow-hidden"><Crown className="w-5 h-5 mb-2" /><span className="text-[9px] font-bold tracking-wider">KING OF HILL</span><div className="absolute top-2 right-2 px-1 bg-yellow-500/20 border border-yellow-500/50 text-yellow-500 text-[6px] font-black rounded animate-pulse">SOON</div></button>
                     </div>
 
                     {partySubMode === 'free_for_all' && (
                       <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="w-full p-3 border border-cyan-500/30 bg-black/40 rounded space-y-3 overflow-hidden">
-                         <div className="flex justify-between items-center">
-                            <span className="text-[10px] font-mono tracking-widest text-cyan-500">WIN CONDITION:</span>
-                            <div className="flex gap-2">
-                               <button onClick={() => setPartyWinCondition('points')} className={cn("px-2 py-1 text-[10px] font-mono border rounded transition-all", partyWinCondition === 'points' ? "bg-cyan-500 text-black border-cyan-500" : "text-cyan-500/50 border-cyan-500/30")}>POINTS</button>
-                               <button onClick={() => setPartyWinCondition('elimination')} className={cn("px-2 py-1 text-[10px] font-mono border rounded transition-all", partyWinCondition === 'elimination' ? "bg-cyan-500 text-black border-cyan-500" : "text-cyan-500/50 border-cyan-500/30")}>ELIMINATION</button>
-                            </div>
-                         </div>
+                         <div className="flex justify-between items-center"><span className="text-[10px] font-mono tracking-widest text-cyan-500">WIN CONDITION:</span><div className="flex gap-2"><button onClick={() => setPartyWinCondition('points')} className={cn("px-2 py-1 text-[10px] font-mono border rounded transition-all", partyWinCondition === 'points' ? "bg-cyan-500 text-black border-cyan-500" : "text-cyan-500/50 border-cyan-500/30")}>POINTS</button><button onClick={() => setPartyWinCondition('elimination')} className={cn("px-2 py-1 text-[10px] font-mono border rounded transition-all", partyWinCondition === 'elimination' ? "bg-cyan-500 text-black border-cyan-500" : "text-cyan-500/50 border-cyan-500/30")}>ELIMINATION</button></div></div>
                          {partyWinCondition === 'points' && (
-                           <div className="flex justify-between items-center">
-                              <span className="text-[10px] font-mono tracking-widest text-cyan-500">TARGET POINTS:</span>
-                              <div className="flex gap-2">
-                                 {[10, 15, 20].map(pts => (
-                                    <button key={pts} onClick={() => setPartyTargetPoints(pts)} className={cn("px-2 py-1 text-[10px] font-mono border rounded transition-all", partyTargetPoints === pts ? "bg-cyan-500 text-black border-cyan-500" : "text-cyan-500/50 border-cyan-500/30")}>{pts}</button>
-                                 ))}
-                              </div>
-                           </div>
+                           <div className="flex justify-between items-center"><span className="text-[10px] font-mono tracking-widest text-cyan-500">TARGET POINTS:</span><div className="flex gap-2">{[10, 15, 20].map(pts => (<button key={pts} onClick={() => setPartyTargetPoints(pts)} className={cn("px-2 py-1 text-[10px] font-mono border rounded transition-all", partyTargetPoints === pts ? "bg-cyan-500 text-black border-cyan-500" : "text-cyan-500/50 border-cyan-500/30")}>{pts}</button>))}</div></div>
                          )}
                       </motion.div>
                     )}
@@ -252,6 +223,7 @@ export default function Landing() {
                          <CyberToggle label="EMP (JAM SIGNAL)" icon={<Radio className="w-3 h-3"/>} colorClass="text-cyan-400" checked={customSettings.emp} onChange={(v: boolean) => togglePowerup('emp', v)} />
                          <CyberToggle label="SPYWARE (DATA LEAK)" icon={<Eye className="w-3 h-3"/>} colorClass="text-emerald-400" checked={customSettings.spyware} onChange={(v: boolean) => togglePowerup('spyware', v)} />
                          <CyberToggle label="HONEYPOT (PROXY LIE)" icon={<Ghost className="w-3 h-3"/>} colorClass="text-indigo-400" checked={customSettings.honeypot} onChange={(v: boolean) => togglePowerup('honeypot', v)} />
+                         <CyberToggle label="PHISHING (STEAL)" icon={<Anchor className="w-3 h-3"/>} colorClass="text-pink-400" checked={customSettings.phishing} onChange={(v: boolean) => togglePowerup('phishing', v)} />
                        </div>
                     </div>
 
