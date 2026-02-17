@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  ArrowLeft, Terminal, User, Users, Zap, Shield, Bug, Edit2, Shuffle, Radio, Eye, Ghost, Skull, Timer, Crosshair, Target
+  ArrowLeft, Terminal, User, Users, Zap, Shield, Bug, Edit2, Shuffle, Radio, Eye, Ghost, Skull, Timer, Crosshair, Target, Anchor, FileDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,11 @@ import { cn } from "@/lib/utils";
 export default function HowToPlay() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState<'1v1' | 'party' | 'powerups'>('1v1');
+
+  // Red dot notification component
+  const NotificationDot = () => (
+    <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+  );
 
   return (
     <div className="h-[100dvh] w-full bg-background flex flex-col items-center p-4 overflow-hidden relative font-mono">
@@ -30,14 +35,16 @@ export default function HowToPlay() {
 
         {/* Navigation Tabs */}
         <div className="flex gap-2 w-full mb-6 shrink-0 overflow-x-auto custom-scrollbar pb-2">
-          <button onClick={() => setActiveTab('1v1')} className={cn("flex-1 min-w-[120px] py-3 px-4 border transition-all flex items-center justify-center gap-2 font-bold tracking-widest text-xs", activeTab === '1v1' ? "bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(0,255,0,0.2)]" : "border-primary/20 text-primary/50 hover:border-primary/50")}>
+          <button onClick={() => setActiveTab('1v1')} className={cn("relative flex-1 min-w-[120px] py-3 px-4 border transition-all flex items-center justify-center gap-2 font-bold tracking-widest text-xs", activeTab === '1v1' ? "bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(0,255,0,0.2)]" : "border-primary/20 text-primary/50 hover:border-primary/50")}>
             <User className="w-4 h-4" /> 1V1 BATTLE
+            <NotificationDot />
           </button>
-          <button onClick={() => setActiveTab('party')} className={cn("flex-1 min-w-[120px] py-3 px-4 border transition-all flex items-center justify-center gap-2 font-bold tracking-widest text-xs", activeTab === 'party' ? "bg-fuchsia-500/20 border-fuchsia-500 text-fuchsia-500 shadow-[0_0_15px_rgba(232,121,249,0.2)]" : "border-fuchsia-500/20 text-fuchsia-500/50 hover:border-fuchsia-500/50")}>
+          <button onClick={() => setActiveTab('party')} className={cn("relative flex-1 min-w-[120px] py-3 px-4 border transition-all flex items-center justify-center gap-2 font-bold tracking-widest text-xs", activeTab === 'party' ? "bg-fuchsia-500/20 border-fuchsia-500 text-fuchsia-500 shadow-[0_0_15px_rgba(232,121,249,0.2)]" : "border-fuchsia-500/20 text-fuchsia-500/50 hover:border-fuchsia-500/50")}>
             <Users className="w-4 h-4" /> PARTY MODE
           </button>
-          <button onClick={() => setActiveTab('powerups')} className={cn("flex-1 min-w-[120px] py-3 px-4 border transition-all flex items-center justify-center gap-2 font-bold tracking-widest text-xs", activeTab === 'powerups' ? "bg-blue-500/20 border-blue-500 text-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.2)]" : "border-blue-500/20 text-blue-500/50 hover:border-blue-500/50")}>
+          <button onClick={() => setActiveTab('powerups')} className={cn("relative flex-1 min-w-[120px] py-3 px-4 border transition-all flex items-center justify-center gap-2 font-bold tracking-widest text-xs", activeTab === 'powerups' ? "bg-blue-500/20 border-blue-500 text-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.2)]" : "border-blue-500/20 text-blue-500/50 hover:border-blue-500/50")}>
             <Zap className="w-4 h-4" /> ARSENAL
+            <NotificationDot />
           </button>
         </div>
 
@@ -70,8 +77,21 @@ export default function HowToPlay() {
                     </div>
                     <div className="border border-purple-500/30 p-4 bg-purple-900/10 md:col-span-2">
                       <h3 className="font-bold text-purple-500 mb-1">GLITCH</h3>
-                      <p className="text-xs opacity-70 text-purple-200">Every 3 turns, the system suffers a catastrophic failure: Codes might shuffle, a digit might mutate, or all powerups might instantly regenerate.</p>
+                      <p className="text-xs opacity-70 text-purple-200">After a random interval of 3 to 8 turns, the system suffers a catastrophic failure: Codes might shuffle, a digit might mutate, powerups might restore, or intel could leak!</p>
                     </div>
+                  </div>
+                </section>
+
+                <section>
+                  <h2 className="text-xl font-bold text-primary mb-3 flex items-center gap-2 border-b border-primary/20 pb-2">
+                    <FileDown className="w-5 h-5"/> POST-MATCH ARCHIVE 
+                    <span className="ml-2 text-[8px] bg-red-500 text-white px-2 py-0.5 rounded tracking-widest font-black animate-pulse">NEW</span>
+                  </h2>
+                  <div className="border border-primary/20 p-4 bg-primary/5 rounded">
+                    <p className="text-sm leading-relaxed">
+                      At the end of any match, you can download the <strong>Master Log Archive</strong> as a PDF. <br/><br/>
+                      If your opponent used a <strong>VIRUS</strong> to delete your in-game terminal history during the battle, the post-match archive will completely recover the corrupted data, allowing you to review the entire unaltered match!
+                    </p>
                   </div>
                 </section>
               </motion.div>
@@ -124,7 +144,7 @@ export default function HowToPlay() {
 
                   <div className="p-3 border border-green-500/30 bg-green-500/5 flex gap-3">
                     <Bug className="w-8 h-8 text-green-500 shrink-0" />
-                    <div><h4 className="font-bold text-green-500 text-sm">VIRUS</h4><p className="text-[10px] text-green-200/60 mt-1">Deletes the global system logs. Opponents lose their guess history.</p></div>
+                    <div><h4 className="font-bold text-green-500 text-sm">VIRUS</h4><p className="text-[10px] text-green-200/60 mt-1">Deletes the global in-game logs. Opponents temporarily lose their guess history.</p></div>
                   </div>
 
                   <div className="p-3 border border-red-500/30 bg-red-500/5 flex gap-3">
@@ -152,10 +172,17 @@ export default function HowToPlay() {
                     <div><h4 className="font-bold text-emerald-400 text-sm">SPYWARE</h4><p className="text-[10px] text-emerald-200/60 mt-1">Select a target. Reveals the mathematical SUM of all 4 digits in their key.</p></div>
                   </div>
 
-                  <div className="p-3 border border-indigo-500/30 bg-indigo-500/5 flex gap-3 md:col-span-2">
+                  <div className="p-3 border border-indigo-500/30 bg-indigo-500/5 flex gap-3">
                     <Ghost className="w-8 h-8 text-indigo-400 shrink-0" />
-                    <div><h4 className="font-bold text-indigo-400 text-sm">HONEYPOT (STEALTH)</h4><p className="text-[10px] text-indigo-200/60 mt-1">Sets a trap on your own code. The next time someone guesses your code, they receive completely FAKE (but mathematically plausible) feedback to ruin their logic.</p></div>
+                    <div><h4 className="font-bold text-indigo-400 text-sm">HONEYPOT (STEALTH)</h4><p className="text-[10px] text-indigo-200/60 mt-1">Sets a trap on your own code. The next time someone guesses your code, they receive completely FAKE feedback to ruin their logic.</p></div>
                   </div>
+
+                  <div className="p-3 border border-pink-500/50 bg-pink-500/10 flex gap-3 relative overflow-hidden shadow-[0_0_15px_rgba(244,114,182,0.1)]">
+                    <div className="absolute top-0 right-0 bg-red-500 text-white text-[8px] font-bold px-3 py-1 tracking-widest z-10 rounded-bl">NEW</div>
+                    <Anchor className="w-8 h-8 text-pink-400 shrink-0" />
+                    <div><h4 className="font-bold text-pink-400 text-sm pr-6">PHISHING (THEFT)</h4><p className="text-[10px] text-pink-200/70 mt-1">Launches a phishing link to randomly steal one unused powerup from your opponent's arsenal and immediately add it to your own.</p></div>
+                  </div>
+
                 </div>
               </motion.div>
             )}

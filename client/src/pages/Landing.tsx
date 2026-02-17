@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, Link } from "wouter";
 import { 
-  Loader2, Plus, Terminal, Lock, Info, Timer, Zap, Settings2, Shield, Edit2, Shuffle, Bug, Eye, Ghost, Radio, LogIn, User, Users, ArrowLeft, Crosshair, Skull, Crown, Anchor
+  Loader2, Plus, Terminal, Lock, Info, Timer, Zap, Settings2, Shield, Edit2, Shuffle, Bug, Eye, Ghost, Radio, LogIn, User, Users, ArrowLeft, ArrowDown, Crosshair, Skull, Crown, Anchor
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@shared/routes";
@@ -41,12 +41,12 @@ export default function Landing() {
 
   const [customSettings, setCustomSettings] = useState({
       timer: false, firewall: true, virus: false, bruteforce: true, changeDigit: true, swapDigits: true,
-      emp: false, spyware: false, honeypot: false, phishing: false // Added Phishing Here
+      emp: false, spyware: false, honeypot: false, phishing: false
   });
 
   const activePowerupsCount = [
     customSettings.firewall, customSettings.virus, customSettings.bruteforce, customSettings.changeDigit, customSettings.swapDigits,
-    customSettings.emp, customSettings.spyware, customSettings.honeypot, customSettings.phishing // Added Phishing Here
+    customSettings.emp, customSettings.spyware, customSettings.honeypot, customSettings.phishing
   ].filter(Boolean).length;
 
   // === التعديل هنا: تطبيق الـ Limit فقط على طور 1v1 وترك البارتي مود مفتوح بلا حدود ===
@@ -123,7 +123,28 @@ export default function Landing() {
                      <span className="font-mono font-black tracking-[0.2em] text-2xl uppercase">PARTY MODE</span>
                      <span className="text-[10px] font-mono opacity-50 mt-2 tracking-widest uppercase">3 to 6 Players Chaos</span>
                   </button>
-                  <Link href="/how-to-play"><Button variant="outline" className="w-full h-12 neon-border text-primary hover:bg-primary/10 tracking-[0.2em] font-mono border-primary/40 text-xs mt-4"><Info className="mr-2 h-3 w-3" /> HOW TO PLAY</Button></Link>
+
+                  {/* --- NEW NOTIFICATION WRAPPER --- */}
+                  <div className="relative w-full pt-8">
+                    {/* Bouncing Alert */}
+                    <motion.div 
+                      animate={{ y: [0, 6, 0] }}
+                      transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+                      className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-20"
+                    >
+                      <div className="bg-red-500 border border-red-400 text-white text-[9px] font-black px-3 py-1 rounded shadow-[0_0_15px_rgba(239,68,68,0.8)] tracking-widest uppercase flex items-center gap-1.5 whitespace-nowrap">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                        CHECK THE NEW UPDATE!
+                      </div>
+                      <ArrowDown className="w-4 h-4 text-red-500 mt-0.5" />
+                    </motion.div>
+
+                    <Link href="/how-to-play">
+                      <Button variant="outline" className="w-full h-12 neon-border text-primary hover:bg-primary/10 tracking-[0.2em] font-mono border-primary/40 text-xs">
+                        <Info className="mr-2 h-3 w-3" /> HOW TO PLAY
+                      </Button>
+                    </Link>
+                  </div>
                 </motion.div>
               )}
 
