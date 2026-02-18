@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, Link } from "wouter";
 import { 
-  Loader2, Plus, Terminal, Lock, Info, Timer, Zap, Settings2, Shield, Edit2, Shuffle, Bug, Eye, Ghost, Radio, LogIn, User, Users, ArrowLeft, ArrowDown, Crosshair, Skull, Crown, Anchor
+  Loader2, Plus, Terminal, Lock, Info, Timer, Zap, Settings2, Shield, Edit2, Shuffle, Bug, Eye, Ghost, Radio, LogIn, User, Users, ArrowLeft, ArrowDown, Crosshair, Skull, Crown, Anchor, Target
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@shared/routes";
@@ -33,7 +33,7 @@ export default function Landing() {
   const [joinId, setJoinId] = useState(""); 
   
   // --- PARTY STATE ---
-  const [partySubMode, setPartySubMode] = useState<'free_for_all' | 'battle_royale' | 'king_of_the_hill'>('free_for_all');
+  const [partySubMode, setPartySubMode] = useState<'free_for_all' | 'battle_royale' | 'bounty_contracts'>('free_for_all');
   const [maxPlayers, setMaxPlayers] = useState(6);
   const [joinPartyId, setJoinPartyId] = useState("");
   const [partyWinCondition, setPartyWinCondition] = useState<'points'|'elimination'>('points');
@@ -86,7 +86,6 @@ export default function Landing() {
   const handleJoinRoom = () => { if (!joinId.trim()) return; setLocation(`/game/${joinId}`); };
   const handleJoinPartyRoom = () => { if (!joinPartyId.trim()) return; setLocation(`/party/${joinPartyId}`); };
 
-  // --- BUG FIX: Check if 1v1 Custom Mode has too many powerups equipped ---
   const is1v1Overloaded = mode === 'custom' && activePowerupsCount > 4;
 
   return (
@@ -162,7 +161,6 @@ export default function Landing() {
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="w-full bg-black/40 border border-blue-500/30 rounded p-3 overflow-hidden">
                            <div className="flex justify-between items-center mb-3 opacity-80 border-b border-blue-500/20 pb-2">
                               <div className="text-[10px] font-mono text-blue-400 text-left">CONFIGURE_RULES.EXE</div>
-                              {/* Warning color applied here if overloaded */}
                               <div className={cn("text-[10px] font-mono font-bold transition-colors", is1v1Overloaded ? "text-red-500 animate-pulse" : "text-blue-400")}>[{activePowerupsCount}/4 EQUIPPED]</div>
                            </div>
                            <div className="grid grid-cols-1 gap-1">
@@ -182,7 +180,6 @@ export default function Landing() {
                       )}
                     </AnimatePresence>
 
-                    {/* RED BUTTON WARNING IF OVERLOADED */}
                     <button 
                       onClick={() => createGame.mutate({ selectedMode: mode, settings: customSettings })} 
                       disabled={createGame.isPending || is1v1Overloaded} 
@@ -209,10 +206,17 @@ export default function Landing() {
                   </div>
                   <div className="flex items-center gap-4 w-full opacity-30"><div className="flex-1 h-px bg-fuchsia-500"></div><span className="text-[10px] font-mono tracking-widest text-fuchsia-500">OR HOST PARTY</span><div className="flex-1 h-px bg-fuchsia-500"></div></div>
                   <div className="w-full space-y-4">
+                    
+                    {/* MODIFIED: BOUNTY CONTRACTS REPLACES KING OF THE HILL */}
                     <div className="grid grid-cols-3 gap-2 w-full">
                       <button onClick={() => setPartySubMode('free_for_all')} className={cn("flex flex-col items-center p-3 rounded border transition-all text-center", partySubMode === 'free_for_all' ? "border-cyan-500 bg-cyan-500/20 text-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.2)]" : "border-fuchsia-500/20 text-fuchsia-500/50 hover:text-fuchsia-500")}><Crosshair className="w-5 h-5 mb-2" /><span className="text-[9px] font-bold tracking-wider">FREE FOR ALL</span></button>
                       <button onClick={() => setPartySubMode('battle_royale')} className={cn("flex flex-col items-center p-3 rounded border transition-all text-center", partySubMode === 'battle_royale' ? "border-red-500 bg-red-500/20 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]" : "border-fuchsia-500/20 text-fuchsia-500/50 hover:text-fuchsia-500")}><Skull className="w-5 h-5 mb-2" /><span className="text-[9px] font-bold tracking-wider">BATTLE ROYALE</span></button>
-                      <button disabled className="flex flex-col items-center justify-center p-3 rounded border border-fuchsia-500/10 text-fuchsia-500/30 opacity-60 cursor-not-allowed relative overflow-hidden"><Crown className="w-5 h-5 mb-2" /><span className="text-[9px] font-bold tracking-wider">KING OF HILL</span><div className="absolute top-2 right-2 px-1 bg-yellow-500/20 border border-yellow-500/50 text-yellow-500 text-[6px] font-black rounded animate-pulse">SOON</div></button>
+                      
+                      <button disabled className="flex flex-col items-center justify-center p-3 rounded border border-fuchsia-500/10 text-fuchsia-500/30 opacity-60 cursor-not-allowed relative overflow-hidden">
+                        <Target className="w-5 h-5 mb-2" />
+                        <span className="text-[9px] font-bold tracking-wider text-center leading-tight">BOUNTY<br/>CONTRACTS</span>
+                        <div className="absolute top-1 right-1 px-1 bg-yellow-500/20 border border-yellow-500/50 text-yellow-500 text-[6px] font-black rounded animate-pulse">SOON</div>
+                      </button>
                     </div>
 
                     {partySubMode === 'free_for_all' && (
