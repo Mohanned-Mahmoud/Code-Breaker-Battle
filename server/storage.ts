@@ -140,13 +140,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   // --- RESTART FIXED ---
+  // Replace the restartPartyGame function in server/storage.ts
   async restartPartyGame(partyGameId: number): Promise<void> {
     await db.delete(partyGuesses).where(eq(partyGuesses.partyGameId, partyGameId));
     await db.delete(partyLogs).where(eq(partyLogs.partyGameId, partyGameId));
 
+    // Notice the "as any" cast to bypass strict caching type checks
     await db.update(partyGames).set({
-        status: 'waiting', turnCount: 0, winnerId: null, activePlayerId: null, turnOrder: null, kingId: null
-    }).where(eq(partyGames.id, partyGameId));
+        status: 'waiting', turnCount: 0, winnerId: null, activePlayerId: null, turnOrder: null, kingId: null,
+        bountyTargetId: null, bountyPoints: null, nextBountyTurn: 1
+    } as any).where(eq(partyGames.id, partyGameId));
 
     await db.update(partyPlayers).set({
         code: null, isSetup: false, isEliminated: false, isGhost: false, points: 0, reignTime: 0, successfulDefenses: 0,

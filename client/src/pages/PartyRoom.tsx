@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
-  Loader2, Share2, Lock, Terminal, Crosshair, Skull, Crown, Ghost, Users, Activity, Shield, Bug, Zap, Edit2, Shuffle, Radio, Eye, Timer, Anchor, FileDown
+  Loader2, Share2, Lock, Terminal, Crosshair, Skull, Crown, Ghost, Users, Activity, Shield, Bug, Zap, Edit2, Shuffle, Radio, Eye, Timer, Anchor, FileDown, Target, AlertTriangle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -387,7 +387,6 @@ export default function PartyRoom() {
     const canStart = isRoomFull && allSetup;
     
     return (
-      // تم تغيير min-h-[100dvh] إلى h-[100dvh] هنا أيضاً
       <div className="min-h-[100dvh] w-full flex flex-col p-4 bg-background custom-scrollbar relative">
         <div className="max-w-md w-full p-6 sm:p-8 border border-fuchsia-500/30 bg-black/60 shadow-[0_0_30px_rgba(232,121,249,0.1)] text-center flex flex-col items-center gap-4 sm:gap-6 relative overflow-hidden m-auto my-8">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-fuchsia-500 to-transparent opacity-50" />
@@ -490,13 +489,37 @@ export default function PartyRoom() {
 
   const activePowerupsEnabled = showFirewall || showVirus || showBruteforce || showChangeDigit || showSwapDigits || showEmp || showSpyware || showHoneypot || showTimer;
 
+  const isHunted = gameData.subMode === 'bounty_contracts' && myPlayerId === gameData.bountyTargetId && !myPlayer.isEliminated;
+
   // --- ACTIVE GAME GRID ---
   return (
     // السر كله في استخدام h-[100dvh] بدلاً من min-h-[100dvh] لكي يتفعل الـ Global Scrollbar
-    <div className="h-[100dvh] w-full bg-background overflow-y-auto overflow-x-hidden custom-scrollbar relative p-2 md:p-4">
+    <div className={cn("h-[100dvh] w-full bg-background overflow-y-auto overflow-x-hidden custom-scrollbar relative p-2 md:p-4", isHunted && "shadow-[inset_0_0_100px_rgba(239,68,68,0.15)] transition-shadow duration-1000")}>
       
       <div className="flex flex-col gap-3 md:gap-4 max-w-7xl mx-auto w-full relative z-10 pb-10">
         
+        {/* NEW BOUNTY BANNER */}
+        {gameData.subMode === 'bounty_contracts' && (
+          <div className="w-full mb-1 animate-in fade-in duration-500">
+            {gameData.bountyTargetId ? (
+              <div className="p-2 sm:p-3 border border-yellow-500 bg-yellow-500/20 rounded flex items-center justify-center gap-3 shadow-[0_0_15px_rgba(234,179,8,0.4)] relative overflow-hidden">
+                 <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(234,179,8,0.1)_50%,transparent_75%,transparent_100%)] bg-[length:20px_20px] animate-[slide_1s_linear_infinite]" />
+                 <Target className="w-5 h-5 text-yellow-500 animate-pulse relative z-10" />
+                 <span className="font-mono font-black tracking-widest text-yellow-500 text-[10px] sm:text-xs relative z-10 text-center">
+                    ACTIVE CONTRACT // TARGET: {gameData.players.find((p:any) => p.id === gameData.bountyTargetId)?.playerName} // REWARD: +6 PTS
+                 </span>
+              </div>
+            ) : (
+              <div className="p-2 sm:p-3 border border-blue-500/50 bg-blue-500/10 rounded flex items-center justify-center gap-3">
+                 <Activity className="w-5 h-5 text-blue-400 animate-spin" />
+                 <span className="font-mono font-bold tracking-widest text-blue-400 text-[10px] sm:text-xs opacity-80 text-center">
+                    SCANNING NEURAL NET FOR TARGET // ETA: {Math.max(1, (gameData.nextBountyTurn || 1) - (gameData.turnCount || 0))} TURNS...
+                 </span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-center border border-fuchsia-500/30 bg-black/40 p-2 sm:p-3 rounded gap-2 sm:gap-0">
            <div className="text-center sm:text-left order-2 sm:order-none">
@@ -538,19 +561,34 @@ export default function PartyRoom() {
                   const isSelected = selectedTarget === opp.id;
                   const isDead = opp.isEliminated;
                   const isRebooting = !opp.isSetup && !isDead;
+                  const isBountyTarget = gameData.subMode === 'bounty_contracts' && opp.id === gameData.bountyTargetId;
 
                   return (
                     <button key={opp.id} disabled={isDead || isRebooting || (!canUsePowerup && !isMyTurn)} onClick={() => setSelectedTarget(opp.id)}
-                      className={cn("relative p-2 sm:p-4 rounded border text-left font-mono transition-all flex flex-col justify-between overflow-hidden group min-h-[60px] sm:min-h-[80px]", isDead ? "border-red-900 bg-red-900/10 opacity-50 cursor-not-allowed grayscale" : isRebooting ? "border-yellow-900 bg-yellow-900/10 opacity-70 cursor-not-allowed grayscale" : isSelected ? "border-fuchsia-500 bg-fuchsia-500/10 shadow-[0_0_15px_rgba(232,121,249,0.3)] scale-[1.02]" : "border-fuchsia-500/30 hover:border-fuchsia-500/60 bg-black/50 hover:bg-white/5")}
+                      className={cn("relative p-2 sm:p-4 rounded border text-left font-mono transition-all flex flex-col justify-between overflow-hidden group min-h-[60px] sm:min-h-[80px]", 
+                        isDead ? "border-red-900 bg-red-900/10 opacity-50 cursor-not-allowed grayscale" : 
+                        isRebooting ? "border-yellow-900 bg-yellow-900/10 opacity-70 cursor-not-allowed grayscale" : 
+                        isBountyTarget ? "border-yellow-500 bg-yellow-500/20 shadow-[0_0_15px_rgba(234,179,8,0.3)] scale-[1.02] animate-pulse" :
+                        isSelected ? "border-fuchsia-500 bg-fuchsia-500/10 shadow-[0_0_15px_rgba(232,121,249,0.3)] scale-[1.02]" : 
+                        "border-fuchsia-500/30 hover:border-fuchsia-500/60 bg-black/50 hover:bg-white/5"
+                      )}
                     >
                       {isDead && <div className="absolute inset-0 flex items-center justify-center z-10 bg-red-950/80"><Skull className="w-6 h-6 sm:w-12 sm:h-12 text-red-500 opacity-80" /></div>}
                       {opp.isGhost && <Ghost className="absolute top-1 right-1 sm:top-2 sm:right-2 w-3 h-3 sm:w-5 sm:h-5 text-purple-500 opacity-50 z-20" />}
                       
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full z-0 gap-1 sm:gap-0">
+                      {isBountyTarget && (
+                        <>
+                           <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(234,179,8,0.1)_10px,rgba(234,179,8,0.1)_20px)] z-0" />
+                           <Target className="absolute -bottom-4 -right-4 w-16 h-16 text-yellow-500/20 animate-[spin_4s_linear_infinite] z-0 pointer-events-none" />
+                           <div className="absolute top-1 right-1 sm:top-2 sm:right-2 bg-yellow-500 text-black font-black text-[8px] sm:text-[10px] px-1 sm:px-2 py-0.5 rounded-sm z-20 shadow-[0_0_10px_rgba(234,179,8,0.8)]">+6 PTS</div>
+                        </>
+                      )}
+
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full z-10 gap-1 sm:gap-0 relative">
                         <span className="font-black tracking-widest text-[11px] sm:text-lg truncate max-w-full" style={{ color: opp.playerColor || '#E879F9' }}>{opp.playerName}</span>
                         {gameData.winCondition === 'points' && <span className="text-yellow-400 font-bold text-[8px] sm:text-xs whitespace-nowrap">{opp.points || 0}/{gameData.targetPoints} PTS</span>}
                       </div>
-                      <div className="text-[7px] sm:text-[10px] opacity-60 tracking-widest uppercase z-0 mt-1">
+                      <div className="text-[7px] sm:text-[10px] opacity-60 tracking-widest uppercase z-10 relative mt-1">
                         {isDead ? (opp.isGhost ? 'GHOST' : 'DEAD') : isRebooting ? 'REBOOTING' : 'ACTIVE'}
                       </div>
                     </button>
@@ -560,6 +598,18 @@ export default function PartyRoom() {
             </div>
 
             <div className="border border-fuchsia-500/20 bg-black/20 p-3 sm:p-4 rounded flex flex-col">
+               
+               {/* HUNTED WARNING ALERT */}
+               {isHunted && (
+                  <div className="p-3 sm:p-4 border border-red-500 bg-red-500/20 rounded flex flex-col items-center justify-center gap-2 shadow-[inset_0_0_20px_rgba(239,68,68,0.5)] mb-4 animate-pulse">
+                     <AlertTriangle className="w-8 h-8 sm:w-10 sm:h-10 text-red-500" />
+                     <span className="font-mono font-black tracking-widest text-red-500 text-[12px] sm:text-sm text-center">
+                        WARNING: YOU ARE HUNTED!<br/>
+                        <span className="text-[8px] sm:text-[10px] text-red-400">Survive the round or opponents will claim your bounty.</span>
+                     </span>
+                  </div>
+               )}
+
                {!myPlayer.isEliminated || myPlayer.isGhost ? (
                  !myPlayer.isSetup ? (
                     <div className="p-4 sm:p-6 border border-red-500/50 bg-red-900/20 rounded flex flex-col items-center text-center space-y-3 sm:space-y-4 animate-in fade-in duration-300">

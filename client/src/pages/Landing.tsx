@@ -116,6 +116,8 @@ export default function Landing() {
                      <Users className="w-10 h-10 mb-4 opacity-80 group-hover:opacity-100 transition-opacity" />
                      <span className="font-mono font-black tracking-[0.2em] text-2xl uppercase">PARTY MODE</span>
                      <span className="text-[10px] font-mono opacity-50 mt-2 tracking-widest uppercase">3 to 6 Players Chaos</span>
+                     {/* ADDED RED NOTIFICATION DOT FOR PARTY MODE */}
+                     <span className="absolute top-4 right-4 w-3 h-3 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
                   </button>
 
                   <div className="relative w-full pt-8">
@@ -207,23 +209,42 @@ export default function Landing() {
                   <div className="flex items-center gap-4 w-full opacity-30"><div className="flex-1 h-px bg-fuchsia-500"></div><span className="text-[10px] font-mono tracking-widest text-fuchsia-500">OR HOST PARTY</span><div className="flex-1 h-px bg-fuchsia-500"></div></div>
                   <div className="w-full space-y-4">
                     
-                    {/* MODIFIED: BOUNTY CONTRACTS REPLACES KING OF THE HILL */}
+                    {/* ALL 3 MODES NOW PRESENT AND ACTIVE */}
                     <div className="grid grid-cols-3 gap-2 w-full">
                       <button onClick={() => setPartySubMode('free_for_all')} className={cn("flex flex-col items-center p-3 rounded border transition-all text-center", partySubMode === 'free_for_all' ? "border-cyan-500 bg-cyan-500/20 text-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.2)]" : "border-fuchsia-500/20 text-fuchsia-500/50 hover:text-fuchsia-500")}><Crosshair className="w-5 h-5 mb-2" /><span className="text-[9px] font-bold tracking-wider">FREE FOR ALL</span></button>
                       <button onClick={() => setPartySubMode('battle_royale')} className={cn("flex flex-col items-center p-3 rounded border transition-all text-center", partySubMode === 'battle_royale' ? "border-red-500 bg-red-500/20 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]" : "border-fuchsia-500/20 text-fuchsia-500/50 hover:text-fuchsia-500")}><Skull className="w-5 h-5 mb-2" /><span className="text-[9px] font-bold tracking-wider">BATTLE ROYALE</span></button>
                       
-                      <button disabled className="flex flex-col items-center justify-center p-3 rounded border border-fuchsia-500/10 text-fuchsia-500/30 opacity-60 cursor-not-allowed relative overflow-hidden">
+                      <button 
+                        onClick={() => {
+                          setPartySubMode('bounty_contracts');
+                          setPartyWinCondition('points'); // Force Points mode
+                        }} 
+                        className={cn("flex flex-col items-center justify-center p-3 rounded border transition-all text-center relative overflow-hidden", partySubMode === 'bounty_contracts' ? "border-yellow-500 bg-yellow-500/20 text-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)]" : "border-fuchsia-500/20 text-fuchsia-500/50 hover:text-fuchsia-500")}
+                      >
+                        {/* ADDED RED NOTIFICATION DOT FOR BOUNTY CONTRACTS */}
+                        <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
                         <Target className="w-5 h-5 mb-2" />
                         <span className="text-[9px] font-bold tracking-wider text-center leading-tight">BOUNTY<br/>CONTRACTS</span>
-                        <div className="absolute top-1 right-1 px-1 bg-yellow-500/20 border border-yellow-500/50 text-yellow-500 text-[6px] font-black rounded animate-pulse">SOON</div>
                       </button>
                     </div>
 
-                    {partySubMode === 'free_for_all' && (
-                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="w-full p-3 border border-cyan-500/30 bg-black/40 rounded space-y-3 overflow-hidden">
-                         <div className="flex justify-between items-center"><span className="text-[10px] font-mono tracking-widest text-cyan-500">WIN CONDITION:</span><div className="flex gap-2"><button onClick={() => setPartyWinCondition('points')} className={cn("px-2 py-1 text-[10px] font-mono border rounded transition-all", partyWinCondition === 'points' ? "bg-cyan-500 text-black border-cyan-500" : "text-cyan-500/50 border-cyan-500/30")}>POINTS</button><button onClick={() => setPartyWinCondition('elimination')} className={cn("px-2 py-1 text-[10px] font-mono border rounded transition-all", partyWinCondition === 'elimination' ? "bg-cyan-500 text-black border-cyan-500" : "text-cyan-500/50 border-cyan-500/30")}>ELIMINATION</button></div></div>
-                         {partyWinCondition === 'points' && (
-                           <div className="flex justify-between items-center"><span className="text-[10px] font-mono tracking-widest text-cyan-500">TARGET POINTS:</span><div className="flex gap-2">{[10, 15, 20].map(pts => (<button key={pts} onClick={() => setPartyTargetPoints(pts)} className={cn("px-2 py-1 text-[10px] font-mono border rounded transition-all", partyTargetPoints === pts ? "bg-cyan-500 text-black border-cyan-500" : "text-cyan-500/50 border-cyan-500/30")}>{pts}</button>))}</div></div>
+                    {/* DYNAMIC SETTINGS MENU FOR MODES */}
+                    {(partySubMode === 'free_for_all' || partySubMode === 'bounty_contracts') && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className={cn("w-full p-3 border rounded space-y-3 overflow-hidden bg-black/40", partySubMode === 'bounty_contracts' ? "border-yellow-500/30" : "border-cyan-500/30")}>
+                         
+                         {partySubMode === 'free_for_all' && (
+                           <div className="flex justify-between items-center"><span className="text-[10px] font-mono tracking-widest text-cyan-500">WIN CONDITION:</span><div className="flex gap-2"><button onClick={() => setPartyWinCondition('points')} className={cn("px-2 py-1 text-[10px] font-mono border rounded transition-all", partyWinCondition === 'points' ? "bg-cyan-500 text-black border-cyan-500" : "text-cyan-500/50 border-cyan-500/30")}>POINTS</button><button onClick={() => setPartyWinCondition('elimination')} className={cn("px-2 py-1 text-[10px] font-mono border rounded transition-all", partyWinCondition === 'elimination' ? "bg-cyan-500 text-black border-cyan-500" : "text-cyan-500/50 border-cyan-500/30")}>ELIMINATION</button></div></div>
+                         )}
+
+                         {(partyWinCondition === 'points' || partySubMode === 'bounty_contracts') && (
+                           <div className="flex justify-between items-center">
+                             <span className={cn("text-[10px] font-mono tracking-widest", partySubMode === 'bounty_contracts' ? "text-yellow-500" : "text-cyan-500")}>TARGET POINTS:</span>
+                             <div className="flex gap-2">
+                               {[10, 15, 20].map(pts => (
+                                 <button key={pts} onClick={() => setPartyTargetPoints(pts)} className={cn("px-2 py-1 text-[10px] font-mono border rounded transition-all", partyTargetPoints === pts ? (partySubMode === 'bounty_contracts' ? "bg-yellow-500 text-black border-yellow-500" : "bg-cyan-500 text-black border-cyan-500") : (partySubMode === 'bounty_contracts' ? "text-yellow-500/50 border-yellow-500/30" : "text-cyan-500/50 border-cyan-500/30"))}>{pts}</button>
+                               ))}
+                             </div>
+                           </div>
                          )}
                       </motion.div>
                     )}

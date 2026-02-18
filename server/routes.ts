@@ -341,7 +341,32 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           nextPlayerId = turnOrder[nextIndex]; loopCount++;
       }
 
-      await storage.updatePartyGame(id, { activePlayerId: nextPlayerId, turnCount: (game.turnCount || 0) + 1, turnStartedAt: new Date() });
+      let updates: any = { activePlayerId: nextPlayerId, turnCount: (game.turnCount || 0) + 1, turnStartedAt: new Date() };
+
+      // --- BOUNTY LIFECYCLE (TIMEOUT) ---
+      if (game.subMode === 'bounty_contracts') {
+          const nextTurnCount = updates.turnCount;
+          const alivePlayers = players.filter(p => !p.isEliminated && p.isSetup);
+          const currentBountyTarget = game.bountyTargetId;
+          const nextBountyTurn = game.nextBountyTurn || 1;
+
+          if (currentBountyTarget) {
+              if (nextTurnCount >= nextBountyTurn) {
+                  updates.bountyTargetId = null;
+                  updates.bountyPoints = null;
+                  updates.nextBountyTurn = nextTurnCount + Math.floor(Math.random() * 3) + 3; // 3 to 5 turn cooldown
+                  await storage.createPartyLog({ partyGameId: id, message: `[BOUNTY EXPIRED] The target survived! Cooldown initiated.`, type: 'warning' });
+              }
+          } else if (nextTurnCount >= nextBountyTurn && alivePlayers.length > 1) {
+              const randomTarget = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
+              updates.bountyTargetId = randomTarget.id;
+              updates.bountyPoints = 3;
+              updates.nextBountyTurn = nextTurnCount + players.length; // Bounty lasts for X turns (player count)
+              await storage.createPartyLog({ partyGameId: id, message: `[BOUNTY ISSUED] ${randomTarget.playerName} IS THE NEW TARGET! (+6 PTS)`, type: 'warning' });
+          }
+      }
+
+      await storage.updatePartyGame(id, updates);
       res.json({ success: true });
     } catch (err) { res.status(400).json({ message: 'Error' }); }
   });
@@ -373,11 +398,36 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           nextPlayerId = turnOrder[nextIndex]; loopCount++;
       }
 
-      await storage.updatePartyGame(id, {
+      let updates: any = {
           activePlayerId: nextPlayerId,
           turnCount: (game.turnCount || 0) + 1,
           turnStartedAt: new Date()
-      });
+      };
+
+      // --- BOUNTY LIFECYCLE (SKIP) ---
+      if (game.subMode === 'bounty_contracts') {
+          const nextTurnCount = updates.turnCount;
+          const alivePlayers = players.filter(p => !p.isEliminated && p.isSetup);
+          const currentBountyTarget = game.bountyTargetId;
+          const nextBountyTurn = game.nextBountyTurn || 1;
+
+          if (currentBountyTarget) {
+              if (nextTurnCount >= nextBountyTurn) {
+                  updates.bountyTargetId = null;
+                  updates.bountyPoints = null;
+                  updates.nextBountyTurn = nextTurnCount + Math.floor(Math.random() * 3) + 3;
+                  await storage.createPartyLog({ partyGameId: id, message: `[BOUNTY EXPIRED] The target survived! Cooldown initiated.`, type: 'warning' });
+              }
+          } else if (nextTurnCount >= nextBountyTurn && alivePlayers.length > 1) {
+              const randomTarget = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
+              updates.bountyTargetId = randomTarget.id;
+              updates.bountyPoints = 3;
+              updates.nextBountyTurn = nextTurnCount + players.length;
+              await storage.createPartyLog({ partyGameId: id, message: `[BOUNTY ISSUED] ${randomTarget.playerName} IS THE NEW TARGET! (+6 PTS)`, type: 'warning' });
+          }
+      }
+
+      await storage.updatePartyGame(id, updates);
       res.json({ success: true });
     } catch (err) { res.status(400).json({ message: 'Error skipping turn' }); }
   });
@@ -542,9 +592,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
        if (hits === 4) {
            if (isPointsMode) {
-               currentAttackerPoints += 3;
+               let pointsGained = 3;
+               
+               // --- BOUNTY CLAIM LOGIC ---
+               if (game.subMode === 'bounty_contracts' && targetId === game.bountyTargetId) {
+                   pointsGained += game.bountyPoints || 3;
+                   updates.bountyTargetId = null;
+                   updates.bountyPoints = null;
+                   updates.nextBountyTurn = (game.turnCount || 0) + 1 + Math.floor(Math.random() * 3) + 3; // Reset with cooldown immediately
+                   await storage.createPartyLog({ partyGameId: id, message: `[BOUNTY CLAIMED] ${attacker.playerName} ASSASSINATED THE TARGET FOR +${pointsGained} PTS!`, type: 'success' });
+               } else {
+                   await storage.createPartyLog({ partyGameId: id, message: `SYSTEM: ${attacker.playerName} CRACKED ${target.playerName}! (+${pointsGained} PTS)`, type: 'success' });
+               }
+
+               currentAttackerPoints += pointsGained;
                await storage.updatePartyPlayer(attackerId, { points: currentAttackerPoints });
-               await storage.createPartyLog({ partyGameId: id, message: `SYSTEM: ${attacker.playerName} CRACKED ${target.playerName}! (+3 PTS)`, type: 'success' });
                
                await storage.updatePartyPlayer(targetId, { code: "", isSetup: false });
                isTargetCrashed = true; 
@@ -601,6 +663,29 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
                updates.activePlayerId = nextPlayerId; updates.turnCount = (game.turnCount || 0) + 1; updates.turnStartedAt = new Date();
            } else {
                await storage.updatePartyPlayer(attackerId, { isFirewallActive: false });
+           }
+
+           // --- BOUNTY LIFECYCLE (GUESS) ---
+           if (game.subMode === 'bounty_contracts') {
+               const nextTurnCount = updates.turnCount !== undefined ? updates.turnCount : (game.turnCount || 0);
+               const setupAlivePlayers = players.filter(p => !p.isEliminated && p.isSetup);
+               const currentBountyTarget = updates.bountyTargetId !== undefined ? updates.bountyTargetId : game.bountyTargetId;
+               const nextBountyTurn = updates.nextBountyTurn !== undefined ? updates.nextBountyTurn : (game.nextBountyTurn || 1);
+
+               if (currentBountyTarget) {
+                   if (nextTurnCount >= nextBountyTurn) {
+                       updates.bountyTargetId = null;
+                       updates.bountyPoints = null;
+                       updates.nextBountyTurn = nextTurnCount + Math.floor(Math.random() * 3) + 3;
+                       await storage.createPartyLog({ partyGameId: id, message: `[BOUNTY EXPIRED] The target survived! Cooldown initiated.`, type: 'warning' });
+                   }
+               } else if (nextTurnCount >= nextBountyTurn && setupAlivePlayers.length > 1) {
+                   const randomTarget = setupAlivePlayers[Math.floor(Math.random() * setupAlivePlayers.length)];
+                   updates.bountyTargetId = randomTarget.id;
+                   updates.bountyPoints = 3;
+                   updates.nextBountyTurn = nextTurnCount + players.length;
+                   await storage.createPartyLog({ partyGameId: id, message: `[BOUNTY ISSUED] ${randomTarget.playerName} IS THE NEW TARGET! (+6 PTS)`, type: 'warning' });
+               }
            }
        }
 

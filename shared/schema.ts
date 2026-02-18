@@ -126,6 +126,10 @@ export const partyGames = pgTable("party_games", {
   targetPoints: integer("target_points").default(10), // For point-based FFA
   kingId: integer("king_id"), // For King of The Hill
   winnerId: integer("winner_id"), // Final Winner
+  // --- NEW BOUNTY CONTRACTS FIELDS ---
+  bountyTargetId: integer("bounty_target_id"),
+  bountyPoints: integer("bounty_points"),
+  nextBountyTurn: integer("next_bounty_turn").default(1),
   
   // Party Custom Settings
   customTimer: boolean("custom_timer").default(false),

@@ -41,6 +41,7 @@ export default function HowToPlay() {
           </button>
           <button onClick={() => setActiveTab('party')} className={cn("relative flex-1 min-w-[120px] py-3 px-4 border transition-all flex items-center justify-center gap-2 font-bold tracking-widest text-xs", activeTab === 'party' ? "bg-fuchsia-500/20 border-fuchsia-500 text-fuchsia-500 shadow-[0_0_15px_rgba(232,121,249,0.2)]" : "border-fuchsia-500/20 text-fuchsia-500/50 hover:border-fuchsia-500/50")}>
             <Users className="w-4 h-4" /> PARTY MODE
+            <NotificationDot />
           </button>
           <button onClick={() => setActiveTab('powerups')} className={cn("relative flex-1 min-w-[120px] py-3 px-4 border transition-all flex items-center justify-center gap-2 font-bold tracking-widest text-xs", activeTab === 'powerups' ? "bg-blue-500/20 border-blue-500 text-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.2)]" : "border-blue-500/20 text-blue-500/50 hover:border-blue-500/50")}>
             <Zap className="w-4 h-4" /> ARSENAL
@@ -108,8 +109,23 @@ export default function HowToPlay() {
                 <section>
                   <h2 className="text-xl font-bold text-fuchsia-500 mb-3 border-b border-fuchsia-500/20 pb-2">WIN CONDITIONS</h2>
                   <div className="space-y-4">
+                    
+                    {/* BOUNTY CONTRACTS (NEW) */}
+                    <div className="border border-yellow-500/30 p-4 bg-yellow-900/10 rounded relative overflow-hidden">
+                      <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(234,179,8,0.05)_10px,rgba(234,179,8,0.05)_20px)] pointer-events-none" />
+                      <h3 className="font-bold text-yellow-500 mb-2 flex items-center gap-2 relative z-10">
+                        <Target className="w-4 h-4"/> BOUNTY CONTRACTS
+                        <span className="ml-2 text-[8px] bg-red-500 text-white px-2 py-0.5 rounded tracking-widest font-black animate-pulse">NEW</span>
+                      </h3>
+                      <ul className="text-xs space-y-2 text-yellow-100/80 list-disc list-inside pl-4 relative z-10">
+                        <li><strong>The Hunt:</strong> A random living player is marked as the global <strong>Bounty Target</strong> for a limited time.</li>
+                        <li><strong>The Reward:</strong> If you successfully crack the Bounty Target, you instantly receive a massive <span className="text-yellow-400 font-bold">+6 PTS</span> (Base 3 + 3 Bonus).</li>
+                        <li><strong>Survival:</strong> If you are the target, you must survive until the contract expires to trigger a cooldown phase!</li>
+                      </ul>
+                    </div>
+
                     <div className="border border-cyan-500/30 p-4 bg-cyan-900/10 rounded">
-                      <h3 className="font-bold text-cyan-400 mb-2 flex items-center gap-2"><Target className="w-4 h-4"/> POINTS SYSTEM</h3>
+                      <h3 className="font-bold text-cyan-400 mb-2 flex items-center gap-2"><Crosshair className="w-4 h-4"/> POINTS SYSTEM (FREE FOR ALL)</h3>
                       <ul className="text-xs space-y-2 text-cyan-100/70 list-disc list-inside pl-4">
                         <li><strong>Cracking a Code (4 HITS):</strong> Grants <span className="text-green-400 font-bold">+3 PTS</span>.</li>
                         <li><strong>Partial Hit (2+ HITS):</strong> Grants <span className="text-yellow-400 font-bold">+1 PT</span>.</li>
@@ -117,10 +133,12 @@ export default function HowToPlay() {
                         <li>First hacker to reach the Target Score wins.</li>
                       </ul>
                     </div>
+
                     <div className="border border-red-500/30 p-4 bg-red-900/10 rounded">
                       <h3 className="font-bold text-red-500 mb-2 flex items-center gap-2"><Skull className="w-4 h-4"/> ELIMINATION (BATTLE ROYALE)</h3>
                       <p className="text-xs text-red-200/70">If your code is cracked, you are eliminated! However, if <strong>GHOST PROTOCOL</strong> is active, dead players can still use their unused powerups to sabotage the living.</p>
                     </div>
+
                   </div>
                 </section>
               </motion.div>
