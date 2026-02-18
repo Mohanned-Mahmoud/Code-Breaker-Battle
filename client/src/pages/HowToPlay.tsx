@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  ArrowLeft, Terminal, User, Users, Zap, Shield, Bug, Edit2, Shuffle, Radio, Eye, Ghost, Skull, Timer, Crosshair, Target, Anchor, FileDown
+  ArrowLeft, Terminal,Bomb, User, Users, Zap, Shield, Bug, Edit2, Shuffle, Radio, Eye, Ghost, Skull, Timer, Crosshair, Target, Anchor, FileDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -200,6 +200,14 @@ export default function HowToPlay() {
                     <Anchor className="w-8 h-8 text-pink-400 shrink-0" />
                     <div><h4 className="font-bold text-pink-400 text-sm pr-6">PHISHING (THEFT)</h4><p className="text-[10px] text-pink-200/70 mt-1">Launches a phishing link to randomly steal one unused powerup from your opponent's arsenal and immediately add it to your own.</p></div>
                   </div>
+                  <div className="p-3 border border-zinc-500/50 bg-zinc-500/10 flex gap-3 relative overflow-hidden shadow-[0_0_15px_rgba(161,161,170,0.1)]">
+                  <div className="absolute top-0 right-0 bg-red-500 text-white text-[8px] font-bold px-3 py-1 tracking-widest z-10 rounded-bl">NEW</div>
+                  <Bomb className="w-8 h-8 text-zinc-400 shrink-0" />
+                  <div>
+                    <h4 className="font-bold text-zinc-400 text-sm">LOGIC BOMB (SILENCE)</h4>
+                    <p className="text-[10px] text-zinc-300/70 mt-1">Select a target. Throws a logic bomb that completely disables their ability to use ANY powerups for their next 2 turns!</p>
+                  </div>
+                </div>
 
                 </div>
               </motion.div>

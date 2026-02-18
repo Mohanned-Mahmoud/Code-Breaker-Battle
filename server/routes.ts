@@ -79,6 +79,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       let currentTurnCount = (game.turnCount || 0) + 1; 
       updates.turnCount = currentTurnCount; 
       
+      // --- LOGIC BOMB DECREMENT (1v1) ---
+      const pLabel = player === 'p1' ? 'p1' : 'p2';
+      if ((game as any)[`${pLabel}SilencedTurns`] > 0) {
+          updates[`${pLabel}SilencedTurns`] = (game as any)[`${pLabel}SilencedTurns`] - 1;
+      }
+
       let skipTurnSwitch = false; 
 
       if (hits === 4) { 
@@ -94,8 +100,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
             await storage.createLog({ gameId: id, message: `[GLITCH] SYSTEM REBOOT: ALL MASTER CODES SHUFFLED!`, type: 'error' }); 
             
           } else if (glitchType === 1) { 
-            updates.p1FirewallUsed = false; updates.p1TimeHackUsed = false; updates.p1VirusUsed = false; updates.p1BruteforceUsed = false; updates.p1ChangeDigitUsed = false; updates.p1SwapDigitsUsed = false; updates.p1EmpUsed = false; updates.p1SpywareUsed = false; updates.p1HoneypotUsed = false; updates.p1PhishingUsed = false;
-            updates.p2FirewallUsed = false; updates.p2TimeHackUsed = false; updates.p2VirusUsed = false; updates.p2BruteforceUsed = false; updates.p2ChangeDigitUsed = false; updates.p2SwapDigitsUsed = false; updates.p2EmpUsed = false; updates.p2SpywareUsed = false; updates.p2HoneypotUsed = false; updates.p2PhishingUsed = false;
+            updates.p1FirewallUsed = false; updates.p1TimeHackUsed = false; updates.p1VirusUsed = false; updates.p1BruteforceUsed = false; updates.p1ChangeDigitUsed = false; updates.p1SwapDigitsUsed = false; updates.p1EmpUsed = false; updates.p1SpywareUsed = false; updates.p1HoneypotUsed = false; updates.p1PhishingUsed = false; updates.p1LogicBombUsed = false; updates.p1SilencedTurns = 0;
+            updates.p2FirewallUsed = false; updates.p2TimeHackUsed = false; updates.p2VirusUsed = false; updates.p2BruteforceUsed = false; updates.p2ChangeDigitUsed = false; updates.p2SwapDigitsUsed = false; updates.p2EmpUsed = false; updates.p2SpywareUsed = false; updates.p2HoneypotUsed = false; updates.p2PhishingUsed = false; updates.p2LogicBombUsed = false; updates.p2SilencedTurns = 0;
             await storage.createLog({ gameId: id, message: `[GLITCH] FIREWALL DOWN: ALL POWERUPS RESTORED!`, type: 'success' }); 
             
           } else if (glitchType === 2) { 
@@ -145,7 +151,35 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (err) { res.status(400).json({ message: 'Invalid input' }); } 
   });
   
-  app.post(api.games.timeout.path, async (req, res) => { try { const id = Number(req.params.id); const { player } = req.body; const game = await storage.getGame(id); const isTimed = game?.mode === 'blitz' || (game?.mode === 'custom' && game?.customTimer); if (!game || game.status !== 'playing' || game.turn !== player || !isTimed) return res.status(400).json({ message: 'Invalid' }); const turnStart = game.turnStartedAt ? new Date(game.turnStartedAt).getTime() : new Date().getTime(); const elapsed = (new Date().getTime() - turnStart) / 1000; if (elapsed < 28) return res.status(400).json({ message: 'Not timed out yet' }); const nextTurn = player === 'p1' ? 'p2' : 'p1'; const playerLabel = player === 'p1' ? '[P1]' : '[P2]'; await storage.createLog({ gameId: id, message: `SYSTEM: ${playerLabel} CONNECTION TIMED OUT. TURN SKIPPED.`, type: 'error' }); const updates: any = { turn: nextTurn, isFirewallActive: false }; if (game.isTimeHackActive) { updates.turnStartedAt = new Date(Date.now() - 20000); updates.isTimeHackActive = false; } else { updates.turnStartedAt = new Date(); } await storage.updateGame(id, updates); res.json({ success: true }); } catch (err) { res.status(400).json({ message: 'Error' }); } });
+  app.post(api.games.timeout.path, async (req, res) => { 
+    try { 
+      const id = Number(req.params.id); const { player } = req.body; const game = await storage.getGame(id); 
+      const isTimed = game?.mode === 'blitz' || (game?.mode === 'custom' && game?.customTimer); 
+      if (!game || game.status !== 'playing' || game.turn !== player || !isTimed) return res.status(400).json({ message: 'Invalid' }); 
+      const turnStart = game.turnStartedAt ? new Date(game.turnStartedAt).getTime() : new Date().getTime(); 
+      const elapsed = (new Date().getTime() - turnStart) / 1000; 
+      if (elapsed < 28) return res.status(400).json({ message: 'Not timed out yet' }); 
+      
+      const nextTurn = player === 'p1' ? 'p2' : 'p1'; 
+      const playerLabel = player === 'p1' ? '[P1]' : '[P2]'; 
+      await storage.createLog({ gameId: id, message: `SYSTEM: ${playerLabel} CONNECTION TIMED OUT. TURN SKIPPED.`, type: 'error' }); 
+      const updates: any = { turn: nextTurn, isFirewallActive: false }; 
+
+      // --- LOGIC BOMB DECREMENT (1v1 Timeout) ---
+      const pLabel = player === 'p1' ? 'p1' : 'p2';
+      if ((game as any)[`${pLabel}SilencedTurns`] > 0) {
+          updates[`${pLabel}SilencedTurns`] = (game as any)[`${pLabel}SilencedTurns`] - 1;
+      }
+
+      if (game.isTimeHackActive) { 
+        updates.turnStartedAt = new Date(Date.now() - 20000); updates.isTimeHackActive = false; 
+      } else { 
+        updates.turnStartedAt = new Date(); 
+      } 
+      await storage.updateGame(id, updates); 
+      res.json({ success: true }); 
+    } catch (err) { res.status(400).json({ message: 'Error' }); } 
+  });
   
   app.get(api.games.logs.path, async (req, res) => { res.json(await storage.getLogs(Number(req.params.id))); });
   app.get('/api/games/:id/master-logs', async (req, res) => { res.json(await storage.getAllLogs(Number(req.params.id))); });
@@ -163,6 +197,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       else if (type === 'emp') { updates[player === 'p1' ? 'p1EmpUsed' : 'p2EmpUsed'] = true; updates[player === 'p1' ? 'p2Jammed' : 'p1Jammed'] = true; } 
       else if (type === 'honeypot') { updates[player === 'p1' ? 'p1HoneypotUsed' : 'p2HoneypotUsed'] = true; updates[player === 'p1' ? 'p2Honeypoted' : 'p1Honeypoted'] = true; } 
       else if (type === 'spyware') { updates[player === 'p1' ? 'p1SpywareUsed' : 'p2SpywareUsed'] = true; const codeSum = targetCode!.split('').reduce((acc, curr) => acc + parseInt(curr), 0); logMessage = `SYSTEM: ${playerLabel} DEPLOYED SPYWARE. TARGET CODE SUM = ${codeSum}`; } 
+      else if (type === 'logicBomb') { 
+          updates[player === 'p1' ? 'p1LogicBombUsed' : 'p2LogicBombUsed'] = true; 
+          updates[player === 'p1' ? 'p2SilencedTurns' : 'p1SilencedTurns'] = 2; 
+          logMessage = `[LOGIC BOMB] ${playerLabel} THREW A LOGIC BOMB! OPPONENT IS SILENCED FOR 2 TURNS!`; 
+      }
       
       // --- PERFECTLY SYNCED PHISHING ATTACK LOGIC (1v1) ---
       else if (type === 'phishing') {
@@ -177,7 +216,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           const isBlitz = game.mode === 'blitz';
           const isTimed = isBlitz || (isCustom && game.customTimer);
 
-          // This perfectly matches the frontend UI rules! If they don't see it, we can't steal it!
           const showFirewallOrDdos = isCustom ? game.allowFirewall : true; 
           const showVirus = isCustom ? game.allowVirus : isGlitch; 
           const showBruteforce = isCustom ? game.allowBruteforce : true;
@@ -186,6 +224,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           const showEmp = isCustom ? game.allowEmp : isGlitch;
           const showSpyware = isCustom ? game.allowSpyware : isGlitch;
           const showHoneypot = isCustom ? game.allowHoneypot : isGlitch;
+          const showLogicBomb = isCustom ? game.allowLogicBomb : isGlitch;
 
           const availablePowerups = [
               { id: 'Firewall', name: 'FIREWALL', enabled: !isTimed && showFirewallOrDdos },
@@ -196,7 +235,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
               { id: 'SwapDigits', name: 'SWAP DIGITS', enabled: showSwapDigits },
               { id: 'Emp', name: 'EMP JAMMER', enabled: showEmp },
               { id: 'Spyware', name: 'SPYWARE', enabled: showSpyware },
-              { id: 'Honeypot', name: 'HONEYPOT', enabled: showHoneypot }
+              { id: 'Honeypot', name: 'HONEYPOT', enabled: showHoneypot },
+              { id: 'LogicBomb', name: 'LOGIC BOMB', enabled: showLogicBomb }
           ];
 
           // Filter out disabled ones, AND ones the enemy has already used
@@ -327,6 +367,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const attacker = await storage.getPartyPlayer(playerId);
       await storage.createPartyLog({ partyGameId: id, message: `SYSTEM: ${attacker?.playerName || 'HACKER'} TIMED OUT. TURN SKIPPED.`, type: 'error' });
 
+      // --- LOGIC BOMB DECREMENT (Party Timeout) ---
+      if (attacker && attacker.silencedTurns && attacker.silencedTurns > 0) {
+          await storage.updatePartyPlayer(playerId, { silencedTurns: attacker.silencedTurns - 1 });
+      }
+
       const players = await storage.getPartyPlayers(id);
       let turnOrder = JSON.parse(game.turnOrder!);
       let currentIndex = turnOrder.indexOf(playerId);
@@ -383,6 +428,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       const attacker = await storage.getPartyPlayer(playerId);
       await storage.createPartyLog({ partyGameId: id, message: `SYSTEM: ${attacker?.playerName} OFFLINE. TURN MANUALLY SKIPPED.`, type: 'warning' });
+
+      // --- LOGIC BOMB DECREMENT (Party Skip) ---
+      if (attacker && attacker.silencedTurns && attacker.silencedTurns > 0) {
+          await storage.updatePartyPlayer(playerId, { silencedTurns: attacker.silencedTurns - 1 });
+      }
 
       const players = await storage.getPartyPlayers(id);
       let turnOrder = JSON.parse(game.turnOrder!);
@@ -488,7 +538,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           updates.spywareUsed = true;
           const codeSum = target.code!.split('').reduce((acc, curr) => acc + parseInt(curr), 0);
           logMessage = `SYSTEM: ${attacker.playerName} DEPLOYED SPYWARE ON ${target.playerName}. CODE SUM = ${codeSum}`;
-      } 
+      } else if (type === 'logicBomb') {
+          if (attacker.logicBombUsed) return res.status(400).json({ message: 'Logic Bomb already used' });
+          if (!target || !target.isSetup) return res.status(400).json({ message: 'Valid target required' });
+          updates.logicBombUsed = true;
+          await storage.updatePartyPlayer(targetId, { silencedTurns: 2 });
+          logMessage = `[LOGIC BOMB] ${attacker.playerName} THREW A LOGIC BOMB! ${target.playerName} IS SILENCED FOR 2 TURNS!`;
+      }
       // --- PERFECTLY SYNCED PHISHING ATTACK LOGIC (Party Mode) ---
       else if (type === 'phishing') {
           if (attacker.phishingUsed) return res.status(400).json({ message: 'Phishing already used' });
@@ -504,6 +560,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           const showEmp = game.allowEmp ?? false;
           const showSpyware = game.allowSpyware ?? false;
           const showHoneypot = game.allowHoneypot ?? false;
+          const showLogicBomb = game.allowLogicBomb ?? false;
           const showTimer = game.customTimer ?? false;
 
           const availablePowerups = [
@@ -515,7 +572,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
               { id: 'swapDigits', name: 'SWAP DIGITS', enabled: showSwapDigits },
               { id: 'emp', name: 'EMP JAMMER', enabled: showEmp },
               { id: 'spyware', name: 'SPYWARE', enabled: showSpyware },
-              { id: 'honeypot', name: 'HONEYPOT', enabled: showHoneypot }
+              { id: 'honeypot', name: 'HONEYPOT', enabled: showHoneypot },
+              { id: 'logicBomb', name: 'LOGIC BOMB', enabled: showLogicBomb }
           ];
 
           const availableToSteal = availablePowerups.filter(p => p.enabled && !(target as any)[`${p.id}Used`]);
@@ -540,7 +598,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           if (newStrikes >= 2) {
               updates.firewallUsed = true; updates.timeHackUsed = true; updates.virusUsed = true;
               updates.bruteforceUsed = true; updates.changeDigitUsed = true; updates.swapDigitsUsed = true;
-              updates.empUsed = true; updates.spywareUsed = true; updates.honeypotUsed = true; updates.phishingUsed = true;
+              updates.empUsed = true; updates.spywareUsed = true; updates.honeypotUsed = true; updates.phishingUsed = true; updates.logicBombUsed = true;
               logMessage = `👻 [GHOST SABOTAGE - FINAL STRIKE] ` + logMessage;
           } else {
               logMessage = `👻 [GHOST SABOTAGE - STRIKE 1/2] ` + logMessage;
@@ -564,6 +622,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
        const attacker = await storage.getPartyPlayer(attackerId);
        const target = await storage.getPartyPlayer(targetId);
        if (!attacker || !target || (target.isEliminated && game.subMode !== 'battle_royale') || !target.isSetup) return res.status(400).json({ message: 'Target is rebooting or invalid' });
+
+       // --- LOGIC BOMB DECREMENT (Party Guess) ---
+       if (attacker && attacker.silencedTurns && attacker.silencedTurns > 0) {
+           await storage.updatePartyPlayer(attackerId, { silencedTurns: attacker.silencedTurns - 1 });
+       }
 
        let { hits, blips } = calculateFeedback(target.code!, guess);
        let displayHits = hits; let displayBlips = blips;

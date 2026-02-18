@@ -28,10 +28,11 @@ export const games = pgTable("games", {
   allowBruteforce: boolean("allow_bruteforce").default(true),
   allowChangeDigit: boolean("allow_change_digit").default(true),
   allowSwapDigits: boolean("allow_swap_digits").default(true),
-  allowEmp: boolean("allow_emp").default(false), // NEW
-  allowSpyware: boolean("allow_spyware").default(false), // NEW
-  allowHoneypot: boolean("allow_honeypot").default(false), // NEW
-  allowPhishing: boolean("allow_phishing").default(false), // NEW
+  allowEmp: boolean("allow_emp").default(false), 
+  allowSpyware: boolean("allow_spyware").default(false), 
+  allowHoneypot: boolean("allow_honeypot").default(false), 
+  allowPhishing: boolean("allow_phishing").default(false), 
+  allowLogicBomb: boolean("allow_logic_bomb").default(false), // NEW
 
   createdAt: timestamp("created_at").defaultNow(),
 
@@ -44,10 +45,12 @@ export const games = pgTable("games", {
   p1BruteforceUsed: boolean("p1_bruteforce_used").default(false),
   p1ChangeDigitUsed: boolean("p1_change_digit_used").default(false),
   p1SwapDigitsUsed: boolean("p1_swap_digits_used").default(false),
-  p1EmpUsed: boolean("p1_emp_used").default(false), // NEW
-  p1SpywareUsed: boolean("p1_spyware_used").default(false), // NEW
-  p1HoneypotUsed: boolean("p1_honeypot_used").default(false), // NEW
-  p1PhishingUsed: boolean("p1_phishing_used").default(false), // NEW
+  p1EmpUsed: boolean("p1_emp_used").default(false), 
+  p1SpywareUsed: boolean("p1_spyware_used").default(false), 
+  p1HoneypotUsed: boolean("p1_honeypot_used").default(false), 
+  p1PhishingUsed: boolean("p1_phishing_used").default(false), 
+  p1LogicBombUsed: boolean("p1_logic_bomb_used").default(false), // NEW
+  p1SilencedTurns: integer("p1_silenced_turns").default(0), // NEW
 
   // Player 2
   p2Code: text("p2_code"),
@@ -58,10 +61,12 @@ export const games = pgTable("games", {
   p2BruteforceUsed: boolean("p2_bruteforce_used").default(false),
   p2ChangeDigitUsed: boolean("p2_change_digit_used").default(false),
   p2SwapDigitsUsed: boolean("p2_swap_digits_used").default(false),
-  p2EmpUsed: boolean("p2_emp_used").default(false), // NEW
-  p2SpywareUsed: boolean("p2_spyware_used").default(false), // NEW
-  p2HoneypotUsed: boolean("p2_honeypot_used").default(false), // NEW
-  p2PhishingUsed: boolean("p2_phishing_used").default(false), // NEW
+  p2EmpUsed: boolean("p2_emp_used").default(false), 
+  p2SpywareUsed: boolean("p2_spyware_used").default(false), 
+  p2HoneypotUsed: boolean("p2_honeypot_used").default(false), 
+  p2PhishingUsed: boolean("p2_phishing_used").default(false), 
+  p2LogicBombUsed: boolean("p2_logic_bomb_used").default(false), // NEW
+  p2SilencedTurns: integer("p2_silenced_turns").default(0), // NEW
 
   // --- STEALTH EFFECTS STATE ---
   p1Jammed: boolean("p1_jammed").default(false),
@@ -126,6 +131,7 @@ export const partyGames = pgTable("party_games", {
   targetPoints: integer("target_points").default(10), // For point-based FFA
   kingId: integer("king_id"), // For King of The Hill
   winnerId: integer("winner_id"), // Final Winner
+  
   // --- NEW BOUNTY CONTRACTS FIELDS ---
   bountyTargetId: integer("bounty_target_id"),
   bountyPoints: integer("bounty_points"),
@@ -141,7 +147,8 @@ export const partyGames = pgTable("party_games", {
   allowEmp: boolean("allow_emp").default(false),
   allowSpyware: boolean("allow_spyware").default(false),
   allowHoneypot: boolean("allow_honeypot").default(false),
-  allowPhishing: boolean("allow_phishing").default(false), // NEW
+  allowPhishing: boolean("allow_phishing").default(false), 
+  allowLogicBomb: boolean("allow_logic_bomb").default(false), // NEW
 
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -174,7 +181,9 @@ export const partyPlayers = pgTable("party_players", {
   empUsed: boolean("emp_used").default(false),
   spywareUsed: boolean("spyware_used").default(false),
   honeypotUsed: boolean("honeypot_used").default(false),
-  phishingUsed: boolean("phishing_used").default(false), // NEW
+  phishingUsed: boolean("phishing_used").default(false), 
+  logicBombUsed: boolean("logic_bomb_used").default(false), // NEW
+  silencedTurns: integer("silenced_turns").default(0), // NEW (THIS WAS MISSING)
 
   // Applied Status Effects (If someone attacks them)
   isFirewallActive: boolean("is_firewall_active").default(false),

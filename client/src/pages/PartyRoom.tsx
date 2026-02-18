@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
-  Loader2, Share2, Lock, Terminal, Crosshair, Skull, Crown, Ghost, Users, Activity, Shield, Bug, Zap, Edit2, Shuffle, Radio, Eye, Timer, Anchor, FileDown, Target, AlertTriangle
+  Loader2, Share2, Lock, Terminal, Crosshair, Skull, Crown, Ghost, Users, Activity, Shield, Bug, Zap, Edit2, Shuffle, Radio, Eye, Timer, Anchor, FileDown, Target, AlertTriangle, Bomb
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -201,7 +201,6 @@ export default function PartyRoom() {
     } catch (err) { toast({ title: "ERROR", description: "Failed to fetch master logs.", variant: "destructive" }); }
   };
 
-  // 1. Fetch gameData first
   const { data: gameData, isLoading, error } = useQuery<any>({
     queryKey: ['partyGame', id],
     queryFn: async () => {
@@ -212,10 +211,8 @@ export default function PartyRoom() {
     refetchInterval: 1000
   });
 
-  // 2. NOW we can safely use gameData to compute takenColors
   const takenColors = gameData?.players?.map((p: any) => p.playerColor) || [];
 
-  // Automatically switch the color if the user's preferred color is already taken
   useEffect(() => {
     if (takenColors.includes(playerColor)) {
       const available = COLORS.find(c => !takenColors.includes(c));
@@ -329,7 +326,7 @@ export default function PartyRoom() {
   }, [gameData?.timeLeft, isMyTurn, gameData?.status, isTimed]);
 
   const handlePowerupClick = (type: string) => {
-      const requiresTarget = ['bruteforce', 'emp', 'spyware'].includes(type);
+      const requiresTarget = ['bruteforce', 'emp', 'spyware', 'logicBomb', 'phishing'].includes(type);
       if (requiresTarget && !selectedTarget) {
           toast({ title: "TARGET REQUIRED", description: `You must select an enemy target to use ${type.toUpperCase()}`, variant: "destructive" });
           return;
@@ -485,15 +482,15 @@ export default function PartyRoom() {
   const showEmp = gameData.allowEmp ?? false;
   const showSpyware = gameData.allowSpyware ?? false;
   const showHoneypot = gameData.allowHoneypot ?? false;
+  const showLogicBomb = gameData.allowLogicBomb ?? false;
   const showTimer = gameData.customTimer ?? false;
 
-  const activePowerupsEnabled = showFirewall || showVirus || showBruteforce || showChangeDigit || showSwapDigits || showEmp || showSpyware || showHoneypot || showTimer;
+  const activePowerupsEnabled = showFirewall || showVirus || showBruteforce || showChangeDigit || showSwapDigits || showEmp || showSpyware || showHoneypot || showTimer || showLogicBomb;
 
   const isHunted = gameData.subMode === 'bounty_contracts' && myPlayerId === gameData.bountyTargetId && !myPlayer.isEliminated;
 
   // --- ACTIVE GAME GRID ---
   return (
-    // السر كله في استخدام h-[100dvh] بدلاً من min-h-[100dvh] لكي يتفعل الـ Global Scrollbar
     <div className={cn("h-[100dvh] w-full bg-background overflow-y-auto overflow-x-hidden custom-scrollbar relative p-2 md:p-4", isHunted && "shadow-[inset_0_0_100px_rgba(239,68,68,0.15)] transition-shadow duration-1000")}>
       
       <div className="flex flex-col gap-3 md:gap-4 max-w-7xl mx-auto w-full relative z-10 pb-10">
@@ -597,7 +594,7 @@ export default function PartyRoom() {
               </div>
             </div>
 
-            <div className="border border-fuchsia-500/20 bg-black/20 p-3 sm:p-4 rounded flex flex-col">
+            <div className="border border-fuchsia-500/20 bg-black/20 p-3 sm:p-4 rounded flex flex-col relative">
                
                {/* HUNTED WARNING ALERT */}
                {isHunted && (
@@ -649,20 +646,32 @@ export default function PartyRoom() {
                           <Button variant="ghost" className="text-[10px] sm:text-xs text-red-400" onClick={() => setPowerupState({ active: null, code: "", step1Index: null })}>ABORT</Button>
                         </div>
                      ) : (
-                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2 mb-4">
-                          {showFirewall && <Button variant="outline" className="w-full h-8 sm:h-10 px-1 border-yellow-500/50 text-yellow-500 text-[9px] sm:text-[10px] hover:bg-yellow-500/10" disabled={!canUsePowerup || myPlayer.firewallUsed} onClick={() => handlePowerupClick('firewall')}><Shield className="w-3 h-3 mr-1" /> FIREWALL</Button>}
-                          {showVirus && <Button variant="outline" className="w-full h-8 sm:h-10 px-1 border-green-500/50 text-green-500 text-[9px] sm:text-[10px] hover:bg-green-500/10" disabled={!canUsePowerup || myPlayer.virusUsed} onClick={() => handlePowerupClick('virus')}><Bug className="w-3 h-3 mr-1" /> VIRUS</Button>}
-                          {showTimer && <Button variant="outline" className="w-full h-8 sm:h-10 px-1 border-orange-500/50 text-orange-500 text-[9px] sm:text-[10px] hover:bg-orange-500/10" disabled={!canUsePowerup || myPlayer.timeHackUsed} onClick={() => handlePowerupClick('timeHack')}><Timer className="w-3 h-3 mr-1" /> DDOS -20S</Button>}
-                          {showBruteforce && <Button variant="outline" className="w-full h-8 sm:h-10 px-1 border-red-500/50 text-red-500 text-[9px] sm:text-[10px] hover:bg-red-500/10" disabled={!canUsePowerup || myPlayer.bruteforceUsed} onClick={() => handlePowerupClick('bruteforce')}><Zap className="w-3 h-3 mr-1" /> BRUTEFORCE</Button>}
-                          {showChangeDigit && <Button variant="outline" className="w-full h-8 sm:h-10 px-1 border-blue-500/50 text-blue-500 text-[9px] sm:text-[10px] hover:bg-blue-500/10" disabled={!canUsePowerup || myPlayer.changeDigitUsed} onClick={() => setPowerupState({ active: 'change', code: myPlayer.code || '0000', step1Index: null })}><Edit2 className="w-3 h-3 mr-1" /> CHANGE</Button>}
-                          {showSwapDigits && <Button variant="outline" className="w-full h-8 sm:h-10 px-1 border-purple-500/50 text-purple-500 text-[9px] sm:text-[10px] hover:bg-purple-500/10" disabled={!canUsePowerup || myPlayer.swapDigitsUsed} onClick={() => setPowerupState({ active: 'swap', code: myPlayer.code || '0000', step1Index: null })}><Shuffle className="w-3 h-3 mr-1" /> SWAP</Button>}
-                          {showEmp && <Button variant="outline" className="w-full h-8 sm:h-10 px-1 border-cyan-500/50 text-cyan-500 text-[9px] sm:text-[10px] hover:bg-cyan-500/10" disabled={!canUsePowerup || myPlayer.empUsed} onClick={() => handlePowerupClick('emp')}><Radio className="w-3 h-3 mr-1" /> EMP</Button>}
-                          {showSpyware && <Button variant="outline" className="w-full h-8 sm:h-10 px-1 border-emerald-500/50 text-emerald-500 text-[9px] sm:text-[10px] hover:bg-emerald-500/10" disabled={!canUsePowerup || myPlayer.spywareUsed} onClick={() => handlePowerupClick('spyware')}><Eye className="w-3 h-3 mr-1" /> SPYWARE</Button>}
-                          {showHoneypot && <Button variant="outline" className="w-full h-8 sm:h-10 px-1 border-indigo-500/50 text-indigo-500 text-[9px] sm:text-[10px] hover:bg-indigo-500/10" disabled={!canUsePowerup || myPlayer.honeypotUsed} onClick={() => handlePowerupClick('honeypot')}><Ghost className="w-3 h-3 mr-1" /> HONEYPOT</Button>}
+                       <div className="relative w-full">
+                         {/* SILENCED STATE OVERLAY */}
+                         {(myPlayer.silencedTurns || 0) > 0 && (
+                           <div className="absolute inset-0 z-20 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center rounded border border-red-500/50 p-2">
+                              <Bomb className="w-6 h-6 sm:w-8 sm:h-8 text-red-500 mx-auto mb-1 animate-pulse" />
+                              <p className="text-red-500 font-black tracking-widest text-[10px] sm:text-xs">SYSTEM SILENCED</p>
+                              <p className="text-red-400/80 font-mono text-[8px] sm:text-[10px]">{myPlayer.silencedTurns} TURNS REMAINING</p>
+                           </div>
+                         )}
+
+                         <div className={cn("grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2 mb-4", (myPlayer.silencedTurns || 0) > 0 && "opacity-30 pointer-events-none grayscale")}>
+                            {showFirewall && <Button variant="outline" className="w-full h-8 sm:h-10 px-1 border-yellow-500/50 text-yellow-500 text-[9px] sm:text-[10px] hover:bg-yellow-500/10" disabled={!canUsePowerup || myPlayer.firewallUsed} onClick={() => handlePowerupClick('firewall')}><Shield className="w-3 h-3 mr-1" /> FIREWALL</Button>}
+                            {showVirus && <Button variant="outline" className="w-full h-8 sm:h-10 px-1 border-green-500/50 text-green-500 text-[9px] sm:text-[10px] hover:bg-green-500/10" disabled={!canUsePowerup || myPlayer.virusUsed} onClick={() => handlePowerupClick('virus')}><Bug className="w-3 h-3 mr-1" /> VIRUS</Button>}
+                            {showTimer && <Button variant="outline" className="w-full h-8 sm:h-10 px-1 border-orange-500/50 text-orange-500 text-[9px] sm:text-[10px] hover:bg-orange-500/10" disabled={!canUsePowerup || myPlayer.timeHackUsed} onClick={() => handlePowerupClick('timeHack')}><Timer className="w-3 h-3 mr-1" /> DDOS -20S</Button>}
+                            {showBruteforce && <Button variant="outline" className="w-full h-8 sm:h-10 px-1 border-red-500/50 text-red-500 text-[9px] sm:text-[10px] hover:bg-red-500/10" disabled={!canUsePowerup || myPlayer.bruteforceUsed} onClick={() => handlePowerupClick('bruteforce')}><Zap className="w-3 h-3 mr-1" /> BRUTEFORCE</Button>}
+                            {showChangeDigit && <Button variant="outline" className="w-full h-8 sm:h-10 px-1 border-blue-500/50 text-blue-500 text-[9px] sm:text-[10px] hover:bg-blue-500/10" disabled={!canUsePowerup || myPlayer.changeDigitUsed} onClick={() => setPowerupState({ active: 'change', code: myPlayer.code || '0000', step1Index: null })}><Edit2 className="w-3 h-3 mr-1" /> CHANGE</Button>}
+                            {showSwapDigits && <Button variant="outline" className="w-full h-8 sm:h-10 px-1 border-purple-500/50 text-purple-500 text-[9px] sm:text-[10px] hover:bg-purple-500/10" disabled={!canUsePowerup || myPlayer.swapDigitsUsed} onClick={() => setPowerupState({ active: 'swap', code: myPlayer.code || '0000', step1Index: null })}><Shuffle className="w-3 h-3 mr-1" /> SWAP</Button>}
+                            {showEmp && <Button variant="outline" className="w-full h-8 sm:h-10 px-1 border-cyan-500/50 text-cyan-500 text-[9px] sm:text-[10px] hover:bg-cyan-500/10" disabled={!canUsePowerup || myPlayer.empUsed} onClick={() => handlePowerupClick('emp')}><Radio className="w-3 h-3 mr-1" /> EMP</Button>}
+                            {showSpyware && <Button variant="outline" className="w-full h-8 sm:h-10 px-1 border-emerald-500/50 text-emerald-500 text-[9px] sm:text-[10px] hover:bg-emerald-500/10" disabled={!canUsePowerup || myPlayer.spywareUsed} onClick={() => handlePowerupClick('spyware')}><Eye className="w-3 h-3 mr-1" /> SPYWARE</Button>}
+                            {showHoneypot && <Button variant="outline" className="w-full h-8 sm:h-10 px-1 border-indigo-500/50 text-indigo-500 text-[9px] sm:text-[10px] hover:bg-indigo-500/10" disabled={!canUsePowerup || myPlayer.honeypotUsed} onClick={() => handlePowerupClick('honeypot')}><Ghost className="w-3 h-3 mr-1" /> HONEYPOT</Button>}
+                            {showLogicBomb && <Button variant="outline" className="w-full h-8 sm:h-10 px-1 border-zinc-500/50 text-zinc-400 text-[9px] sm:text-[10px] hover:bg-zinc-500/10" disabled={!canUsePowerup || myPlayer.logicBombUsed} onClick={() => handlePowerupClick('logicBomb')}><Bomb className="w-3 h-3 mr-1" /> LOGIC BOMB</Button>}
+                         </div>
                        </div>
                      )}
 
-                     <div className="p-3 sm:p-4 border border-fuchsia-500/30 bg-black/60 rounded flex flex-col lg:flex-row items-center gap-3 sm:gap-4">
+                     <div className="p-3 sm:p-4 border border-fuchsia-500/30 bg-black/60 rounded flex flex-col lg:flex-row items-center gap-3 sm:gap-4 mt-2">
                         <div className="flex-1 w-full text-center lg:text-left">
                           <p className="text-[9px] sm:text-[10px] font-mono tracking-widest text-fuchsia-500/50 mb-1 sm:mb-2">TARGET: {selectedTarget ? <span style={{ color: opponents.find((o:any)=>o.id===selectedTarget)?.playerColor || '#E879F9'}}>{opponents.find((o:any)=>o.id===selectedTarget)?.playerName}</span> : "NONE"}</p>
                           <UnifiedCyberInput value={guessDigits.join('')} onChange={(val: string) => setGuessDigits(val.split(''))} disabled={!isMyTurn || myPlayer.isEliminated || myPlayer.isGhost || !selectedTarget} colorTheme="fuchsia" />

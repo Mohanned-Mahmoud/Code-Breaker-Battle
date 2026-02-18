@@ -24,7 +24,6 @@ export interface IStorage {
   getPartyGameByRoomId(roomId: string): Promise<PartyGame | undefined>;
   updatePartyGame(id: number, updates: Partial<PartyGame>): Promise<PartyGame>;
   
-  // FIXED: Added playerColor to the interface
   addPartyPlayer(partyGameId: number, playerName: string, playerColor?: string): Promise<PartyPlayer>;
   getPartyPlayer(id: number): Promise<PartyPlayer | undefined>;
   getPartyPlayers(partyGameId: number): Promise<PartyPlayer[]>;
@@ -51,7 +50,6 @@ export class DatabaseStorage implements IStorage {
     if (mode === 'glitch') {
         insertData.nextGlitchTurn = Math.floor(Math.random() * 6) + 3; 
     }
-    // FIXED: Now saves allowPhishing to the database properly!
     if (mode === 'custom' && customSettings) {
         insertData.customTimer = customSettings.timer; 
         insertData.allowFirewall = customSettings.firewall; 
@@ -63,9 +61,11 @@ export class DatabaseStorage implements IStorage {
         insertData.allowSpyware = customSettings.spyware; 
         insertData.allowHoneypot = customSettings.honeypot;
         insertData.allowPhishing = customSettings.phishing; 
+        insertData.allowLogicBomb = customSettings.logicBomb; // NEW: Logic Bomb
     }
     const [game] = await db.insert(games).values(insertData).returning(); return game;
   }
+
   async getGame(id: number): Promise<Game | undefined> { const [game] = await db.select().from(games).where(eq(games.id, id)); return game; }
   async getGameByRoomId(roomId: string): Promise<Game | undefined> { const [game] = await db.select().from(games).where(eq(games.roomId, roomId)); return game; }
   async updateGame(id: number, updates: Partial<Game>): Promise<Game> { const [updated] = await db.update(games).set(updates).where(eq(games.id, id)).returning(); return updated; }
@@ -87,7 +87,12 @@ export class DatabaseStorage implements IStorage {
 
   async resetGame(gameId: number): Promise<void> {
     await db.delete(guesses).where(eq(guesses.gameId, gameId)); await db.delete(logs).where(eq(logs.gameId, gameId));
-    await db.update(games).set({ status: 'waiting', turn: 'p1', winner: null, turnCount: 0, nextGlitchTurn: Math.floor(Math.random() * 6) + 3, isFirewallActive: false, isTimeHackActive: false, p1Jammed: false, p2Jammed: false, p1Honeypoted: false, p2Honeypoted: false, p1Code: null, p1Setup: false, p1FirewallUsed: false, p1TimeHackUsed: false, p1VirusUsed: false, p1BruteforceUsed: false, p1ChangeDigitUsed: false, p1SwapDigitsUsed: false, p1EmpUsed: false, p1SpywareUsed: false, p1HoneypotUsed: false, p1PhishingUsed: false, p2Code: null, p2Setup: false, p2FirewallUsed: false, p2TimeHackUsed: false, p2VirusUsed: false, p2BruteforceUsed: false, p2ChangeDigitUsed: false, p2SwapDigitsUsed: false, p2EmpUsed: false, p2SpywareUsed: false, p2HoneypotUsed: false, p2PhishingUsed: false }).where(eq(games.id, gameId));
+    await db.update(games).set({ 
+        status: 'waiting', turn: 'p1', winner: null, turnCount: 0, nextGlitchTurn: Math.floor(Math.random() * 6) + 3, 
+        isFirewallActive: false, isTimeHackActive: false, p1Jammed: false, p2Jammed: false, p1Honeypoted: false, p2Honeypoted: false, 
+        p1Code: null, p1Setup: false, p1FirewallUsed: false, p1TimeHackUsed: false, p1VirusUsed: false, p1BruteforceUsed: false, p1ChangeDigitUsed: false, p1SwapDigitsUsed: false, p1EmpUsed: false, p1SpywareUsed: false, p1HoneypotUsed: false, p1PhishingUsed: false, p1LogicBombUsed: false, p1SilencedTurns: 0,
+        p2Code: null, p2Setup: false, p2FirewallUsed: false, p2TimeHackUsed: false, p2VirusUsed: false, p2BruteforceUsed: false, p2ChangeDigitUsed: false, p2SwapDigitsUsed: false, p2EmpUsed: false, p2SpywareUsed: false, p2HoneypotUsed: false, p2PhishingUsed: false, p2LogicBombUsed: false, p2SilencedTurns: 0
+    }).where(eq(games.id, gameId));
   }
 
   async createPartyGame(subMode: string = 'free_for_all', maxPlayers: number = 6, customSettings?: any, winCondition?: string, targetPoints?: number): Promise<PartyGame> {
@@ -95,7 +100,6 @@ export class DatabaseStorage implements IStorage {
     const insertData: any = { roomId, subMode, maxPlayers };
     if (winCondition) insertData.winCondition = winCondition;
     if (targetPoints) insertData.targetPoints = targetPoints;
-    // FIXED: Now saves allowPhishing to Party mode too!
     if (customSettings) { 
         insertData.customTimer = customSettings.timer; 
         insertData.allowFirewall = customSettings.firewall; 
@@ -107,14 +111,15 @@ export class DatabaseStorage implements IStorage {
         insertData.allowSpyware = customSettings.spyware; 
         insertData.allowHoneypot = customSettings.honeypot; 
         insertData.allowPhishing = customSettings.phishing;
+        insertData.allowLogicBomb = customSettings.logicBomb; // NEW: Logic Bomb
     }
     const [game] = await db.insert(partyGames).values(insertData).returning(); return game;
   }
+
   async getPartyGame(id: number): Promise<PartyGame | undefined> { const [game] = await db.select().from(partyGames).where(eq(partyGames.id, id)); return game; }
   async getPartyGameByRoomId(roomId: string): Promise<PartyGame | undefined> { const [game] = await db.select().from(partyGames).where(eq(partyGames.roomId, roomId)); return game; }
   async updatePartyGame(id: number, updates: Partial<PartyGame>): Promise<PartyGame> { const [updated] = await db.update(partyGames).set(updates).where(eq(partyGames.id, id)).returning(); return updated; }
   
-  // FIXED: Added playerColor argument and included it in the db insert
   async addPartyPlayer(partyGameId: number, playerName: string, playerColor: string = "#E879F9"): Promise<PartyPlayer> { 
     const [player] = await db.insert(partyPlayers).values({ partyGameId, playerName, playerColor }).returning(); 
     return player; 
@@ -139,8 +144,6 @@ export class DatabaseStorage implements IStorage {
     await db.update(partyLogs).set({ isCorrupted: true }).where(eq(partyLogs.partyGameId, partyGameId));
   }
 
-  // --- RESTART FIXED ---
-  // Replace the restartPartyGame function in server/storage.ts
   async restartPartyGame(partyGameId: number): Promise<void> {
     await db.delete(partyGuesses).where(eq(partyGuesses.partyGameId, partyGameId));
     await db.delete(partyLogs).where(eq(partyLogs.partyGameId, partyGameId));
@@ -153,8 +156,8 @@ export class DatabaseStorage implements IStorage {
 
     await db.update(partyPlayers).set({
         code: null, isSetup: false, isEliminated: false, isGhost: false, points: 0, reignTime: 0, successfulDefenses: 0,
-        firewallUsed: false, timeHackUsed: false, virusUsed: false, bruteforceUsed: false, changeDigitUsed: false, swapDigitsUsed: false, empUsed: false, spywareUsed: false, honeypotUsed: false,
-        isFirewallActive: false, isJammed: false, isHoneypoted: false, phishingUsed: false
+        firewallUsed: false, timeHackUsed: false, virusUsed: false, bruteforceUsed: false, changeDigitUsed: false, swapDigitsUsed: false, empUsed: false, spywareUsed: false, honeypotUsed: false, phishingUsed: false, logicBombUsed: false, silencedTurns: 0,
+        isFirewallActive: false, isJammed: false, isHoneypoted: false
     }).where(eq(partyPlayers.partyGameId, partyGameId));
   }
 

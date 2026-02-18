@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
-  Loader2, Share2, Lock, Shield, Zap, Terminal, Info, Edit2, Shuffle, Timer, Settings2, Bug, Eye, EyeOff, Ghost, Radio, Copy, Anchor, FileDown
+  Loader2, Share2, Lock, Shield, Zap, Terminal, Info, Edit2, Shuffle, Timer, Settings2, Bug, Eye, EyeOff, Ghost, Radio, Copy, Anchor, FileDown, Bomb
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -121,7 +121,7 @@ export default function GameRoom() {
   const [guessVal, setGuessVal] = useState("");
   const [setupCode, setSetupCode] = useState("");
   const [showTransition, setShowTransition] = useState(false);
-  const [showMyCode, setShowMyCode] = useState(false); // <--- NEW TOGGLE STATE
+  const [showMyCode, setShowMyCode] = useState(false);
 
   const [powerupState, setPowerupState] = useState<{ active: 'change' | 'swap' | null; code: string; step1Index: number | null; }>({ active: null, code: "", step1Index: null });
 
@@ -242,6 +242,7 @@ export default function GameRoom() {
   const showSpyware = isCustom ? g?.allowSpyware : false;
   const showHoneypot = isCustom ? g?.allowHoneypot : false;
   const showPhishing = isCustom ? g?.allowPhishing : isGlitch; // NEW
+  const showLogicBomb = isCustom ? g?.allowLogicBomb : isGlitch; // NEW
 
   useEffect(() => {
     if (isTimed && game?.status === 'playing' && isMyTurn) {
@@ -280,7 +281,6 @@ export default function GameRoom() {
             <div className="flex flex-col items-center gap-6 p-8 border border-primary/20 rounded-lg bg-black/60 shadow-[0_0_30px_rgba(0,255,0,0.05)] w-full max-w-md relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50" />
                 
-                {/* --- NEW ROOM ID SECTION --- */}
                 <div className="flex flex-col items-center">
                     <span className="text-[10px] font-mono opacity-50 mb-1 tracking-[0.3em]">ROOM ID</span>
                     <div className="flex items-center gap-3">
@@ -293,7 +293,6 @@ export default function GameRoom() {
 
                 <div className="w-full h-px bg-primary/10"></div>
                 
-                {/* --- EXISTING UPLINK SECTION --- */}
                 <div className="w-full text-left">
                     <span className="text-[10px] font-mono opacity-50 tracking-[0.3em] block mb-2 text-center">OR SHARE UPLINK</span>
                     <div className="flex gap-2 w-full">
@@ -325,9 +324,13 @@ export default function GameRoom() {
     );
   }
 
-  const p1Powerups = { firewall: game.p1FirewallUsed ?? false, timeHack: g.p1TimeHackUsed ?? false, virus: g.p1VirusUsed ?? false, bruteforce: game.p1BruteforceUsed ?? false, changeDigit: g.p1ChangeDigitUsed ?? false, swapDigits: g.p1SwapDigitsUsed ?? false, emp: g.p1EmpUsed ?? false, spyware: g.p1SpywareUsed ?? false, honeypot: g.p1HoneypotUsed ?? false, phishing: g.p1PhishingUsed ?? false };
-  const p2Powerups = { firewall: game.p2FirewallUsed ?? false, timeHack: g.p2TimeHackUsed ?? false, virus: g.p2VirusUsed ?? false, bruteforce: game.p2BruteforceUsed ?? false, changeDigit: g.p2ChangeDigitUsed ?? false, swapDigits: g.p2SwapDigitsUsed ?? false, emp: g.p2EmpUsed ?? false, spyware: g.p2SpywareUsed ?? false, honeypot: g.p2HoneypotUsed ?? false, phishing: g.p2PhishingUsed ?? false };
+  const p1Powerups = { firewall: game.p1FirewallUsed ?? false, timeHack: g.p1TimeHackUsed ?? false, virus: g.p1VirusUsed ?? false, bruteforce: game.p1BruteforceUsed ?? false, changeDigit: g.p1ChangeDigitUsed ?? false, swapDigits: g.p1SwapDigitsUsed ?? false, emp: g.p1EmpUsed ?? false, spyware: g.p1SpywareUsed ?? false, honeypot: g.p1HoneypotUsed ?? false, phishing: g.p1PhishingUsed ?? false, logicBomb: g.p1LogicBombUsed ?? false };
+  const p2Powerups = { firewall: game.p2FirewallUsed ?? false, timeHack: g.p2TimeHackUsed ?? false, virus: g.p2VirusUsed ?? false, bruteforce: game.p2BruteforceUsed ?? false, changeDigit: g.p2ChangeDigitUsed ?? false, swapDigits: g.p2SwapDigitsUsed ?? false, emp: g.p2EmpUsed ?? false, spyware: g.p2SpywareUsed ?? false, honeypot: g.p2HoneypotUsed ?? false, phishing: g.p2PhishingUsed ?? false, logicBomb: g.p2LogicBombUsed ?? false };
   const myPowerups = myRole === 'p1' ? p1Powerups : p2Powerups;
+  
+  // Logic Bomb Status Tracker
+  const silencedTurns = myRole === 'p1' ? (g.p1SilencedTurns || 0) : (g.p2SilencedTurns || 0);
+  const isSilenced = silencedTurns > 0;
 
   return (
     <div className="h-[100dvh] w-full overflow-hidden flex flex-col md:flex-row relative">
@@ -340,7 +343,7 @@ export default function GameRoom() {
           <div className="flex items-center gap-4">
             <Dialog>
               <DialogTrigger asChild><Button size="icon" variant="ghost" className="h-8 w-8 text-primary/70 hover:text-primary"><Info className="h-5 w-5" /></Button></DialogTrigger>
-              <DialogContent className="border-primary/50 bg-black/90 text-primary">
+              <DialogContent className="border-primary/50 bg-black/90 text-primary overflow-y-auto max-h-[80vh] custom-scrollbar">
                 <DialogHeader>
                   <DialogTitle className="text-xl tracking-widest uppercase mb-4 border-b border-primary/30 pb-2 flex items-center gap-2">
                     Battle Manual 
@@ -418,6 +421,12 @@ export default function GameRoom() {
                             <span className="text-[10px] block opacity-70">Steals a random unused powerup from the enemy's arsenal.</span>
                           </div>
                         )}
+                        {showLogicBomb && (
+                          <div className="border border-primary/20 p-2 rounded bg-black/50">
+                            <strong className="text-zinc-400 block mb-1 flex items-center gap-1"><Bomb className="w-3 h-3"/> LOGIC BOMB</strong>
+                            <span className="text-[10px] block opacity-70">Silences enemy powerups for 2 turns.</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -444,7 +453,6 @@ export default function GameRoom() {
             )}
             {isGlitch && (
               <div className="mb-2 px-2 py-1 text-[10px] font-bold tracking-widest text-purple-400 border border-purple-500/30 rounded bg-purple-500/10 animate-pulse">
-                  {/* Calculate remaining turns based on the random target sent by server */}
                   GLITCH IN: {Math.max(1, (g?.nextGlitchTurn || 3) - (g?.turnCount || 0))}
               </div>
             )}
@@ -515,32 +523,44 @@ export default function GameRoom() {
                 
                 <DigitInput value={guessVal} onChange={setGuessVal} disabled={!isMyTurn} variant={activeP as 'p1' | 'p2'} />
 
-                {(!showFirewallOrDdos && !showVirus && !showBruteforce && !showChangeDigit && !showSwapDigits && !showEmp && !showSpyware && !showHoneypot) ? (
-                   <div className="text-[10px] font-mono opacity-30 border border-primary/10 p-2 rounded w-full max-w-sm text-center">NO POWERUPS ENABLED</div>
+                {(!showFirewallOrDdos && !showVirus && !showBruteforce && !showChangeDigit && !showSwapDigits && !showEmp && !showSpyware && !showHoneypot && !showPhishing && !showLogicBomb) ? (
+                   <div className="text-[10px] font-mono opacity-30 border border-primary/10 p-2 rounded w-full max-w-sm text-center mt-4">NO POWERUPS ENABLED</div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2 w-full max-w-sm mt-4">
-                      {showFirewallOrDdos && (
-                          isTimed ? (
-                              <Button variant="outline" className="w-full border-orange-500/50 text-orange-500 hover:bg-orange-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.timeHack || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'timeHack' })}><Timer className="w-3 h-3 mr-1" /> DDOS -20S</Button>
-                          ) : (
-                              <Button variant="outline" className="w-full border-yellow-500/50 text-yellow-500 hover:bg-yellow-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.firewall || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'firewall' })}><Shield className="w-3 h-3 mr-1" /> FIREWALL</Button>
-                          )
+                  <div className="relative w-full max-w-sm mt-4">
+                      {/* SILENCED STATE OVERLAY */}
+                      {isSilenced && (
+                        <div className="absolute inset-0 z-20 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center rounded border border-red-500/50 p-2">
+                           <Bomb className="w-6 h-6 sm:w-8 sm:h-8 text-red-500 mx-auto mb-1 animate-pulse" />
+                           <p className="text-red-500 font-black tracking-widest text-[10px] sm:text-xs">SYSTEM SILENCED</p>
+                           <p className="text-red-400/80 font-mono text-[8px] sm:text-[10px]">{silencedTurns} TURNS REMAINING</p>
+                        </div>
                       )}
-                      {showVirus && <Button variant="outline" className="w-full border-green-500/50 text-green-500 hover:bg-green-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.virus || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'virus' })}><Bug className="w-3 h-3 mr-1" /> VIRUS</Button>}
-                      {showBruteforce && <Button variant="outline" className="w-full border-red-500/50 text-red-500 hover:bg-red-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.bruteforce || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'bruteforce' })}><Zap className="w-3 h-3 mr-1" /> BRUTEFORCE</Button>}
-                      {showChangeDigit && <Button variant="outline" className="w-full border-blue-500/50 text-blue-500 hover:bg-blue-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.changeDigit || powerupMutation.isPending} onClick={async () => { const code = await fetchMyCode(); setPowerupState({ active: 'change', code, step1Index: null }); }}><Edit2 className="w-3 h-3 mr-1" /> CHANGE DIGIT</Button>}
-                      {showSwapDigits && <Button variant="outline" className="w-full border-purple-500/50 text-purple-500 hover:bg-purple-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.swapDigits || powerupMutation.isPending} onClick={async () => { const code = await fetchMyCode(); setPowerupState({ active: 'swap', code, step1Index: null }); }}><Shuffle className="w-3 h-3 mr-1" /> SWAP DIGITS</Button>}
-                      
-                      {/* --- THE NEW EVIL ARSENAL BUTTONS --- */}
-                      {showEmp && <Button variant="outline" className="w-full border-cyan-500/50 text-cyan-500 hover:bg-cyan-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.emp || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'emp' })}><Radio className="w-3 h-3 mr-1" /> EMP JAMMER</Button>}
-                      {showSpyware && <Button variant="outline" className="w-full border-emerald-500/50 text-emerald-500 hover:bg-emerald-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.spyware || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'spyware' })}><Eye className="w-3 h-3 mr-1" /> SPYWARE</Button>}
-                      {showHoneypot && <Button variant="outline" className="w-full border-indigo-500/50 text-indigo-500 hover:bg-indigo-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.honeypot || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'honeypot' })}><Ghost className="w-3 h-3 mr-1" /> HONEYPOT</Button>}
-                      {showPhishing && <Button variant="outline" className="w-full border-pink-500/50 text-pink-400 hover:bg-pink-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.phishing || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'phishing' })}><Anchor className="w-3 h-3 mr-1" /> PHISHING</Button>}                  
+
+                      <div className={cn("grid grid-cols-2 gap-2 w-full", isSilenced && "opacity-30 pointer-events-none grayscale")}>
+                          {showFirewallOrDdos && (
+                              isTimed ? (
+                                  <Button variant="outline" className="w-full border-orange-500/50 text-orange-500 hover:bg-orange-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.timeHack || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'timeHack' })}><Timer className="w-3 h-3 mr-1" /> DDOS -20S</Button>
+                              ) : (
+                                  <Button variant="outline" className="w-full border-yellow-500/50 text-yellow-500 hover:bg-yellow-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.firewall || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'firewall' })}><Shield className="w-3 h-3 mr-1" /> FIREWALL</Button>
+                              )
+                          )}
+                          {showVirus && <Button variant="outline" className="w-full border-green-500/50 text-green-500 hover:bg-green-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.virus || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'virus' })}><Bug className="w-3 h-3 mr-1" /> VIRUS</Button>}
+                          {showBruteforce && <Button variant="outline" className="w-full border-red-500/50 text-red-500 hover:bg-red-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.bruteforce || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'bruteforce' })}><Zap className="w-3 h-3 mr-1" /> BRUTEFORCE</Button>}
+                          {showChangeDigit && <Button variant="outline" className="w-full border-blue-500/50 text-blue-500 hover:bg-blue-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.changeDigit || powerupMutation.isPending} onClick={async () => { const code = await fetchMyCode(); setPowerupState({ active: 'change', code, step1Index: null }); }}><Edit2 className="w-3 h-3 mr-1" /> CHANGE DIGIT</Button>}
+                          {showSwapDigits && <Button variant="outline" className="w-full border-purple-500/50 text-purple-500 hover:bg-purple-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.swapDigits || powerupMutation.isPending} onClick={async () => { const code = await fetchMyCode(); setPowerupState({ active: 'swap', code, step1Index: null }); }}><Shuffle className="w-3 h-3 mr-1" /> SWAP DIGITS</Button>}
+                          
+                          {/* --- THE NEW EVIL ARSENAL BUTTONS --- */}
+                          {showEmp && <Button variant="outline" className="w-full border-cyan-500/50 text-cyan-500 hover:bg-cyan-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.emp || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'emp' })}><Radio className="w-3 h-3 mr-1" /> EMP JAMMER</Button>}
+                          {showSpyware && <Button variant="outline" className="w-full border-emerald-500/50 text-emerald-500 hover:bg-emerald-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.spyware || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'spyware' })}><Eye className="w-3 h-3 mr-1" /> SPYWARE</Button>}
+                          {showHoneypot && <Button variant="outline" className="w-full border-indigo-500/50 text-indigo-500 hover:bg-indigo-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.honeypot || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'honeypot' })}><Ghost className="w-3 h-3 mr-1" /> HONEYPOT</Button>}
+                          {showPhishing && <Button variant="outline" className="w-full border-pink-500/50 text-pink-400 hover:bg-pink-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.phishing || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'phishing' })}><Anchor className="w-3 h-3 mr-1" /> PHISHING</Button>}                  
+                          {showLogicBomb && <Button variant="outline" className="w-full border-zinc-500/50 text-zinc-400 hover:bg-zinc-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.logicBomb || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'logicBomb' })}><Bomb className="w-3 h-3 mr-1" /> LOGIC BOMB</Button>}
+                      </div>
                   </div>
                 )}
 
                 <Button className={cn("w-full max-w-sm h-14 neon-border text-lg tracking-widest font-black transition-all mt-2", !isMyTurn && "opacity-50 grayscale cursor-not-allowed")} disabled={guessVal.length < 4 || guessMutation.isPending || !isMyTurn} onClick={() => guessMutation.mutate({ player: activeP, guess: guessVal })}>{guessMutation.isPending ? "LAUNCHING..." : !isMyTurn ? "OPPONENT TURN..." : "EXECUTE ATTACK"}</Button>
-                 </>
+              </>
             )}
           </div>
 
