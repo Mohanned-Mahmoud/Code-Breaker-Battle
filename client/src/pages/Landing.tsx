@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, Link } from "wouter";
 import { 
-  Loader2, Plus, Terminal, Lock, Info, Timer, Zap, Settings2, Shield, Edit2, Shuffle, Bug, Eye, Ghost, Radio, LogIn, User, Users, ArrowLeft, ArrowDown, Crosshair, Skull, Crown, Anchor, Target
+  Loader2, Plus, Terminal, Lock, Info, Timer, Zap, Settings2, Shield, Edit2, Shuffle, Bug, Eye, Ghost, Radio, LogIn, User, Users, ArrowLeft, ArrowDown, Crosshair, Skull, Crown, Anchor, Target, Bomb
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@shared/routes";
@@ -41,12 +41,12 @@ export default function Landing() {
 
   const [customSettings, setCustomSettings] = useState({
       timer: false, firewall: true, virus: false, bruteforce: true, changeDigit: true, swapDigits: true,
-      emp: false, spyware: false, honeypot: false, phishing: false
+      emp: false, spyware: false, honeypot: false, phishing: false, logicBomb: false
   });
 
   const activePowerupsCount = [
     customSettings.firewall, customSettings.virus, customSettings.bruteforce, customSettings.changeDigit, customSettings.swapDigits,
-    customSettings.emp, customSettings.spyware, customSettings.honeypot, customSettings.phishing
+    customSettings.emp, customSettings.spyware, customSettings.honeypot, customSettings.phishing, customSettings.logicBomb
   ].filter(Boolean).length;
 
   const togglePowerup = (key: keyof typeof customSettings, value: boolean) => {
@@ -116,7 +116,7 @@ export default function Landing() {
                      <Users className="w-10 h-10 mb-4 opacity-80 group-hover:opacity-100 transition-opacity" />
                      <span className="font-mono font-black tracking-[0.2em] text-2xl uppercase">PARTY MODE</span>
                      <span className="text-[10px] font-mono opacity-50 mt-2 tracking-widest uppercase">3 to 6 Players Chaos</span>
-                     {/* ADDED RED NOTIFICATION DOT FOR PARTY MODE */}
+                     {/* RED NOTIFICATION DOT FOR PARTY MODE */}
                      <span className="absolute top-4 right-4 w-3 h-3 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
                   </button>
 
@@ -177,6 +177,9 @@ export default function Landing() {
                              <CyberToggle label="SPYWARE (DATA LEAK)" icon={<Eye className="w-3 h-3"/>} colorClass="text-emerald-400" checked={customSettings.spyware} onChange={(v: boolean) => togglePowerup('spyware', v)} />
                              <CyberToggle label="HONEYPOT (PROXY LIE)" icon={<Ghost className="w-3 h-3"/>} colorClass="text-indigo-400" checked={customSettings.honeypot} onChange={(v: boolean) => togglePowerup('honeypot', v)} />
                              <CyberToggle label="PHISHING (STEAL)" icon={<Anchor className="w-3 h-3"/>} colorClass="text-pink-400" checked={customSettings.phishing} onChange={(v: boolean) => togglePowerup('phishing', v)} />
+                             
+                             {/* ADDED LOGIC BOMB HERE */}
+                             <CyberToggle label="LOGIC BOMB (SILENCE)" icon={<Bomb className="w-3 h-3"/>} colorClass="text-zinc-400" checked={customSettings.logicBomb} onChange={(v: boolean) => togglePowerup('logicBomb', v)} />
                            </div>
                         </motion.div>
                       )}
@@ -221,7 +224,7 @@ export default function Landing() {
                         }} 
                         className={cn("flex flex-col items-center justify-center p-3 rounded border transition-all text-center relative overflow-hidden", partySubMode === 'bounty_contracts' ? "border-yellow-500 bg-yellow-500/20 text-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)]" : "border-fuchsia-500/20 text-fuchsia-500/50 hover:text-fuchsia-500")}
                       >
-                        {/* ADDED RED NOTIFICATION DOT FOR BOUNTY CONTRACTS */}
+                        {/* RED NOTIFICATION DOT FOR BOUNTY CONTRACTS */}
                         <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
                         <Target className="w-5 h-5 mb-2" />
                         <span className="text-[9px] font-bold tracking-wider text-center leading-tight">BOUNTY<br/>CONTRACTS</span>
@@ -266,6 +269,9 @@ export default function Landing() {
                          <CyberToggle label="SPYWARE (DATA LEAK)" icon={<Eye className="w-3 h-3"/>} colorClass="text-emerald-400" checked={customSettings.spyware} onChange={(v: boolean) => togglePowerup('spyware', v)} />
                          <CyberToggle label="HONEYPOT (PROXY LIE)" icon={<Ghost className="w-3 h-3"/>} colorClass="text-indigo-400" checked={customSettings.honeypot} onChange={(v: boolean) => togglePowerup('honeypot', v)} />
                          <CyberToggle label="PHISHING (STEAL)" icon={<Anchor className="w-3 h-3"/>} colorClass="text-pink-400" checked={customSettings.phishing} onChange={(v: boolean) => togglePowerup('phishing', v)} />
+                         
+                         {/* ADDED LOGIC BOMB HERE */}
+                         <CyberToggle label="LOGIC BOMB (SILENCE)" icon={<Bomb className="w-3 h-3"/>} colorClass="text-zinc-400" checked={customSettings.logicBomb} onChange={(v: boolean) => togglePowerup('logicBomb', v)} />
                        </div>
                     </div>
 
