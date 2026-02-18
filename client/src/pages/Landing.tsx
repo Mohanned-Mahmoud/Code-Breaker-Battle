@@ -49,7 +49,6 @@ export default function Landing() {
     customSettings.emp, customSettings.spyware, customSettings.honeypot, customSettings.phishing
   ].filter(Boolean).length;
 
-  // === التعديل هنا: تطبيق الـ Limit فقط على طور 1v1 وترك البارتي مود مفتوح بلا حدود ===
   const togglePowerup = (key: keyof typeof customSettings, value: boolean) => {
     if (menuView === '1v1' && key !== 'timer' && value && activePowerupsCount >= 4) {
       toast({ 
@@ -62,7 +61,6 @@ export default function Landing() {
     setCustomSettings(p => ({ ...p, [key]: value }));
   };
 
-  // --- MUTATIONS ---
   const createGame = useMutation({
     mutationFn: async ({ selectedMode, settings }: { selectedMode: string, settings?: any }) => {
       const res = await fetch(api.games.create.path, { 
@@ -88,18 +86,18 @@ export default function Landing() {
   const handleJoinRoom = () => { if (!joinId.trim()) return; setLocation(`/game/${joinId}`); };
   const handleJoinPartyRoom = () => { if (!joinPartyId.trim()) return; setLocation(`/party/${joinPartyId}`); };
 
+  // --- BUG FIX: Check if 1v1 Custom Mode has too many powerups equipped ---
+  const is1v1Overloaded = mode === 'custom' && activePowerupsCount > 4;
+
   return (
     <div className="h-[100dvh] w-full overflow-y-auto overflow-x-hidden bg-background custom-scrollbar relative">
-      
       <div className="fixed -bottom-10 -left-10 w-64 h-64 opacity-5 pointer-events-none rotate-12 z-0">
         <svg viewBox="0 0 100 100" className="w-full h-full stroke-primary fill-none"><path d="M10 10 Q 50 10 50 50 T 90 90" strokeWidth="0.5" /><rect x="45" y="45" width="10" height="10" strokeWidth="0.5" /></svg>
       </div>
 
       <div className="min-h-full w-full flex flex-col items-center px-4 relative z-10">
         <div className="flex-1 min-h-[2rem]"></div>
-
         <div className="w-full max-w-2xl flex flex-col items-center shrink-0 py-8">
-          
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 w-full text-center mb-10">
             <div className="flex items-center justify-center gap-2 text-primary opacity-40"><Terminal className="w-4 h-4" /><span className="text-xs font-mono tracking-[0.5em] uppercase">Tactical Neural Interface</span></div>
             <h1 className="text-6xl md:text-8xl font-black font-mono tracking-tighter text-primary glitch-effect uppercase" data-text="ENCRYPTION">ENCRYPTION<br/><span className="text-primary/40">WAR</span></h1>
@@ -109,24 +107,19 @@ export default function Landing() {
           <div className="w-full max-w-sm mx-auto">
             <AnimatePresence mode="wait">
               {menuView === 'main' && (
-                /* --- MAIN MENU VIEW --- */
                 <motion.div key="main-menu" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2 }} className="flex flex-col w-full space-y-4">
                   <button onClick={() => setMenuView('1v1')} className="group relative w-full flex flex-col items-center justify-center p-8 bg-primary/10 border border-primary text-primary hover:bg-primary/20 transition-all hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(0,255,0,0.1)]">
                      <User className="w-10 h-10 mb-4 opacity-80 group-hover:opacity-100 transition-opacity" />
                      <span className="font-mono font-black tracking-[0.2em] text-2xl uppercase">1V1 BATTLE</span>
                      <span className="text-[10px] font-mono opacity-50 mt-2 tracking-widest uppercase">Tactical Duel</span>
                   </button>
-                  
-                  {/* PARTY MODE BUTTON */}
                   <button onClick={() => setMenuView('party')} className="group relative w-full flex flex-col items-center justify-center p-8 bg-fuchsia-500/10 border border-fuchsia-500 text-fuchsia-500 hover:bg-fuchsia-500/20 transition-all hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(232,121,249,0.1)]">
                      <Users className="w-10 h-10 mb-4 opacity-80 group-hover:opacity-100 transition-opacity" />
                      <span className="font-mono font-black tracking-[0.2em] text-2xl uppercase">PARTY MODE</span>
                      <span className="text-[10px] font-mono opacity-50 mt-2 tracking-widest uppercase">3 to 6 Players Chaos</span>
                   </button>
 
-                  {/* --- NEW NOTIFICATION WRAPPER --- */}
                   <div className="relative w-full pt-8">
-                    {/* Bouncing Alert */}
                     <motion.div 
                       animate={{ y: [0, 6, 0] }}
                       transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
@@ -149,17 +142,13 @@ export default function Landing() {
               )}
 
               {menuView === '1v1' && (
-                /* --- 1V1 BATTLE CONTROLS VIEW --- */
                 <motion.div key="1v1-menu" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.2 }} className="flex flex-col items-center w-full space-y-6">
-                  
                   <div className="flex w-full group relative shadow-[0_0_20px_rgba(0,255,0,0.05)] focus-within:shadow-[0_0_20px_rgba(0,255,0,0.15)] transition-all">
                     <div className="flex items-center justify-center bg-primary/10 border border-primary/40 border-r-0 px-3 text-primary"><Terminal className="w-4 h-4 opacity-50" /></div>
                     <input type="text" inputMode="numeric" placeholder="ENTER 1V1 ROOM ID..." value={joinId} onChange={(e) => setJoinId(e.target.value.replace(/\D/g, ''))} onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()} className="flex-1 bg-black/60 border-y border-primary/40 text-primary px-3 py-3 font-mono text-sm tracking-widest focus:outline-none focus:bg-black transition-colors placeholder:text-primary/30 uppercase" />
                     <button onClick={handleJoinRoom} disabled={!joinId} className="px-5 py-3 bg-primary text-black font-black font-mono tracking-widest hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 border border-primary">JOIN</button>
                   </div>
-
                   <div className="flex items-center gap-4 w-full opacity-30"><div className="flex-1 h-px bg-primary"></div><span className="text-[10px] font-mono tracking-widest">OR HOST 1V1</span><div className="flex-1 h-px bg-primary"></div></div>
-
                   <div className="w-full space-y-4">
                     <div className="grid grid-cols-2 gap-2 w-full">
                       <button onClick={() => setMode('normal')} className={cn("flex flex-col items-center p-3 rounded border transition-all", mode === 'normal' ? "border-primary bg-primary/20 text-primary shadow-[0_0_15px_rgba(0,255,0,0.2)]" : "border-primary/20 opacity-50 hover:opacity-100")}><Terminal className="w-5 h-5 mb-2" /><span className="text-[10px] font-bold tracking-wider">NORMAL</span></button>
@@ -173,7 +162,8 @@ export default function Landing() {
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="w-full bg-black/40 border border-blue-500/30 rounded p-3 overflow-hidden">
                            <div className="flex justify-between items-center mb-3 opacity-80 border-b border-blue-500/20 pb-2">
                               <div className="text-[10px] font-mono text-blue-400 text-left">CONFIGURE_RULES.EXE</div>
-                              <div className={cn("text-[10px] font-mono font-bold", "text-blue-400")}>[{activePowerupsCount}/4 EQUIPPED]</div>
+                              {/* Warning color applied here if overloaded */}
+                              <div className={cn("text-[10px] font-mono font-bold transition-colors", is1v1Overloaded ? "text-red-500 animate-pulse" : "text-blue-400")}>[{activePowerupsCount}/4 EQUIPPED]</div>
                            </div>
                            <div className="grid grid-cols-1 gap-1">
                              <CyberToggle label="30s TIMER (BLITZ)" icon={<Timer className="w-3 h-3"/>} colorClass="text-red-400" checked={customSettings.timer} onChange={(v: boolean) => togglePowerup('timer', v)} />
@@ -192,8 +182,18 @@ export default function Landing() {
                       )}
                     </AnimatePresence>
 
-                    <button onClick={() => createGame.mutate({ selectedMode: mode, settings: customSettings })} disabled={createGame.isPending} className="w-full group relative px-8 py-4 bg-primary/5 border border-primary text-primary font-mono tracking-[0.3em] uppercase hover:bg-primary/20 transition-all active:scale-95 disabled:opacity-50">
-                      {createGame.isPending ? "INITIALIZING..." : "CREATE 1V1 ROOM"}
+                    {/* RED BUTTON WARNING IF OVERLOADED */}
+                    <button 
+                      onClick={() => createGame.mutate({ selectedMode: mode, settings: customSettings })} 
+                      disabled={createGame.isPending || is1v1Overloaded} 
+                      className={cn(
+                        "w-full group relative px-8 py-4 border font-mono tracking-[0.3em] uppercase transition-all active:scale-95 disabled:cursor-not-allowed",
+                        is1v1Overloaded 
+                          ? "bg-red-900/20 border-red-500 text-red-500 opacity-80" 
+                          : "bg-primary/5 border-primary text-primary hover:bg-primary/20 disabled:opacity-50"
+                      )}
+                    >
+                      {createGame.isPending ? "INITIALIZING..." : is1v1Overloaded ? "SYSTEM OVERLOAD: MAX 4" : "CREATE 1V1 ROOM"}
                     </button>
                   </div>
                   <Button variant="ghost" onClick={() => setMenuView('main')} className="w-full h-10 text-primary/60 hover:text-primary tracking-[0.2em] font-mono text-[10px] hover:bg-white/5 border border-transparent hover:border-primary/20 transition-all"><ArrowLeft className="mr-2 h-3 w-3" /> BACK TO MENU</Button>
@@ -201,17 +201,13 @@ export default function Landing() {
               )}
 
               {menuView === 'party' && (
-                /* --- NEW: PARTY MODE CONTROLS VIEW --- */
                 <motion.div key="party-menu" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.2 }} className="flex flex-col items-center w-full space-y-6">
-                  
                   <div className="flex w-full group relative shadow-[0_0_20px_rgba(232,121,249,0.05)] focus-within:shadow-[0_0_20px_rgba(232,121,249,0.15)] transition-all">
                     <div className="flex items-center justify-center bg-fuchsia-500/10 border border-fuchsia-500/40 border-r-0 px-3 text-fuchsia-500"><Users className="w-4 h-4 opacity-50" /></div>
                     <input type="text" inputMode="numeric" placeholder="ENTER PARTY ROOM ID..." value={joinPartyId} onChange={(e) => setJoinPartyId(e.target.value.replace(/\D/g, ''))} onKeyDown={(e) => e.key === 'Enter' && handleJoinPartyRoom()} className="flex-1 bg-black/60 border-y border-fuchsia-500/40 text-fuchsia-500 px-3 py-3 font-mono text-sm tracking-widest focus:outline-none focus:bg-black transition-colors placeholder:text-fuchsia-500/30 uppercase" />
                     <button onClick={handleJoinPartyRoom} disabled={!joinPartyId} className="px-5 py-3 bg-fuchsia-500 text-black font-black font-mono tracking-widest hover:bg-fuchsia-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 border border-fuchsia-500">JOIN</button>
                   </div>
-
                   <div className="flex items-center gap-4 w-full opacity-30"><div className="flex-1 h-px bg-fuchsia-500"></div><span className="text-[10px] font-mono tracking-widest text-fuchsia-500">OR HOST PARTY</span><div className="flex-1 h-px bg-fuchsia-500"></div></div>
-
                   <div className="w-full space-y-4">
                     <div className="grid grid-cols-3 gap-2 w-full">
                       <button onClick={() => setPartySubMode('free_for_all')} className={cn("flex flex-col items-center p-3 rounded border transition-all text-center", partySubMode === 'free_for_all' ? "border-cyan-500 bg-cyan-500/20 text-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.2)]" : "border-fuchsia-500/20 text-fuchsia-500/50 hover:text-fuchsia-500")}><Crosshair className="w-5 h-5 mb-2" /><span className="text-[9px] font-bold tracking-wider">FREE FOR ALL</span></button>
