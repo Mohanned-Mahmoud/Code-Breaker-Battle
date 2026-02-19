@@ -1,31 +1,86 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@400;500;700;900&family=Roboto+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Amiri:wght@400;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+
 :root {
-  --background: 0 0% 4%;
+  --background: 0 0% 0%;
   --foreground: 120 100% 50%;
   --primary: 120 100% 50%;
-  --primary-foreground: 0 0% 4%;
+  --primary-foreground: 0 0% 0%;
   --border: 120 100% 50% / 0.3;
-  --card: 0 0% 6%;
+  --card: 0 0% 5%;
   --card-foreground: 120 100% 50%;
   --accent: 120 100% 50% / 0.1;
   --accent-foreground: 120 100% 50%;
   --muted: 120 10% 10%;
   --muted-foreground: 120 100% 50% / 0.5;
   --scanline-color: rgba(0, 255, 0, 0.05);
+  --pattern-opacity: 0.05;
+  --radius: 0px;
+}
+
+.ramadan-theme {
+  --background: 222 47% 8%;
+  --foreground: 45 100% 90%;
+  --primary: 45 100% 50%;
+  --primary-foreground: 222 47% 8%;
+  --border: 45 100% 50% / 0.3;
+  --card: 222 47% 12%;
+  --card-foreground: 45 100% 90%;
+  --accent: 45 100% 50% / 0.15;
+  --accent-foreground: 45 100% 50%;
+  --muted: 222 47% 15%;
+  --muted-foreground: 45 100% 50% / 0.6;
+  --scanline-color: rgba(255, 215, 0, 0.03);
+  --pattern-opacity: 0.2;
+  --radius: 1rem;
+}
+
+/* Global Ramadan Scrollbar */
+.ramadan-theme ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.ramadan-theme ::-webkit-scrollbar-track {
+  background: hsl(222 47% 5%);
+  border-left: 1px solid hsl(45 100% 50% / 0.1);
+}
+
+.ramadan-theme ::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, hsl(45 100% 50%), hsl(35 100% 40%));
+  border-radius: 5px;
+  border: 2px solid hsl(222 47% 5%);
+  box-shadow: 0 0 10px hsla(45, 100%, 50%, 0.2);
+}
+
+.ramadan-theme ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, hsl(45 100% 60%), hsl(35 100% 50%));
+}
+
+.ramadan-theme * {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(45 100% 50%) hsl(222 47% 5%);
 }
 
 @layer base {
   body {
-    @apply bg-background text-foreground font-mono antialiased overflow-hidden relative;
+    @apply bg-background text-foreground antialiased overflow-hidden relative transition-colors duration-500;
+    --font-cyber: 'Orbitron', sans-serif;
+    --font-ramadan: 'Cinzel', 'Amiri', serif;
+    font-family: var(--font-cyber);
     background-image: 
-      linear-gradient(rgba(0, 255, 0, 0.02) 50%, rgba(0, 0, 0, 0.25) 50%),
-      linear-gradient(90deg, rgba(0, 255, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 255, 0, 0.03));
+      linear-gradient(var(--scanline-color) 50%, rgba(0, 0, 0, 0.25) 50%),
+      linear-gradient(90deg, var(--scanline-color), transparent, var(--scanline-color));
     background-size: 100% 2px, 3px 100%;
+  }
+
+  .ramadan-theme body {
+    font-family: var(--font-ramadan);
   }
 
   body::before {
@@ -38,11 +93,84 @@
     background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 10L90 90M90 10L10 90' stroke='%2300FF00' stroke-width='0.5' stroke-opacity='0.05'/%3E%3C/svg%3E");
     pointer-events: none;
     z-index: -1;
+    transition: opacity 0.5s;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-mono tracking-widest uppercase;
-    text-shadow: 0 0 10px currentColor;
+  .ramadan-theme body::before {
+    background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M40 0l4 12h12l-10 8 4 12-10-8-10 8 4-12-10-8h12z' fill='%23FFD700' fill-opacity='0.08'/%3E%3Ccircle cx='40' cy='40' r='30' stroke='%23FFD700' stroke-width='0.2' stroke-opacity='0.1' fill='none'/%3E%3C/svg%3E");
+    background-size: 120px 120px;
+  }
+
+  .glitch-effect {
+    position: relative;
+    animation: glitch 3s infinite;
+  }
+
+  .ramadan-glow {
+    box-shadow: 0 0 15px rgba(251, 191, 36, 0.4), 0 0 30px rgba(251, 191, 36, 0.2);
+    animation: ramadan-pulse 3s infinite ease-in-out;
+  }
+
+  @keyframes ramadan-pulse {
+    0%, 100% { box-shadow: 0 0 15px rgba(251, 191, 36, 0.4), 0 0 30px rgba(251, 191, 36, 0.2); }
+    50% { box-shadow: 0 0 25px rgba(251, 191, 36, 0.6), 0 0 50px rgba(251, 191, 36, 0.3); }
+  }
+
+  .ramadan-bg {
+    background-color: #0B132B;
+  }
+
+  /* Global Ramadan Scrollbar - Royal Gold Edition */
+  .ramadan-theme ::-webkit-scrollbar {
+    width: 16px;
+    height: 16px;
+  }
+
+  .ramadan-theme ::-webkit-scrollbar-track {
+    background: #050810;
+    border-radius: 10px;
+    border: 1px solid rgba(251, 191, 36, 0.15);
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.8);
+  }
+
+  .ramadan-theme ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #fef3c7 0%, #fbbf24 20%, #d97706 50%, #92400e 80%, #451a03 100%);
+    border-radius: 10px;
+    border: 4px solid #050810;
+    box-shadow: 0 0 25px rgba(251, 191, 36, 0.5);
+  }
+
+  .ramadan-theme ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #ffffff 0%, #fcd34d 20%, #f59e0b 50%, #b45309 80%, #78350f 100%);
+    box-shadow: 0 0 35px rgba(251, 191, 36, 0.8);
+  }
+
+  .ramadan-theme * {
+    scrollbar-width: auto;
+    scrollbar-color: #fbbf24 #050810;
+  }
+
+  .ramadan-theme .custom-scrollbar::-webkit-scrollbar {
+    width: 16px;
+  }
+  
+  .ramadan-theme .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(to bottom, #fbbf24, #d97706, #92400e);
+    box-shadow: 0 0 15px rgba(251, 191, 36, 0.4);
+  }
+
+  .ramadan-theme .glitch-effect, 
+  .ramadan-theme .glitch-effect::before, 
+  .ramadan-theme .glitch-effect::after {
+    animation: none !important;
+    text-shadow: none !important;
+    clip: auto !important;
+  }
+
+  .ramadan-theme .neon-border {
+    border-color: #fbbf24 !important;
+    box-shadow: 0 0 15px rgba(251, 191, 36, 0.3) !important;
+    border-radius: 1.5rem !important;
   }
 }
 
