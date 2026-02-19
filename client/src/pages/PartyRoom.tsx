@@ -2,23 +2,27 @@ import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
-  Loader2, Share2, Lock, Terminal, Crosshair, Skull, Crown, Ghost, Users, Activity, Shield, Bug, Zap, Edit2, Shuffle, Radio, Eye, Timer, Anchor, FileDown, Target, AlertTriangle, Bomb
+  Loader2, Share2, Lock, Terminal, Crosshair, Skull, Crown, Ghost, Users, Activity, Shield, Bug, Zap, Edit2, Shuffle, Radio, Eye, Timer, Anchor, FileDown, Target, AlertTriangle, Bomb, Moon
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useTheme } from "@/context/ThemeContext";
 
-function UnifiedCyberInput({ value, onChange, disabled, colorTheme = "fuchsia" }: { value: string, onChange: (val: string) => void, disabled?: boolean, colorTheme?: "fuchsia" | "red" }) {
+function UnifiedCyberInput({ value, onChange, disabled, colorTheme = "fuchsia", isRamadan = false }: { value: string, onChange: (val: string) => void, disabled?: boolean, colorTheme?: "fuchsia" | "red" | "purple", isRamadan?: boolean }) {
   const paddedValue = value.padEnd(4, ' ');
   const chars = paddedValue.split('');
   const digits = [chars[0], chars[1], chars[2], chars[3]];
   
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-  const themeBorder = colorTheme === "red" ? "border-red-500" : "border-fuchsia-500";
-  const themeBorderDim = colorTheme === "red" ? "border-red-500/50" : "border-fuchsia-500/50";
-  const themeText = colorTheme === "red" ? "text-red-500" : "text-fuchsia-500";
+  // Adjust theme colors based on Ramadan mode
+  const activeColor = colorTheme === "red" ? "red" : (isRamadan ? "purple" : "fuchsia");
+  
+  const themeBorder = activeColor === "red" ? "border-red-500" : activeColor === "purple" ? "border-purple-500" : "border-fuchsia-500";
+  const themeBorderDim = activeColor === "red" ? "border-red-500/50" : activeColor === "purple" ? "border-purple-500/50" : "border-fuchsia-500/50";
+  const themeText = activeColor === "red" ? "text-red-500" : activeColor === "purple" ? "text-purple-400" : "text-fuchsia-500";
 
   return (
     <div className="flex gap-2 sm:gap-4 justify-center">
@@ -30,7 +34,7 @@ function UnifiedCyberInput({ value, onChange, disabled, colorTheme = "fuchsia" }
                inputMode="numeric"
                pattern="[0-9]*"
                type="text"
-               className={cn("w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-white text-black text-center text-xl sm:text-2xl font-bold rounded-sm outline-none border-2", themeBorder)} 
+               className={cn("w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-white text-black text-center text-xl sm:text-2xl font-bold rounded-sm outline-none border-2", themeBorder, isRamadan && "font-ramadan")} 
                maxLength={1} 
                onChange={(e) => { 
                  const val = e.target.value; 
@@ -62,7 +66,8 @@ function UnifiedCyberInput({ value, onChange, disabled, colorTheme = "fuchsia" }
              disabled={disabled}
              className={cn("w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-black text-center text-xl sm:text-2xl font-bold rounded-sm border-2 transition-all outline-none", 
                 disabled ? "opacity-50 cursor-not-allowed" : "hover:scale-105", 
-                activeIndex === i ? "border-white text-white scale-110" : cn(themeBorderDim, themeText)
+                activeIndex === i ? "border-white text-white scale-110" : cn(themeBorderDim, themeText),
+                isRamadan && "font-ramadan"
              )} 
              onClick={() => setActiveIndex(i)}
            >
@@ -74,14 +79,12 @@ function UnifiedCyberInput({ value, onChange, disabled, colorTheme = "fuchsia" }
   );
 }
 
-function TerminalLog({ logs, players = [] }: { logs: any[], players?: any[] }) {
+function TerminalLog({ logs, players = [], isRamadan }: { logs: any[], players?: any[], isRamadan: boolean }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [logs]);
 
-  // Function to search for player names in the log and wrap them in colored spans
   const renderMessage = (msg: string) => {
     if (!players || players.length === 0) return msg;
-    
     let parts = [{ text: msg, color: null as string | null }];
     
     players.forEach(p => {
@@ -94,7 +97,7 @@ function TerminalLog({ logs, players = [] }: { logs: any[], players?: any[] }) {
           split.forEach((s: string, i: number) => {
             newParts.push({ text: s, color: null });
             if (i < split.length - 1) {
-              newParts.push({ text: p.playerName, color: p.playerColor || "#E879F9" });
+              newParts.push({ text: p.playerName, color: p.playerColor || (isRamadan ? "#c084fc" : "#E879F9") });
             }
           });
         }
@@ -106,13 +109,13 @@ function TerminalLog({ logs, players = [] }: { logs: any[], players?: any[] }) {
   };
 
   return (
-    <div ref={scrollRef} className="font-mono text-[10px] sm:text-xs w-full h-[200px] md:h-[250px] overflow-y-auto p-3 sm:p-4 bg-black/60 border border-fuchsia-500/20 rounded-sm custom-scrollbar relative">
+    <div ref={scrollRef} className={cn("text-[10px] sm:text-xs w-full h-[200px] md:h-[250px] overflow-y-auto p-3 sm:p-4 bg-black/60 border rounded-sm custom-scrollbar relative", isRamadan ? "font-ramadan border-purple-500/20" : "font-mono border-fuchsia-500/20")}>
       <div className="flex flex-col-reverse space-y-reverse space-y-2">
         <AnimatePresence initial={false}>
           {logs.slice().reverse().map((log) => (
             <motion.div key={log.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex gap-2">
               <span className="opacity-40 select-none">[{new Date(log.timestamp).toLocaleTimeString()}]</span>
-              <span className={cn("flex-1 break-words font-medium", log.type === 'success' ? 'text-green-500' : log.type === 'error' ? 'text-red-500' : log.type === 'warning' ? 'text-yellow-500' : 'text-fuchsia-500/70')}>
+              <span className={cn("flex-1 break-words font-medium", log.type === 'success' ? 'text-green-500' : log.type === 'error' ? 'text-red-500' : log.type === 'warning' ? 'text-yellow-500' : (isRamadan ? 'text-purple-400/70' : 'text-fuchsia-500/70'))}>
                 {">"} {renderMessage(log.message)}
               </span>
             </motion.div>
@@ -128,12 +131,13 @@ export default function PartyRoom() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { theme } = useTheme();
+  const isRamadan = theme === "ramadan";
   
   const id = parseInt(params?.id || "0");
   const [playerName, setPlayerName] = useState("");
   const COLORS = ["#E879F9", "#22D3EE", "#4ADE80", "#F87171", "#FBBF24", "#A78BFA"]; // Color Palette
   
-  // Load saved preference or default to Fuchsia
   const [playerColor, setPlayerColor] = useState(() => localStorage.getItem('preferred_hacker_color') || COLORS[0]);
   
   const [setupDigits, setSetupDigits] = useState(['', '', '', '']);
@@ -161,7 +165,7 @@ export default function PartyRoom() {
             <title>Party_Master_Log_${id}</title>
             <style>
               body { background-color: #050505; color: #00ff00; font-family: 'Courier New', Courier, monospace; padding: 40px; }
-              .header { text-align: center; color: #E879F9; margin-bottom: 30px; letter-spacing: 2px; }
+              .header { text-align: center; color: ${isRamadan ? '#c084fc' : '#E879F9'}; margin-bottom: 30px; letter-spacing: 2px; }
               .meta { color: #888; font-size: 12px; margin-bottom: 20px; border-bottom: 1px dashed #333; padding-bottom: 10px; }
               .log-entry { margin-bottom: 8px; line-height: 1.4; font-size: 14px; }
               .time { color: #555; margin-right: 10px; }
@@ -190,7 +194,7 @@ export default function PartyRoom() {
           if (gameData?.players) {
             gameData.players.forEach((p: any) => {
                const split = rawMessage.split(p.playerName);
-               if (split.length > 1) rawMessage = split.join(`<span style="color: ${p.playerColor || '#E879F9'}; font-weight: bold;">${p.playerName}</span>`);
+               if (split.length > 1) rawMessage = split.join(`<span style="color: ${p.playerColor || (isRamadan ? '#c084fc' : '#E879F9')}; font-weight: bold;">${p.playerName}</span>`);
             });
           }
 
@@ -337,20 +341,41 @@ export default function PartyRoom() {
       powerupMutation.mutate({ type });
   };
 
-  if (isLoading) return <div className="h-[100dvh] flex items-center justify-center bg-background"><Loader2 className="animate-spin text-fuchsia-500 w-10 h-10" /></div>;
-  if (error || !gameData) return <div className="h-[100dvh] flex flex-col items-center justify-center bg-background text-fuchsia-500"><Skull className="w-16 h-16 mb-4 text-red-500 animate-pulse" /><h1 className="text-2xl font-mono">ROOM OFFLINE OR DESTROYED</h1><Button onClick={() => setLocation('/')} className="mt-4" variant="outline">RETURN TO BASE</Button></div>;
+  if (isLoading) return <div className="h-[100dvh] flex items-center justify-center bg-background"><Loader2 className={cn("animate-spin w-10 h-10", isRamadan ? "text-purple-500" : "text-fuchsia-500")} /></div>;
+  if (error || !gameData) return <div className={cn("h-[100dvh] flex flex-col items-center justify-center bg-background", isRamadan ? "text-purple-500" : "text-fuchsia-500")}><Skull className="w-16 h-16 mb-4 text-red-500 animate-pulse" /><h1 className={cn("text-2xl", isRamadan ? "font-ramadan" : "font-mono")}>ROOM OFFLINE OR DESTROYED</h1><Button onClick={() => setLocation('/')} className="mt-4" variant="outline">RETURN TO BASE</Button></div>;
 
   const opponents = gameData.players?.filter((p: any) => p.id !== myPlayerId) || [];
+
+  // Define dynamic styles
+  const primaryColor = isRamadan ? "text-purple-400" : "text-fuchsia-500";
+  const primaryBorder = isRamadan ? "border-purple-500/30" : "border-fuchsia-500/30";
+  const primaryBg = isRamadan ? "bg-purple-500/10" : "bg-fuchsia-500/10";
+  const primaryHover = isRamadan ? "hover:bg-purple-500 hover:text-black" : "hover:bg-fuchsia-500 hover:text-black";
+  const fontClass = isRamadan ? "font-ramadan" : "font-mono";
 
   // --- LOBBY JOIN ---
   if (!myPlayerId || !myPlayer) {
     return (
-      <div className="min-h-[100dvh] flex flex-col p-4 bg-background">
-        <div className="max-w-md w-full p-6 sm:p-8 border border-fuchsia-500/30 bg-black/60 shadow-[0_0_30px_rgba(232,121,249,0.1)] text-center space-y-6 m-auto my-8">
-          <Users className="w-12 h-12 mx-auto text-fuchsia-500 opacity-50" />
-          <h1 className="text-2xl sm:text-3xl font-black font-mono tracking-widest text-fuchsia-500">JOIN SQUAD</h1>
-          <p className="text-[10px] sm:text-xs font-mono opacity-50 uppercase">Mode: {gameData.subMode.replace(/_/g, ' ')}</p>
-          <input type="text" placeholder="ENTER ALIAS..." value={playerName} onChange={(e) => setPlayerName(e.target.value.toUpperCase())} maxLength={10} className="w-full bg-black/80 border border-fuchsia-500/50 text-fuchsia-500 px-4 py-3 font-mono text-center tracking-widest focus:outline-none focus:border-fuchsia-500 uppercase" />
+      <div className={cn("min-h-[100dvh] flex flex-col p-4 bg-background relative", fontClass)}>
+        {isRamadan && (
+          <div className="absolute inset-0 pointer-events-none opacity-10 z-0">
+             <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <pattern id="islamic-geometry-party" x="0" y="0" width="200" height="200" patternUnits="userSpaceOnUse">
+                  <path d="M100 0 L130 70 L200 100 L130 130 L100 200 L70 130 L0 100 L70 70 Z" fill="none" stroke="#a855f7" strokeWidth="0.8" />
+                  <circle cx="100" cy="100" r="40" stroke="#a855f7" strokeWidth="0.2" strokeOpacity="0.5" />
+                  <path d="M0 0 L200 200 M200 0 L0 200" stroke="#a855f7" strokeWidth="0.1" strokeOpacity="0.3" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#islamic-geometry-party)" />
+            </svg>
+          </div>
+        )}
+        <div className={cn("max-w-md w-full p-6 sm:p-8 border bg-black/60 text-center space-y-6 m-auto my-8 relative z-10", primaryBorder, isRamadan ? "shadow-[0_0_40px_rgba(168,85,247,0.15)] rounded-2xl" : "shadow-[0_0_30px_rgba(232,121,249,0.1)]")}>
+          <Users className={cn("w-12 h-12 mx-auto opacity-50", primaryColor)} />
+          <h1 className={cn("text-2xl sm:text-3xl font-black tracking-widest", primaryColor)}>JOIN SQUAD</h1>
+          <p className="text-[10px] sm:text-xs opacity-50 uppercase">Mode: {gameData.subMode.replace(/_/g, ' ')}</p>
+          <input type="text" placeholder="ENTER ALIAS..." value={playerName} onChange={(e) => setPlayerName(e.target.value.toUpperCase())} maxLength={10} className={cn("w-full bg-black/80 border px-4 py-3 text-center tracking-widest focus:outline-none uppercase", isRamadan ? "border-purple-500/50 text-purple-400 focus:border-purple-500 rounded-lg" : "border-fuchsia-500/50 text-fuchsia-500 focus:border-fuchsia-500")} />
           
           {/* COLOR PICKER */}
           <div className="flex justify-center gap-3 py-2">
@@ -373,7 +398,7 @@ export default function PartyRoom() {
             })}
           </div>
 
-          <Button className="w-full h-12 border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-500 hover:bg-fuchsia-500 hover:text-black font-bold tracking-widest" disabled={!playerName || joinMutation.isPending} onClick={() => joinMutation.mutate(playerName)}>INFILTRATE</Button>
+          <Button className={cn("w-full h-12 font-bold tracking-widest border", isRamadan ? "border-purple-500 bg-purple-500/10 text-purple-400 hover:bg-purple-500 hover:text-white rounded-lg" : "border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-500 hover:bg-fuchsia-500 hover:text-black")} disabled={!playerName || joinMutation.isPending} onClick={() => joinMutation.mutate(playerName)}>INFILTRATE</Button>
         </div>
       </div>
     );
@@ -387,17 +412,25 @@ export default function PartyRoom() {
     const canStart = isRoomFull && allSetup;
     
     return (
-      <div className="min-h-[100dvh] w-full flex flex-col p-4 bg-background custom-scrollbar relative">
-        <div className="max-w-md w-full p-6 sm:p-8 border border-fuchsia-500/30 bg-black/60 shadow-[0_0_30px_rgba(232,121,249,0.1)] text-center flex flex-col items-center gap-4 sm:gap-6 relative overflow-hidden m-auto my-8">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-fuchsia-500 to-transparent opacity-50" />
+      <div className={cn("min-h-[100dvh] w-full flex flex-col p-4 bg-background custom-scrollbar relative", fontClass)}>
+        {isRamadan && (
+          <div className="absolute inset-0 pointer-events-none opacity-10 z-0">
+             <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+              <defs><pattern id="islamic-geometry-party" x="0" y="0" width="200" height="200" patternUnits="userSpaceOnUse"><path d="M100 0 L130 70 L200 100 L130 130 L100 200 L70 130 L0 100 L70 70 Z" fill="none" stroke="#a855f7" strokeWidth="0.8" /><circle cx="100" cy="100" r="40" stroke="#a855f7" strokeWidth="0.2" strokeOpacity="0.5" /><path d="M0 0 L200 200 M200 0 L0 200" stroke="#a855f7" strokeWidth="0.1" strokeOpacity="0.3" /></pattern></defs>
+              <rect width="100%" height="100%" fill="url(#islamic-geometry-party)" />
+            </svg>
+          </div>
+        )}
+        <div className={cn("max-w-md w-full p-6 sm:p-8 border bg-black/60 text-center flex flex-col items-center gap-4 sm:gap-6 relative overflow-hidden m-auto my-8 z-10", primaryBorder, isRamadan ? "rounded-2xl shadow-[0_0_40px_rgba(168,85,247,0.15)]" : "shadow-[0_0_30px_rgba(232,121,249,0.1)]")}>
+          <div className={cn("absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent to-transparent opacity-50", isRamadan ? "via-purple-500" : "via-fuchsia-500")} />
           
           <div className="flex flex-col items-center w-full mt-2">
-              <span className="text-[9px] sm:text-[10px] font-mono opacity-50 mb-1 tracking-[0.3em] text-fuchsia-500">PARTY ROOM ID</span>
-              <span className="text-4xl sm:text-5xl md:text-6xl font-black text-cyan-400 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)] tracking-widest">{id}</span>
+              <span className={cn("text-[9px] sm:text-[10px] opacity-50 mb-1 tracking-[0.3em]", primaryColor)}>PARTY ROOM ID</span>
+              <span className={cn("text-4xl sm:text-5xl md:text-6xl font-black tracking-widest", isRamadan ? "text-amber-400 drop-shadow-[0_0_15px_rgba(251,191,36,0.5)]" : "text-cyan-400 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]")}>{id}</span>
               
               <Button 
                 variant="outline" 
-                className="mt-4 w-full border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 font-bold tracking-widest flex items-center justify-center gap-2 transition-all text-[10px] sm:text-xs" 
+                className={cn("mt-4 w-full font-bold tracking-widest flex items-center justify-center gap-2 transition-all text-[10px] sm:text-xs", isRamadan ? "border-amber-500/50 text-amber-400 hover:bg-amber-500/10 rounded-lg" : "border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10")} 
                 onClick={() => { 
                   navigator.clipboard.writeText(window.location.href); 
                   toast({ title: "LINK COPIED!", description: "Send this link to your friends so they can join." }); 
@@ -407,23 +440,23 @@ export default function PartyRoom() {
               </Button>
           </div>
           
-          <p className="text-[10px] sm:text-xs font-mono opacity-60 mt-2">Hackers Connected: {gameData.players.length} / {gameData.maxPlayers}</p>
-          <div className="w-full h-px bg-fuchsia-500/20"></div>
+          <p className="text-[10px] sm:text-xs opacity-60 mt-2">Hackers Connected: {gameData.players.length} / {gameData.maxPlayers}</p>
+          <div className={cn("w-full h-px", isRamadan ? "bg-purple-500/20" : "bg-fuchsia-500/20")}></div>
 
           <div className="w-full">
             {!myPlayer.isSetup ? (
-              <div className="space-y-6 bg-fuchsia-500/5 p-3 sm:p-4 border border-fuchsia-500/20 rounded">
-                <p className="text-xs sm:text-sm font-mono text-fuchsia-500">DEFINE YOUR 4-DIGIT KEY</p>
-                <UnifiedCyberInput value={setupDigits.join('')} onChange={(val: string) => setSetupDigits(val.split(''))} disabled={setupMutation.isPending} colorTheme="fuchsia" />
-                <Button className="w-full h-10 sm:h-12 bg-fuchsia-500/20 text-fuchsia-500 border border-fuchsia-500 hover:bg-fuchsia-500 hover:text-black mt-2 text-xs sm:text-sm" disabled={!isSetupReady || setupMutation.isPending} onClick={() => setupMutation.mutate(cleanSetupStr)}>LOCK KEY</Button>
+              <div className={cn("space-y-6 p-3 sm:p-4 border rounded", isRamadan ? "bg-purple-500/5 border-purple-500/20" : "bg-fuchsia-500/5 border-fuchsia-500/20")}>
+                <p className={cn("text-xs sm:text-sm", primaryColor)}>DEFINE YOUR 4-DIGIT KEY</p>
+                <UnifiedCyberInput value={setupDigits.join('')} onChange={(val: string) => setSetupDigits(val.split(''))} disabled={setupMutation.isPending} colorTheme="fuchsia" isRamadan={isRamadan} />
+                <Button className={cn("w-full h-10 sm:h-12 border mt-2 text-xs sm:text-sm", isRamadan ? "bg-purple-500/20 text-purple-400 border-purple-500 hover:bg-purple-500 hover:text-white" : "bg-fuchsia-500/20 text-fuchsia-500 border-fuchsia-500 hover:bg-fuchsia-500 hover:text-black")} disabled={!isSetupReady || setupMutation.isPending} onClick={() => setupMutation.mutate(cleanSetupStr)}>LOCK KEY</Button>
               </div>
             ) : (
               <div className="space-y-4">
-                 <div className="p-3 sm:p-4 bg-green-900/20 border border-green-500/30 text-green-400 font-mono text-[10px] sm:text-sm tracking-widest rounded animate-pulse">KEY LOCKED. HACKER READY.</div>
+                 <div className="p-3 sm:p-4 bg-green-900/20 border border-green-500/30 text-green-400 text-[10px] sm:text-sm tracking-widest rounded animate-pulse">KEY LOCKED. HACKER READY.</div>
                  
                  {isHost && (
                     <Button 
-                      className={cn("w-full h-10 sm:h-12 font-black tracking-widest border transition-all text-[10px] sm:text-xs", canStart ? "bg-fuchsia-500 text-black hover:bg-fuchsia-400 border-fuchsia-500 shadow-[0_0_15px_rgba(232,121,249,0.4)]" : "bg-black text-fuchsia-500/50 border-fuchsia-500/20 cursor-not-allowed")} 
+                      className={cn("w-full h-10 sm:h-12 font-black tracking-widest border transition-all text-[10px] sm:text-xs", canStart ? (isRamadan ? "bg-purple-500 text-white hover:bg-purple-400 border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.4)]" : "bg-fuchsia-500 text-black hover:bg-fuchsia-400 border-fuchsia-500 shadow-[0_0_15px_rgba(232,121,249,0.4)]") : (isRamadan ? "bg-black text-purple-500/50 border-purple-500/20 cursor-not-allowed" : "bg-black text-fuchsia-500/50 border-fuchsia-500/20 cursor-not-allowed"))} 
                       disabled={!canStart || startMutation.isPending} 
                       onClick={() => startMutation.mutate()}
                     >
@@ -434,15 +467,15 @@ export default function PartyRoom() {
             )}
           </div>
 
-          <div className="text-left border-t border-fuchsia-500/20 pt-4 w-full">
-            <h3 className="text-[10px] sm:text-xs font-mono opacity-50 mb-3 flex justify-between">
+          <div className={cn("text-left border-t pt-4 w-full", isRamadan ? "border-purple-500/20" : "border-fuchsia-500/20")}>
+            <h3 className="text-[10px] sm:text-xs opacity-50 mb-3 flex justify-between">
                <span>SQUAD MEMBERS:</span>
-               {isHost && <span className="text-fuchsia-500">YOU ARE HOST</span>}
+               {isHost && <span className={primaryColor}>YOU ARE HOST</span>}
             </h3>
             <div className="flex flex-col gap-2 w-full">
               {gameData.players.map((p: any) => (
-                <div key={p.id} className="flex justify-between items-center text-[10px] sm:text-sm font-mono border-b border-fuchsia-500/10 pb-2">
-                  <span className={p.id === myPlayerId ? "font-bold" : "opacity-80"} style={{ color: p.playerColor || '#E879F9' }}>
+                <div key={p.id} className={cn("flex justify-between items-center text-[10px] sm:text-sm border-b pb-2", isRamadan ? "border-purple-500/10" : "border-fuchsia-500/10")}>
+                  <span className={p.id === myPlayerId ? "font-bold" : "opacity-80"} style={{ color: p.playerColor || (isRamadan ? '#c084fc' : '#E879F9') }}>
                     {p.playerName} {p.id === gameData.players[0].id && "👑"}
                   </span>
                   <span className={p.isSetup ? "text-green-500 text-[9px] sm:text-xs" : "text-yellow-500 text-[9px] sm:text-xs animate-pulse"}>
@@ -461,15 +494,15 @@ export default function PartyRoom() {
   if (gameData.status === 'finished') {
     const winner = gameData.players.find((p:any) => p.id === gameData.winnerId);
     return (
-      <div className="h-[100dvh] flex flex-col items-center justify-center p-4 text-center space-y-4 sm:space-y-6 bg-background overflow-y-auto">
+      <div className={cn("h-[100dvh] flex flex-col items-center justify-center p-4 text-center space-y-4 sm:space-y-6 bg-background overflow-y-auto", fontClass)}>
         <Crown className="w-16 h-16 sm:w-20 sm:h-20 text-yellow-500 animate-bounce" />
         <h1 className="text-3xl sm:text-5xl font-black glitch-effect uppercase text-yellow-500">{winner?.playerName || "SOMEONE"} WINS!</h1>
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-6 sm:mt-8 w-full max-w-xs sm:max-w-2xl justify-center">
-          <Button variant="outline" className="border-fuchsia-500 text-fuchsia-500 hover:bg-fuchsia-500/10 w-full" onClick={() => setLocation('/')}>EXIT ROOM</Button>
+          <Button variant="outline" className={cn("border w-full", isRamadan ? "border-purple-500 text-purple-400 hover:bg-purple-500/10" : "border-fuchsia-500 text-fuchsia-500 hover:bg-fuchsia-500/10")} onClick={() => setLocation('/')}>EXIT ROOM</Button>
           
           <Button variant="outline" className="border-green-500 text-green-500 hover:bg-green-500/10 w-full" onClick={downloadMasterLog}><FileDown className="w-4 h-4 mr-2"/> ARCHIVE LOG</Button>
 
-          <Button className="bg-fuchsia-500 text-black hover:bg-fuchsia-400 font-bold tracking-widest shadow-[0_0_15px_rgba(232,121,249,0.4)] w-full" onClick={() => restartMutation.mutate()} disabled={restartMutation.isPending}>
+          <Button className={cn("text-black font-bold tracking-widest w-full", isRamadan ? "bg-purple-500 hover:bg-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.4)]" : "bg-fuchsia-500 hover:bg-fuchsia-400 shadow-[0_0_15px_rgba(232,121,249,0.4)]")} onClick={() => restartMutation.mutate()} disabled={restartMutation.isPending}>
             {restartMutation.isPending ? "REBOOTING..." : "PLAY AGAIN"}
           </Button>
         </div>
@@ -494,8 +527,18 @@ export default function PartyRoom() {
 
   // --- ACTIVE GAME GRID ---
   return (
-    <div className={cn("h-[100dvh] w-full bg-background overflow-y-auto overflow-x-hidden custom-scrollbar relative p-2 md:p-4", isHunted && "shadow-[inset_0_0_100px_rgba(239,68,68,0.15)] transition-shadow duration-1000")}>
+    <div className={cn("h-[100dvh] w-full bg-background overflow-y-auto overflow-x-hidden custom-scrollbar relative p-2 md:p-4", fontClass, isHunted && "shadow-[inset_0_0_100px_rgba(239,68,68,0.15)] transition-shadow duration-1000")}>
       
+      {/* Background for Ramadan */}
+      {isRamadan && (
+        <div className="fixed inset-0 pointer-events-none opacity-10 z-0">
+           <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <defs><pattern id="islamic-geometry-party" x="0" y="0" width="200" height="200" patternUnits="userSpaceOnUse"><path d="M100 0 L130 70 L200 100 L130 130 L100 200 L70 130 L0 100 L70 70 Z" fill="none" stroke="#a855f7" strokeWidth="0.8" /><circle cx="100" cy="100" r="40" stroke="#a855f7" strokeWidth="0.2" strokeOpacity="0.5" /><path d="M0 0 L200 200 M200 0 L0 200" stroke="#a855f7" strokeWidth="0.1" strokeOpacity="0.3" /></pattern></defs>
+            <rect width="100%" height="100%" fill="url(#islamic-geometry-party)" />
+          </svg>
+        </div>
+      )}
+
       <div className="flex flex-col gap-3 md:gap-4 max-w-7xl mx-auto w-full relative z-10 pb-10">
         
         {/* NEW BOUNTY BANNER */}
@@ -505,14 +548,14 @@ export default function PartyRoom() {
               <div className="p-2 sm:p-3 border border-yellow-500 bg-yellow-500/20 rounded flex items-center justify-center gap-3 shadow-[0_0_15px_rgba(234,179,8,0.4)] relative overflow-hidden">
                  <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(234,179,8,0.1)_50%,transparent_75%,transparent_100%)] bg-[length:20px_20px] animate-[slide_1s_linear_infinite]" />
                  <Target className="w-5 h-5 text-yellow-500 animate-pulse relative z-10" />
-                 <span className="font-mono font-black tracking-widest text-yellow-500 text-[10px] sm:text-xs relative z-10 text-center">
+                 <span className="font-black tracking-widest text-yellow-500 text-[10px] sm:text-xs relative z-10 text-center">
                     ACTIVE CONTRACT // TARGET: {gameData.players.find((p:any) => p.id === gameData.bountyTargetId)?.playerName} // REWARD: +6 PTS
                  </span>
               </div>
             ) : (
               <div className="p-2 sm:p-3 border border-blue-500/50 bg-blue-500/10 rounded flex items-center justify-center gap-3">
                  <Activity className="w-5 h-5 text-blue-400 animate-spin" />
-                 <span className="font-mono font-bold tracking-widest text-blue-400 text-[10px] sm:text-xs opacity-80 text-center">
+                 <span className="font-bold tracking-widest text-blue-400 text-[10px] sm:text-xs opacity-80 text-center">
                     SCANNING NEURAL NET FOR TARGET // ETA: {Math.max(1, (gameData.nextBountyTurn || 1) - (gameData.turnCount || 0))} TURNS...
                  </span>
               </div>
@@ -521,30 +564,30 @@ export default function PartyRoom() {
         )}
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-center border border-fuchsia-500/30 bg-black/40 p-2 sm:p-3 rounded gap-2 sm:gap-0">
+        <div className={cn("flex flex-col sm:flex-row justify-between items-center border bg-black/40 p-2 sm:p-3 rounded gap-2 sm:gap-0", primaryBorder)}>
            <div className="text-center sm:text-left order-2 sm:order-none">
-              <h2 className="text-[10px] sm:text-xs md:text-sm font-mono tracking-widest text-fuchsia-500/70">OP: {gameData.subMode.toUpperCase().replace(/_/g, ' ')}</h2>
-              <p className="text-sm sm:text-xl font-black text-fuchsia-500 tracking-widest">ROOM {gameData.roomId}</p>
+              <h2 className={cn("text-[10px] sm:text-xs md:text-sm tracking-widest", isRamadan ? "text-purple-400/70" : "text-fuchsia-500/70")}>OP: {gameData.subMode.toUpperCase().replace(/_/g, ' ')}</h2>
+              <p className={cn("text-sm sm:text-xl font-black tracking-widest", primaryColor)}>ROOM {gameData.roomId}</p>
            </div>
-           <div className="text-center flex flex-col items-center order-1 sm:order-none border-b sm:border-none border-fuchsia-500/20 pb-2 sm:pb-0 w-full sm:w-auto">
+           <div className={cn("text-center flex flex-col items-center order-1 sm:order-none border-b sm:border-none pb-2 sm:pb-0 w-full sm:w-auto", isRamadan ? "border-purple-500/20" : "border-fuchsia-500/20")}>
               {isTimed && (
-                <div className={cn("text-xl sm:text-2xl font-black font-mono tracking-widest transition-colors", (gameData.timeLeft ?? 30) <= 10 ? "text-red-500 animate-pulse" : "text-cyan-400")}>
+                <div className={cn("text-xl sm:text-2xl font-black tracking-widest transition-colors", (gameData.timeLeft ?? 30) <= 10 ? "text-red-500 animate-pulse" : (isRamadan ? "text-amber-400" : "text-cyan-400"))}>
                    00:{String(gameData.timeLeft ?? 0).padStart(2, '0')}
                 </div>
               )}
               {isGhostActive ? (
-                  <div className="px-3 sm:px-4 py-1 bg-purple-500 text-black font-black font-mono tracking-widest rounded animate-pulse shadow-[0_0_15px_rgba(168,85,247,0.5)] text-[10px] sm:text-sm">
+                  <div className={cn("px-3 sm:px-4 py-1 bg-purple-500 text-black font-black tracking-widest rounded animate-pulse shadow-[0_0_15px_rgba(168,85,247,0.5)] text-[10px] sm:text-sm")}>
                      GHOST STRIKES: {ghostStrikesLeft}/2
                   </div>
               ) : isMyTurn ? (
-                  <div className="px-3 sm:px-4 py-1 bg-fuchsia-500 text-black font-black font-mono tracking-widest rounded animate-pulse shadow-[0_0_15px_rgba(232,121,249,0.5)] text-[10px] sm:text-sm">YOUR TURN</div>
+                  <div className={cn("px-3 sm:px-4 py-1 text-black font-black tracking-widest rounded animate-pulse shadow-[0_0_15px_rgba(232,121,249,0.5)] text-[10px] sm:text-sm", isRamadan ? "bg-purple-500" : "bg-fuchsia-500")}>YOUR TURN</div>
               ) : (
-                  <div className="px-2 sm:px-4 py-1 border border-fuchsia-500/30 text-fuchsia-500/50 font-mono tracking-widest rounded text-[9px] sm:text-xs flex items-center gap-2"><Activity className="w-3 h-3 animate-spin" /> WAITING FOR {gameData.players.find((p:any)=>p.id===gameData.activePlayerId)?.playerName}</div>
+                  <div className={cn("px-2 sm:px-4 py-1 border tracking-widest rounded text-[9px] sm:text-xs flex items-center gap-2", isRamadan ? "border-purple-500/30 text-purple-400/50" : "border-fuchsia-500/30 text-fuchsia-500/50")}><Activity className="w-3 h-3 animate-spin" /> WAITING FOR {gameData.players.find((p:any)=>p.id===gameData.activePlayerId)?.playerName}</div>
               )}
            </div>
            <div className="text-center sm:text-right hidden sm:block order-3 sm:order-none">
-              <h2 className="text-[10px] sm:text-xs font-mono tracking-widest text-fuchsia-500/50">MY ALIAS</h2>
-              <p className={cn("text-sm sm:text-lg font-black tracking-widest", myPlayer.isEliminated ? "text-red-500 line-through" : "drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]")} style={{ color: myPlayer.isEliminated ? undefined : (myPlayer.playerColor || '#E879F9') }}>{myPlayer.playerName}</p>
+              <h2 className={cn("text-[10px] sm:text-xs tracking-widest", isRamadan ? "text-purple-400/50" : "text-fuchsia-500/50")}>MY ALIAS</h2>
+              <p className={cn("text-sm sm:text-lg font-black tracking-widest", myPlayer.isEliminated ? "text-red-500 line-through" : "drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]")} style={{ color: myPlayer.isEliminated ? undefined : (myPlayer.playerColor || (isRamadan ? '#c084fc' : '#E879F9')) }}>{myPlayer.playerName}</p>
            </div>
         </div>
 
@@ -554,8 +597,8 @@ export default function PartyRoom() {
           {/* Left Column (Targets & Inputs) */}
           <div className="lg:col-span-2 flex flex-col gap-3 sm:gap-4">
             
-            <div className="border border-fuchsia-500/20 bg-black/20 p-3 sm:p-4 rounded flex flex-col">
-              <h3 className="font-mono text-[10px] sm:text-sm tracking-widest mb-3 sm:mb-4 flex items-center gap-2 opacity-70 text-fuchsia-500"><Crosshair className="w-3 h-3 sm:w-4 sm:h-4"/> SELECT TARGET</h3>
+            <div className={cn("border bg-black/20 p-3 sm:p-4 rounded flex flex-col", primaryBorder)}>
+              <h3 className={cn("text-[10px] sm:text-sm tracking-widest mb-3 sm:mb-4 flex items-center gap-2 opacity-70", primaryColor)}><Crosshair className="w-3 h-3 sm:w-4 sm:h-4"/> SELECT TARGET</h3>
               <div className="grid grid-cols-2 gap-2 sm:gap-4">
                 {opponents.map((opp: any) => {
                   const isSelected = selectedTarget === opp.id;
@@ -565,12 +608,12 @@ export default function PartyRoom() {
 
                   return (
                     <button key={opp.id} disabled={isDead || isRebooting || (!canUsePowerup && !isMyTurn)} onClick={() => setSelectedTarget(opp.id)}
-                      className={cn("relative p-2 sm:p-4 rounded border text-left font-mono transition-all flex flex-col justify-between overflow-hidden group min-h-[60px] sm:min-h-[80px]", 
+                      className={cn("relative p-2 sm:p-4 rounded border text-left transition-all flex flex-col justify-between overflow-hidden group min-h-[60px] sm:min-h-[80px]", 
                         isDead ? "border-red-900 bg-red-900/10 opacity-50 cursor-not-allowed grayscale" : 
                         isRebooting ? "border-yellow-900 bg-yellow-900/10 opacity-70 cursor-not-allowed grayscale" : 
                         isBountyTarget ? "border-yellow-500 bg-yellow-500/20 shadow-[0_0_15px_rgba(234,179,8,0.3)] scale-[1.02] animate-pulse" :
-                        isSelected ? "border-fuchsia-500 bg-fuchsia-500/10 shadow-[0_0_15px_rgba(232,121,249,0.3)] scale-[1.02]" : 
-                        "border-fuchsia-500/30 hover:border-fuchsia-500/60 bg-black/50 hover:bg-white/5"
+                        isSelected ? (isRamadan ? "border-purple-500 bg-purple-500/10 shadow-[0_0_15px_rgba(168,85,247,0.3)] scale-[1.02]" : "border-fuchsia-500 bg-fuchsia-500/10 shadow-[0_0_15px_rgba(232,121,249,0.3)] scale-[1.02]") : 
+                        (isRamadan ? "border-purple-500/30 hover:border-purple-500/60 bg-black/50 hover:bg-white/5" : "border-fuchsia-500/30 hover:border-fuchsia-500/60 bg-black/50 hover:bg-white/5")
                       )}
                     >
                       {isDead && <div className="absolute inset-0 flex items-center justify-center z-10 bg-red-950/80"><Skull className="w-6 h-6 sm:w-12 sm:h-12 text-red-500 opacity-80" /></div>}
@@ -585,7 +628,7 @@ export default function PartyRoom() {
                       )}
 
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full z-10 gap-1 sm:gap-0 relative">
-                        <span className="font-black tracking-widest text-[11px] sm:text-lg truncate max-w-full" style={{ color: opp.playerColor || '#E879F9' }}>{opp.playerName}</span>
+                        <span className="font-black tracking-widest text-[11px] sm:text-lg truncate max-w-full" style={{ color: opp.playerColor || (isRamadan ? '#c084fc' : '#E879F9') }}>{opp.playerName}</span>
                         {gameData.winCondition === 'points' && <span className="text-yellow-400 font-bold text-[8px] sm:text-xs whitespace-nowrap">{opp.points || 0}/{gameData.targetPoints} PTS</span>}
                       </div>
                       <div className="text-[7px] sm:text-[10px] opacity-60 tracking-widest uppercase z-10 relative mt-1">
@@ -597,13 +640,13 @@ export default function PartyRoom() {
               </div>
             </div>
 
-            <div className="border border-fuchsia-500/20 bg-black/20 p-3 sm:p-4 rounded flex flex-col relative">
+            <div className={cn("border bg-black/20 p-3 sm:p-4 rounded flex flex-col relative", primaryBorder)}>
                
                {/* HUNTED WARNING ALERT */}
                {isHunted && (
                   <div className="p-3 sm:p-4 border border-red-500 bg-red-500/20 rounded flex flex-col items-center justify-center gap-2 shadow-[inset_0_0_20px_rgba(239,68,68,0.5)] mb-4 animate-pulse">
                      <AlertTriangle className="w-8 h-8 sm:w-10 sm:h-10 text-red-500" />
-                     <span className="font-mono font-black tracking-widest text-red-500 text-[12px] sm:text-sm text-center">
+                     <span className="font-black tracking-widest text-red-500 text-[12px] sm:text-sm text-center">
                         WARNING: YOU ARE HUNTED!<br/>
                         <span className="text-[8px] sm:text-[10px] text-red-400">Survive the round or opponents will claim your bounty.</span>
                      </span>
@@ -616,9 +659,9 @@ export default function PartyRoom() {
                        <Skull className="w-8 h-8 sm:w-10 sm:h-10 text-red-500 animate-pulse" />
                        <div>
                          <h3 className="font-black tracking-widest text-red-500 text-base sm:text-lg">SYSTEM CRASHED!</h3>
-                         <p className="text-[10px] sm:text-xs font-mono text-red-400/80 mb-2">Your key was compromised. Configure a new 4-digit key manually.</p>
+                         <p className="text-[10px] sm:text-xs text-red-400/80 mb-2">Your key was compromised. Configure a new 4-digit key manually.</p>
                        </div>
-                       <UnifiedCyberInput value={setupDigits.join('')} onChange={(val: string) => setSetupDigits(val.split(''))} colorTheme="red" disabled={setupMutation.isPending} />
+                       <UnifiedCyberInput value={setupDigits.join('')} onChange={(val: string) => setSetupDigits(val.split(''))} colorTheme="red" isRamadan={isRamadan} disabled={setupMutation.isPending} />
                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full max-w-xs mt-2">
                           <Button className="w-full h-10 sm:h-12 bg-red-500 hover:bg-red-400 text-black font-black tracking-widest text-xs sm:text-sm" disabled={!isSetupReady || setupMutation.isPending} onClick={() => setupMutation.mutate(cleanSetupStr)}>
                             {setupMutation.isPending ? "REBOOTING..." : "REBOOT SYSTEM"}
@@ -633,20 +676,20 @@ export default function PartyRoom() {
                  ) : (
                    <>
                      {!activePowerupsEnabled ? (
-                        <div className="text-[10px] font-mono opacity-30 border border-fuchsia-500/10 p-2 rounded w-full text-center mb-4">NO POWERUPS ENABLED IN THIS ROOM</div>
+                        <div className={cn("text-[10px] opacity-30 border p-2 rounded w-full text-center mb-4", isRamadan ? "border-purple-500/10" : "border-fuchsia-500/10")}>NO POWERUPS ENABLED IN THIS ROOM</div>
                      ) : powerupState.active ? (
                         <div className="p-3 sm:p-4 border border-blue-500/30 bg-black/60 rounded flex flex-col items-center gap-3 sm:gap-4 mb-4">
-                          <p className="text-[10px] sm:text-xs font-mono text-blue-400 animate-pulse">{powerupState.active === 'change' ? "SELECT DIGIT TO MUTATE" : "SELECT TWO DIGITS TO SWAP"}</p>
+                          <p className="text-[10px] sm:text-xs text-blue-400 animate-pulse">{powerupState.active === 'change' ? "SELECT DIGIT TO MUTATE" : "SELECT TWO DIGITS TO SWAP"}</p>
                           <div className="flex gap-2 sm:gap-4">
                             {powerupState.code.split('').map((digit, i) => {
                                if (powerupState.active === 'change' && powerupState.step1Index === i) {
                                  return <input 
                                    key={i} 
                                    autoFocus 
-                                   inputMode="numeric" // <-- Add this
-                                   pattern="[0-9]*"    // <-- Add this
-                                   type="text"         // <-- Add this
-                                   className="w-10 h-10 sm:w-12 sm:h-12 bg-white text-black text-center text-lg sm:text-xl font-bold rounded-sm outline-none border-2 border-blue-500" 
+                                   inputMode="numeric"
+                                   pattern="[0-9]*"
+                                   type="text"
+                                   className={cn("w-10 h-10 sm:w-12 sm:h-12 bg-white text-black text-center text-lg sm:text-xl font-bold rounded-sm outline-none border-2 border-blue-500", isRamadan && "font-ramadan")} 
                                    maxLength={1} 
                                    onChange={(e) => { 
                                      const val = e.target.value; 
@@ -670,7 +713,7 @@ export default function PartyRoom() {
                            <div className="absolute inset-0 z-20 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center rounded border border-red-500/50 p-2">
                               <Bomb className="w-6 h-6 sm:w-8 sm:h-8 text-red-500 mx-auto mb-1 animate-pulse" />
                               <p className="text-red-500 font-black tracking-widest text-[10px] sm:text-xs">SYSTEM SILENCED</p>
-                              <p className="text-red-400/80 font-mono text-[8px] sm:text-[10px]">{myPlayer.silencedTurns} TURNS REMAINING</p>
+                              <p className="text-red-400/80 text-[8px] sm:text-[10px]">{myPlayer.silencedTurns} TURNS REMAINING</p>
                            </div>
                          )}
 
@@ -689,16 +732,16 @@ export default function PartyRoom() {
                        </div>
                      )}
 
-                     <div className="p-3 sm:p-4 border border-fuchsia-500/30 bg-black/60 rounded flex flex-col lg:flex-row items-center gap-3 sm:gap-4 mt-2">
+                     <div className={cn("p-3 sm:p-4 border bg-black/60 rounded flex flex-col lg:flex-row items-center gap-3 sm:gap-4 mt-2", primaryBorder)}>
                         <div className="flex-1 w-full text-center lg:text-left">
-                          <p className="text-[9px] sm:text-[10px] font-mono tracking-widest text-fuchsia-500/50 mb-1 sm:mb-2">TARGET: {selectedTarget ? <span style={{ color: opponents.find((o:any)=>o.id===selectedTarget)?.playerColor || '#E879F9'}}>{opponents.find((o:any)=>o.id===selectedTarget)?.playerName}</span> : "NONE"}</p>
-                          <UnifiedCyberInput value={guessDigits.join('')} onChange={(val: string) => setGuessDigits(val.split(''))} disabled={!isMyTurn || myPlayer.isEliminated || myPlayer.isGhost || !selectedTarget} colorTheme="fuchsia" />
+                          <p className={cn("text-[9px] sm:text-[10px] tracking-widest mb-1 sm:mb-2", isRamadan ? "text-purple-400/50" : "text-fuchsia-500/50")}>TARGET: {selectedTarget ? <span style={{ color: opponents.find((o:any)=>o.id===selectedTarget)?.playerColor || (isRamadan ? '#c084fc' : '#E879F9')}}>{opponents.find((o:any)=>o.id===selectedTarget)?.playerName}</span> : "NONE"}</p>
+                          <UnifiedCyberInput value={guessDigits.join('')} onChange={(val: string) => setGuessDigits(val.split(''))} disabled={!isMyTurn || myPlayer.isEliminated || myPlayer.isGhost || !selectedTarget} colorTheme="fuchsia" isRamadan={isRamadan} />
                         </div>
                         
                         <div className="w-full lg:w-auto mt-2 lg:mt-0">
                           {isBrokenTurn ? (
                              <Button 
-                               className="w-full h-12 md:h-16 px-4 sm:px-8 font-black tracking-widest font-mono text-sm sm:text-lg border-2 bg-yellow-500/20 text-yellow-500 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.5)] hover:bg-yellow-500 hover:text-black animate-pulse" 
+                               className="w-full h-12 md:h-16 px-4 sm:px-8 font-black tracking-widest text-sm sm:text-lg border-2 bg-yellow-500/20 text-yellow-500 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.5)] hover:bg-yellow-500 hover:text-black animate-pulse" 
                                onClick={() => skipMutation.mutate()}
                                disabled={skipMutation.isPending}
                              >
@@ -706,7 +749,7 @@ export default function PartyRoom() {
                              </Button>
                           ) : (
                              <Button 
-                               className={cn("w-full h-12 md:h-16 px-4 sm:px-8 font-black tracking-widest font-mono text-sm sm:text-lg border-2", selectedTarget && isGuessReady ? "bg-red-500/20 text-red-500 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)] hover:bg-red-500 hover:text-black" : "bg-transparent text-fuchsia-500/30 border-fuchsia-500/20")} 
+                               className={cn("w-full h-12 md:h-16 px-4 sm:px-8 font-black tracking-widest text-sm sm:text-lg border-2", selectedTarget && isGuessReady ? "bg-red-500/20 text-red-500 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)] hover:bg-red-500 hover:text-black" : (isRamadan ? "bg-transparent text-purple-400/30 border-purple-500/20" : "bg-transparent text-fuchsia-500/30 border-fuchsia-500/20"))} 
                                disabled={!isMyTurn || myPlayer.isEliminated || myPlayer.isGhost || !selectedTarget || !isGuessReady || guessMutation.isPending} 
                                onClick={() => guessMutation.mutate(cleanGuessStr)}
                              >
@@ -729,11 +772,11 @@ export default function PartyRoom() {
                   <h3 className="font-black text-red-500 tracking-widest text-xs sm:text-base">SYSTEM COMPROMISED</h3>
                   {myPlayer.isGhost ? (
                       <div className="mt-1 sm:mt-2">
-                          <p className="text-[10px] sm:text-xs font-mono text-purple-400">GHOST PROTOCOL ACTIVATED</p>
-                          <p className="text-[8px] sm:text-[10px] font-mono text-purple-300/70 mt-1">You have <span className="text-white font-bold text-[10px] sm:text-sm">{ghostStrikesLeft}</span> strikes left to take revenge. Choose wisely!</p>
+                          <p className="text-[10px] sm:text-xs text-purple-400">GHOST PROTOCOL ACTIVATED</p>
+                          <p className="text-[8px] sm:text-[10px] text-purple-300/70 mt-1">You have <span className="text-white font-bold text-[10px] sm:text-sm">{ghostStrikesLeft}</span> strikes left to take revenge. Choose wisely!</p>
                       </div>
                   ) : (
-                      <p className="text-[10px] sm:text-xs font-mono text-red-400/70 mt-1">SPECTATOR MODE</p>
+                      <p className="text-[10px] sm:text-xs text-red-400/70 mt-1">SPECTATOR MODE</p>
                   )}
                   
                   {isBrokenTurn && (
@@ -746,16 +789,16 @@ export default function PartyRoom() {
 
              {gameData.winCondition === 'points' && (
                <div className="p-3 sm:p-4 border border-yellow-500/30 bg-yellow-500/10 rounded flex flex-col">
-                  <span className="text-[9px] sm:text-[10px] font-mono text-yellow-500 mb-1">SCORE: {myPlayer.points || 0} / {gameData.targetPoints}</span>
+                  <span className="text-[9px] sm:text-[10px] text-yellow-500 mb-1">SCORE: {myPlayer.points || 0} / {gameData.targetPoints}</span>
                   <div className="w-full h-1.5 sm:h-2 bg-black rounded overflow-hidden border border-yellow-500/30"><div className="h-full bg-yellow-500 transition-all" style={{ width: `${Math.min(100, ((myPlayer.points || 0) / gameData.targetPoints) * 100)}%` }} /></div>
                </div>
              )}
 
-             <div className="flex flex-col border border-fuchsia-500/20 bg-black/20 rounded overflow-hidden">
-               <div className="p-2 border-b border-fuchsia-500/20 bg-fuchsia-500/10 flex items-center gap-2">
-                 <Terminal className="w-3 h-3 sm:w-4 sm:h-4 text-fuchsia-500" /><span className="text-[9px] sm:text-[10px] font-mono tracking-widest text-fuchsia-500 uppercase">Global System Logs</span>
+             <div className={cn("flex flex-col border bg-black/20 rounded overflow-hidden", primaryBorder)}>
+               <div className={cn("p-2 border-b flex items-center gap-2", primaryBg, primaryBorder)}>
+                 <Terminal className={cn("w-3 h-3 sm:w-4 sm:h-4", primaryColor)} /><span className={cn("text-[9px] sm:text-[10px] tracking-widest uppercase", primaryColor)}>Global System Logs</span>
                </div>
-               <TerminalLog logs={gameData.logs || []} players={gameData.players} />
+               <TerminalLog logs={gameData.logs || []} players={gameData.players} isRamadan={isRamadan} />
              </div>
           </div>
 
