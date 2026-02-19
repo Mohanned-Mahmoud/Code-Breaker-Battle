@@ -97,11 +97,11 @@ export default function Landing() {
     <div className={cn("h-[100dvh] w-full overflow-y-auto overflow-x-hidden bg-background custom-scrollbar relative", isRamadan && "font-ramadan")}>
       
       {/* THEME TOGGLE BUTTON & ARROW */}
-      <div className="fixed top-6 right-6 z-50 flex items-center gap-3">
+      <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
         <motion.div 
           animate={{ x: [0, 8, 0] }} 
           transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-          className={cn("flex items-center gap-1.5 pointer-events-none", isRamadan ? "text-amber-500" : "text-primary")}
+          className={cn("flex items-center gap-1.5 pointer-events-none hidden sm:flex", isRamadan ? "text-amber-500" : "text-primary")}
         >
           <span className={cn("text-[9px] sm:text-[10px] font-bold tracking-widest uppercase drop-shadow-md", isRamadan ? "font-ramadan" : "font-mono")}>
             {isRamadan ? "Cyber Mode" : "Ramadan Mode"}
@@ -114,13 +114,13 @@ export default function Landing() {
           whileTap={{ scale: 0.9 }}
           onClick={toggleTheme}
           className={cn(
-            "p-3 border rounded-full transition-all flex items-center justify-center",
+            "p-2.5 sm:p-3 border rounded-full transition-all flex items-center justify-center bg-black/60 backdrop-blur-md",
             isRamadan 
-              ? "bg-amber-500/10 border-amber-500 text-amber-500 shadow-[0_0_15px_rgba(251,191,36,0.3)] hover:bg-amber-500/20" 
-              : "bg-primary/10 border-primary text-primary shadow-[0_0_15px_rgba(0,255,0,0.2)] hover:bg-primary/20"
+              ? "border-amber-500 text-amber-500 shadow-[0_0_15px_rgba(251,191,36,0.3)] hover:bg-amber-500/20" 
+              : "border-primary text-primary shadow-[0_0_15px_rgba(0,255,0,0.2)] hover:bg-primary/20"
           )}
         >
-          {isRamadan ? <Moon className="w-5 h-5" /> : <Terminal className="w-5 h-5" />}
+          {isRamadan ? <Moon className="w-4 h-4 sm:w-5 sm:h-5" /> : <Terminal className="w-4 h-4 sm:w-5 sm:h-5" />}
         </motion.button>
       </div>
 

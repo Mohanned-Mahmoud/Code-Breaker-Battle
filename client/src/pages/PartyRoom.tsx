@@ -27,6 +27,9 @@ function UnifiedCyberInput({ value, onChange, disabled, colorTheme = "fuchsia" }
            return (
              <input 
                key={i} autoFocus 
+               inputMode="numeric"
+               pattern="[0-9]*"
+               type="text"
                className={cn("w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-white text-black text-center text-xl sm:text-2xl font-bold rounded-sm outline-none border-2", themeBorder)} 
                maxLength={1} 
                onChange={(e) => { 
@@ -637,7 +640,22 @@ export default function PartyRoom() {
                           <div className="flex gap-2 sm:gap-4">
                             {powerupState.code.split('').map((digit, i) => {
                                if (powerupState.active === 'change' && powerupState.step1Index === i) {
-                                 return <input key={i} autoFocus className="w-10 h-10 sm:w-12 sm:h-12 bg-white text-black text-center text-lg sm:text-xl font-bold rounded-sm outline-none border-2 border-blue-500" maxLength={1} onChange={(e) => { const val = e.target.value; if (/^\d$/.test(val)) { powerupMutation.mutate({ type: 'changeDigit', targetIndex: i, newDigit: val }); setPowerupState({ active: null, code: "", step1Index: null }); } }} />;
+                                 return <input 
+                                   key={i} 
+                                   autoFocus 
+                                   inputMode="numeric" // <-- Add this
+                                   pattern="[0-9]*"    // <-- Add this
+                                   type="text"         // <-- Add this
+                                   className="w-10 h-10 sm:w-12 sm:h-12 bg-white text-black text-center text-lg sm:text-xl font-bold rounded-sm outline-none border-2 border-blue-500" 
+                                   maxLength={1} 
+                                   onChange={(e) => { 
+                                     const val = e.target.value; 
+                                     if (/^\d$/.test(val)) { 
+                                       powerupMutation.mutate({ type: 'changeDigit', targetIndex: i, newDigit: val }); 
+                                       setPowerupState({ active: null, code: "", step1Index: null }); 
+                                     } 
+                                   }} 
+                                 />;
                                }
                                const isSelected = powerupState.step1Index === i;
                                return <button key={i} className={cn("w-10 h-10 sm:w-12 sm:h-12 bg-black text-center text-lg sm:text-xl font-bold rounded-sm border-2 transition-all outline-none", isSelected ? "border-white text-white scale-110" : "border-primary/50 text-primary/50")} onClick={() => { if (powerupState.active === 'change') setPowerupState(p => ({ ...p, step1Index: i })); else if (powerupState.active === 'swap') { if (powerupState.step1Index === null) setPowerupState(p => ({ ...p, step1Index: i })); else { powerupMutation.mutate({ type: 'swapDigits', swapIndex1: powerupState.step1Index, swapIndex2: i }); setPowerupState({ active: null, code: "", step1Index: null }); } } }}>{digit}</button>;
