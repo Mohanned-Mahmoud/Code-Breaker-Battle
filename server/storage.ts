@@ -82,7 +82,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deletePlayerLogs(gameId: number, playerLabel: string): Promise<void> { 
-    await db.update(logs).set({ isCorrupted: true }).where(and(eq(logs.gameId, gameId), like(logs.message, `%${playerLabel}%`))); 
+    await db.update(logs).set({ isCorrupted: true }).where(and(eq(logs.gameId, gameId), like(logs.message, `%${playerLabel}%`),like(logs.message, `%>> HITS:%`))); 
   }
 
   async resetGame(gameId: number): Promise<void> {
@@ -141,7 +141,12 @@ export class DatabaseStorage implements IStorage {
   }
   
   async clearPartyLogs(partyGameId: number): Promise<void> {
-    await db.update(partyLogs).set({ isCorrupted: true }).where(eq(partyLogs.partyGameId, partyGameId));
+    await db.update(partyLogs)
+      .set({ isCorrupted: true })
+      .where(and(
+        eq(partyLogs.partyGameId, partyGameId),
+        like(partyLogs.message, `%>> HITS:%`) // التعديل هنا: هيمسح التخمينات فقط
+      ));
   }
 
   async restartPartyGame(partyGameId: number): Promise<void> {

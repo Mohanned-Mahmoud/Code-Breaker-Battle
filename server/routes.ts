@@ -214,17 +214,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           const isCustom = game.mode === 'custom';
           const isGlitch = game.mode === 'glitch';
           const isBlitz = game.mode === 'blitz';
-          const isTimed = isBlitz || (isCustom && game.customTimer);
+          const isTimed = isBlitz || (isCustom && String(game.customTimer) === 'true');
 
-          const showFirewallOrDdos = isCustom ? game.allowFirewall : true; 
-          const showVirus = isCustom ? game.allowVirus : isGlitch; 
-          const showBruteforce = isCustom ? game.allowBruteforce : true;
-          const showChangeDigit = isCustom ? game.allowChangeDigit : true;
-          const showSwapDigits = isCustom ? game.allowSwapDigits : true;
-          const showEmp = isCustom ? game.allowEmp : isGlitch;
-          const showSpyware = isCustom ? game.allowSpyware : isGlitch;
-          const showHoneypot = isCustom ? game.allowHoneypot : isGlitch;
-          const showLogicBomb = isCustom ? game.allowLogicBomb : isGlitch;
+          const showFirewallOrDdos = isCustom ? String(game.allowFirewall) !== 'false' : true; 
+          const showVirus = isCustom ? String(game.allowVirus) !== 'false' : (isGlitch || game.mode === 'normal'); 
+          const showBruteforce = isCustom ? String(game.allowBruteforce) !== 'false' : true;
+          const showChangeDigit = isCustom ? String(game.allowChangeDigit) !== 'false' : true;
+          const showSwapDigits = isCustom ? String(game.allowSwapDigits) !== 'false' : true;
+          
+          // STRICT BOOLEAN FIX: يمنع تفعيل الخصائص لو مبعوتة كنص "false"
+          const showEmp = isCustom ? String(game.allowEmp) === 'true' : isGlitch;
+          const showSpyware = isCustom ? String(game.allowSpyware) === 'true' : isGlitch;
+          const showHoneypot = isCustom ? String(game.allowHoneypot) === 'true' : isGlitch;
+          const showLogicBomb = isCustom ? String(game.allowLogicBomb) === 'true' : isGlitch;
 
           const availablePowerups = [
               { id: 'Firewall', name: 'FIREWALL', enabled: !isTimed && showFirewallOrDdos },
@@ -552,20 +554,22 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           
           updates.phishingUsed = true;
           
-          const showFirewall = game.allowFirewall ?? true;
-          const showVirus = game.allowVirus ?? true;
-          const showBruteforce = game.allowBruteforce ?? true;
-          const showChangeDigit = game.allowChangeDigit ?? true;
-          const showSwapDigits = game.allowSwapDigits ?? true;
-          const showEmp = game.allowEmp ?? false;
-          const showSpyware = game.allowSpyware ?? false;
-          const showHoneypot = game.allowHoneypot ?? false;
-          const showLogicBomb = game.allowLogicBomb ?? false;
-          const showTimer = game.customTimer ?? false;
+          const showFirewallOrDdos = String(game.allowFirewall) !== 'false';
+          const showVirus = String(game.allowVirus) !== 'false';
+          const showBruteforce = String(game.allowBruteforce) !== 'false';
+          const showChangeDigit = String(game.allowChangeDigit) !== 'false';
+          const showSwapDigits = String(game.allowSwapDigits) !== 'false';
+          
+          // STRICT BOOLEAN FIX
+          const showEmp = String(game.allowEmp) === 'true';
+          const showSpyware = String(game.allowSpyware) === 'true';
+          const showHoneypot = String(game.allowHoneypot) === 'true';
+          const showLogicBomb = String(game.allowLogicBomb) === 'true';
+          const showTimer = String(game.customTimer) === 'true';
 
           const availablePowerups = [
-              { id: 'firewall', name: 'FIREWALL', enabled: showFirewall },
-              { id: 'timeHack', name: 'DDOS ATTACK', enabled: showTimer },
+              { id: 'firewall', name: 'FIREWALL', enabled: !showTimer && showFirewallOrDdos },
+              { id: 'timeHack', name: 'DDOS ATTACK', enabled: showTimer && showFirewallOrDdos },
               { id: 'virus', name: 'VIRUS', enabled: showVirus },
               { id: 'bruteforce', name: 'BRUTEFORCE', enabled: showBruteforce },
               { id: 'changeDigit', name: 'CHANGE DIGIT', enabled: showChangeDigit },
