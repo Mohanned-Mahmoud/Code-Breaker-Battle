@@ -9,6 +9,7 @@ import Landing from "@/pages/Landing";
 import GameRoom from "@/pages/GameRoom";
 import PartyRoom from "@/pages/PartyRoom";
 import HowToPlay from "@/pages/HowToPlay";
+import TeamRoom from "@/pages/TeamRoom";
 
 function Router() {
   return (
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/how-to-play" component={HowToPlay} />
       <Route path="/game/:id" component={GameRoom} />
       <Route path="/party/:id" component={PartyRoom} />
+      <Route path="/team/:id" component={TeamRoom} />
       <Route component={NotFound} />
     </Switch>
   );

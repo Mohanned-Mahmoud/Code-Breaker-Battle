@@ -229,3 +229,113 @@ export type PartyGameStateResponse = PartyGame & {
   guesses: PartyGuess[];
   timeLeft?: number;
 };
+
+// ==========================================
+// NEW: 2V2 TEAM MODE SCHEMAS
+// ==========================================
+
+export const teamGames = pgTable("team_games", {
+  id: serial("id").primaryKey(),
+  roomId: text("room_id").notNull(),
+  status: text("status").notNull().default("waiting"), // 'waiting', 'setup', 'playing', 'finished'
+  
+  // Turn System
+  turnTeam: text("turn_team").default("A"), // 'A' or 'B'
+  activePlayerIdA: integer("active_player_id_a"), // Player from Team A whose turn it is
+  activePlayerIdB: integer("active_player_id_b"), // Player from Team B whose turn it is
+  
+  // Combined 6-digit codes
+  teamACode: text("team_a_code"), 
+  teamBCode: text("team_b_code"),
+  
+  winnerTeam: text("winner_team"), // 'A' or 'B'
+  
+  turnStartedAt: timestamp("turn_started_at").defaultNow(),
+  turnCount: integer("turn_count").default(0),
+
+  // Custom Settings
+  customTimer: boolean("custom_timer").default(false),
+  allowFirewall: boolean("allow_firewall").default(true),
+  allowVirus: boolean("allow_virus").default(true),
+  allowBruteforce: boolean("allow_bruteforce").default(true),
+  allowChangeDigit: boolean("allow_change_digit").default(true),
+  allowSwapDigits: boolean("allow_swap_digits").default(true),
+  allowEmp: boolean("allow_emp").default(false),
+  allowSpyware: boolean("allow_spyware").default(false),
+  allowHoneypot: boolean("allow_honeypot").default(false),
+  allowPhishing: boolean("allow_phishing").default(false),
+  allowLogicBomb: boolean("allow_logic_bomb").default(false),
+
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const teamPlayers = pgTable("team_players", {
+  id: serial("id").primaryKey(),
+  teamGameId: integer("team_game_id").notNull(),
+  team: text("team").notNull(), // 'A' or 'B'
+  playerName: text("player_name").notNull(),
+  playerColor: text("player_color").notNull().default("#3B82F6"),
+  
+  partialCode: text("partial_code"), // 3 Digits only!
+  isSetup: boolean("is_setup").default(false),
+
+  equippedPowerups: text("equipped_powerups"), // <=== ضيف السطر ده هنا
+  
+  // Powerups Arsenal
+  firewallUsed: boolean("firewall_used").default(false),
+  timeHackUsed: boolean("time_hack_used").default(false),
+  virusUsed: boolean("virus_used").default(false),
+  bruteforceUsed: boolean("bruteforce_used").default(false),
+  changeDigitUsed: boolean("change_digit_used").default(false),
+  swapDigitsUsed: boolean("swap_digits_used").default(false),
+  empUsed: boolean("emp_used").default(false),
+  spywareUsed: boolean("spyware_used").default(false),
+  honeypotUsed: boolean("honeypot_used").default(false),
+  phishingUsed: boolean("phishing_used").default(false),
+  logicBombUsed: boolean("logic_bomb_used").default(false),
+  
+  // Status Effects
+  isFirewallActive: boolean("is_firewall_active").default(false),
+  isJammed: boolean("is_jammed").default(false),
+  isHoneypoted: boolean("is_honeypoted").default(false),
+  silencedTurns: integer("silenced_turns").default(0),
+
+  joinedAt: timestamp("joined_at").defaultNow(),
+});
+
+export const teamGuesses = pgTable("team_guesses", {
+  id: serial("id").primaryKey(),
+  teamGameId: integer("team_game_id").notNull(),
+  attackerId: integer("attacker_id").notNull(),
+  team: text("team").notNull(), // The team that made the guess
+  guess: text("guess").notNull(), // 6-digit guess
+  hits: integer("hits").notNull(),
+  blips: integer("blips").notNull(),
+  timestamp: timestamp("timestamp").defaultNow(),
+});
+
+export const teamLogs = pgTable("team_logs", {
+  id: serial("id").primaryKey(),
+  teamGameId: integer("team_game_id").notNull(),
+  type: text("type").notNull(),
+  message: text("message").notNull(),
+  timestamp: timestamp("timestamp").defaultNow(),
+  isCorrupted: boolean("is_corrupted").default(false),
+});
+
+// Zod Schemas & Types
+export const insertTeamGameSchema = createInsertSchema(teamGames);
+export const insertTeamPlayerSchema = createInsertSchema(teamPlayers);
+export const insertTeamGuessSchema = createInsertSchema(teamGuesses);
+export const insertTeamLogSchema = createInsertSchema(teamLogs);
+
+export type TeamGame = typeof teamGames.$inferSelect;
+export type TeamPlayer = typeof teamPlayers.$inferSelect;
+export type TeamGuess = typeof teamGuesses.$inferSelect;
+export type TeamLog = typeof teamLogs.$inferSelect;
+
+export type TeamGameStateResponse = TeamGame & {
+  players: TeamPlayer[];
+  guesses: TeamGuess[];
+  timeLeft?: number;
+};

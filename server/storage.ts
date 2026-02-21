@@ -2,7 +2,9 @@ import { db } from "./db";
 import { 
   games, guesses, logs, type Game, type Guess,
   partyGames, partyPlayers, partyGuesses, partyLogs, 
-  type PartyGame, type PartyPlayer, type PartyGuess, type PartyLog 
+  type PartyGame, type PartyPlayer, type PartyGuess, type PartyLog,
+  teamGames, teamPlayers, teamGuesses, teamLogs,
+  type TeamGame, type TeamPlayer, type TeamGuess, type TeamLog
 } from "@shared/schema";
 import { eq, lt, inArray, like, and } from "drizzle-orm";
 
@@ -40,6 +42,21 @@ export interface IStorage {
 
   restartPartyGame(partyGameId: number): Promise<void>;
   cleanupOldGames(): Promise<void>;
+
+  // --- Team Mode Interfaces ---
+  createTeamGame(customSettings?: any): Promise<TeamGame>;
+  getTeamGame(id: number): Promise<TeamGame | undefined>;
+  getTeamGameByRoomId(roomId: string): Promise<TeamGame | undefined>;
+  updateTeamGame(id: number, updates: Partial<TeamGame>): Promise<TeamGame>;
+  addTeamPlayer(teamGameId: number, team: string, playerName: string, playerColor?: string): Promise<TeamPlayer>;
+  getTeamPlayer(id: number): Promise<TeamPlayer | undefined>;
+  getTeamPlayers(teamGameId: number): Promise<TeamPlayer[]>;
+  updateTeamPlayer(id: number, updates: Partial<TeamPlayer>): Promise<TeamPlayer>;
+  createTeamGuess(guess: any): Promise<TeamGuess>;
+  getTeamGuesses(teamGameId: number): Promise<TeamGuess[]>;
+  createTeamLog(log: any): Promise<TeamLog>;
+  getTeamLogs(teamGameId: number): Promise<TeamLog[]>;
+  getAllTeamLogs(teamGameId: number): Promise<TeamLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -175,5 +192,49 @@ export class DatabaseStorage implements IStorage {
     const partyIds = oldPartyGames.map(g => g.id);
     if (partyIds.length > 0) { await db.delete(partyLogs).where(inArray(partyLogs.partyGameId, partyIds)); await db.delete(partyGuesses).where(inArray(partyGuesses.partyGameId, partyIds)); await db.delete(partyPlayers).where(inArray(partyPlayers.partyGameId, partyIds)); await db.delete(partyGames).where(inArray(partyGames.id, partyIds)); }
   }
+
+  // ==========================================
+  // TEAM MODE METHODS (2v2)
+  // ==========================================
+
+  async createTeamGame(customSettings?: any): Promise<TeamGame> {
+    const roomId = Math.random().toString(36).substring(2, 7).toUpperCase();
+    const insertData: any = { roomId };
+    if (customSettings) { 
+        insertData.customTimer = customSettings.timer; 
+        insertData.allowFirewall = customSettings.firewall; 
+        insertData.allowVirus = customSettings.virus; 
+        insertData.allowBruteforce = customSettings.bruteforce; 
+        insertData.allowChangeDigit = customSettings.changeDigit; 
+        insertData.allowSwapDigits = customSettings.swapDigits; 
+        insertData.allowEmp = customSettings.emp; 
+        insertData.allowSpyware = customSettings.spyware; 
+        insertData.allowHoneypot = customSettings.honeypot; 
+        insertData.allowPhishing = customSettings.phishing;
+        insertData.allowLogicBomb = customSettings.logicBomb;
+    }
+    const [game] = await db.insert(teamGames).values(insertData).returning(); 
+    return game;
+  }
+
+  async getTeamGame(id: number): Promise<TeamGame | undefined> { const [game] = await db.select().from(teamGames).where(eq(teamGames.id, id)); return game; }
+  async getTeamGameByRoomId(roomId: string): Promise<TeamGame | undefined> { const [game] = await db.select().from(teamGames).where(eq(teamGames.roomId, roomId)); return game; }
+  async updateTeamGame(id: number, updates: Partial<TeamGame>): Promise<TeamGame> { const [updated] = await db.update(teamGames).set(updates).where(eq(teamGames.id, id)).returning(); return updated; }
+  
+  async addTeamPlayer(teamGameId: number, team: string, playerName: string, playerColor: string = "#3B82F6"): Promise<TeamPlayer> { 
+    const [player] = await db.insert(teamPlayers).values({ teamGameId, team, playerName, playerColor }).returning(); 
+    return player; 
+  }
+
+  async getTeamPlayer(id: number): Promise<TeamPlayer | undefined> { const [player] = await db.select().from(teamPlayers).where(eq(teamPlayers.id, id)); return player; }
+  async getTeamPlayers(teamGameId: number): Promise<TeamPlayer[]> { return await db.select().from(teamPlayers).where(eq(teamPlayers.teamGameId, teamGameId)).orderBy(teamPlayers.joinedAt); }
+  async updateTeamPlayer(id: number, updates: Partial<TeamPlayer>): Promise<TeamPlayer> { const [updated] = await db.update(teamPlayers).set(updates).where(eq(teamPlayers.id, id)).returning(); return updated; }
+  
+  async createTeamGuess(guess: any): Promise<TeamGuess> { const [newGuess] = await db.insert(teamGuesses).values(guess).returning(); return newGuess; }
+  async getTeamGuesses(teamGameId: number): Promise<TeamGuess[]> { return await db.select().from(teamGuesses).where(eq(teamGuesses.teamGameId, teamGameId)); }
+  
+  async createTeamLog(log: any): Promise<TeamLog> { const [newLog] = await db.insert(teamLogs).values(log).returning(); return newLog; }
+  async getTeamLogs(teamGameId: number): Promise<TeamLog[]> { return await db.select().from(teamLogs).where(and(eq(teamLogs.teamGameId, teamGameId), eq(teamLogs.isCorrupted, false))).orderBy(teamLogs.timestamp); }
+  async getAllTeamLogs(teamGameId: number): Promise<TeamLog[]> { return await db.select().from(teamLogs).where(eq(teamLogs.teamGameId, teamGameId)).orderBy(teamLogs.timestamp); }
 }
 export const storage = new DatabaseStorage();

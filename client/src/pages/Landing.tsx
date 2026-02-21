@@ -35,7 +35,7 @@ export default function Landing() {
   const { theme, toggleTheme } = useTheme();
   const isRamadan = theme === "ramadan";
   
-  const [menuView, setMenuView] = useState<'main' | '1v1' | 'party'>('main');
+  const [menuView, setMenuView] = useState<'main' | '1v1' | 'party' | 'team'>('main');
 
   // --- 1v1 STATE ---
   const [mode, setMode] = useState<'normal' | 'blitz' | 'glitch' | 'custom'>('normal');
@@ -47,6 +47,9 @@ export default function Landing() {
   const [joinPartyId, setJoinPartyId] = useState("");
   const [partyWinCondition, setPartyWinCondition] = useState<'points'|'elimination'>('points');
   const [partyTargetPoints, setPartyTargetPoints] = useState(15);
+
+  // --- TEAM STATE ---
+  const [joinTeamId, setJoinTeamId] = useState("");
 
   const [customSettings, setCustomSettings] = useState({
       timer: false, firewall: true, virus: false, bruteforce: true, changeDigit: true, swapDigits: true,
@@ -87,9 +90,20 @@ export default function Landing() {
     },
     onSuccess: (data) => { setLocation(`/party/${data.id}`); }
   });
+  const createTeamGame = useMutation({
+    mutationFn: async ({ settings }: any) => {
+      const res = await fetch('/api/team/create', { 
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customSettings: settings }) 
+      });
+      return await res.json();
+    },
+    onSuccess: (data) => { setLocation(`/team/${data.id}`); }
+  });
 
   const handleJoinRoom = () => { if (!joinId.trim()) return; setLocation(`/game/${joinId}`); };
   const handleJoinPartyRoom = () => { if (!joinPartyId.trim()) return; setLocation(`/party/${joinPartyId}`); };
+  const handleJoinTeamRoom = () => { if (!joinTeamId.trim()) return; setLocation(`/team/${joinTeamId}`); };
 
   const is1v1Overloaded = mode === 'custom' && activePowerupsCount > 4;
 
@@ -237,7 +251,20 @@ export default function Landing() {
                        <Users className="w-8 h-8 mb-3 opacity-80 group-hover:opacity-100 transition-opacity" />
                        <span className={cn("font-black tracking-[0.2em] text-xl uppercase", isRamadan ? "font-ramadan" : "font-mono")}>PARTY MODE</span>
                        <span className={cn("text-[10px] opacity-50 mt-1 tracking-widest uppercase", isRamadan ? "font-ramadan" : "font-mono")}>3 to 6 Players Chaos</span>
-                       <span className="absolute top-4 right-4 w-3 h-3 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
+                    </button>
+
+                    <button onClick={() => setMenuView('team')} className={cn(
+                      "group relative w-full flex flex-col items-center justify-center p-6 border transition-all hover:scale-[1.02] active:scale-95",
+                      isRamadan 
+                        ? "bg-blue-500/10 border-blue-500/50 text-blue-400 hover:bg-blue-500/20 shadow-[0_0_30px_rgba(59,130,246,0.1)] rounded-2xl" 
+                        : "bg-cyan-500/10 border-cyan-500 text-cyan-500 hover:bg-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.1)]"
+                    )}>
+                       <Shield className="w-8 h-8 mb-3 opacity-80 group-hover:opacity-100 transition-opacity" />
+                       <span className={cn("font-black tracking-[0.2em] text-xl uppercase", isRamadan ? "font-ramadan" : "font-mono")}>2V2 TEAM BATTLE</span>
+                       <span className={cn("text-[10px] opacity-50 mt-1 tracking-widest uppercase", isRamadan ? "font-ramadan" : "font-mono")}>Co-op Squad Hacking</span>
+                       
+                       {/* 🔴 شارة الـ BETA 🔴 */}
+                       <span className="absolute top-3 right-3 bg-red-500 text-white text-[9px] font-black px-2 py-0.5 rounded tracking-widest shadow-[0_0_15px_rgba(239,68,68,0.8)] animate-pulse">BETA</span>
                     </button>
                   </div>
 
@@ -375,10 +402,9 @@ export default function Landing() {
                         {[
                           { id: 'free_for_all', label: 'FREE FOR ALL', icon: <Crosshair className="w-5 h-5 mb-2" />, color: isRamadan ? 'border-amber-500 bg-amber-500/20 text-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.2)]' : 'border-cyan-500 bg-cyan-500/20 text-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.2)]' },
                           { id: 'battle_royale', label: 'BATTLE ROYALE', icon: <Skull className="w-5 h-5 mb-2" />, color: 'border-red-500 bg-red-500/20 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]' },
-                          { id: 'bounty_contracts', label: 'BOUNTY CONTRACTS', icon: <Target className="w-5 h-5 mb-2" />, color: 'border-yellow-500 bg-yellow-500/20 text-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)]', badge: true }
+                          { id: 'bounty_contracts', label: 'BOUNTY CONTRACTS', icon: <Target className="w-5 h-5 mb-2" />, color: 'border-emerald-500 bg-emerald-500/20 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.2)]' }
                         ].map(m => (
                           <button key={m.id} onClick={() => { setPartySubMode(m.id as any); if(m.id === 'bounty_contracts') setPartyWinCondition('points'); }} className={cn("flex flex-col items-center justify-center p-3 border transition-all text-center relative overflow-hidden", theme === 'ramadan' ? 'rounded-xl' : 'rounded', partySubMode === m.id ? m.color : (isRamadan ? "border-amber-500/20 text-amber-400/50 hover:text-amber-400" : "border-fuchsia-500/20 text-fuchsia-500/50 hover:text-fuchsia-500"))}>
-                            {m.badge && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
                             {m.icon}<span className={cn("text-[9px] font-bold tracking-wider uppercase leading-tight", isRamadan ? "font-ramadan" : "font-mono")}>{m.label.split(' ').map((w,i) => <span key={i}>{w}<br/></span>)}</span>
                           </button>
                         ))}
@@ -397,10 +423,10 @@ export default function Landing() {
 
                            {(partyWinCondition === 'points' || partySubMode === 'bounty_contracts') && (
                              <div className="flex justify-between items-center">
-                               <span className={cn("text-[10px] tracking-widest", isRamadan ? "font-ramadan text-amber-400" : (partySubMode === 'bounty_contracts' ? "text-yellow-500 font-mono" : "text-cyan-500 font-mono"))}>TARGET POINTS:</span>
+                               <span className={cn("text-[10px] tracking-widest", isRamadan ? "font-ramadan text-amber-400" : (partySubMode === 'bounty_contracts' ? "text-emerald-500 font-mono" : "text-cyan-500 font-mono"))}>TARGET POINTS:</span>
                                <div className="flex gap-2">
                                  {[10, 15, 20].map(pts => (
-                                   <button key={pts} onClick={() => setPartyTargetPoints(pts)} className={cn("px-2 py-1 text-[10px] font-bold border transition-all", partyTargetPoints === pts ? (partySubMode === 'bounty_contracts' ? "bg-yellow-500 text-black border-yellow-500" : "bg-cyan-500 text-black border-cyan-500") : "border-transparent opacity-40")}>{pts}</button>
+                                   <button key={pts} onClick={() => setPartyTargetPoints(pts)} className={cn("px-2 py-1 text-[10px] font-bold border transition-all", partyTargetPoints === pts ? (partySubMode === 'bounty_contracts' ? "bg-emerald-500 text-black border-emerald-500" : "bg-cyan-500 text-black border-cyan-500") : "border-transparent opacity-40")}>{pts}</button>
                                  ))}
                                </div>
                              </div>
@@ -444,6 +470,62 @@ export default function Landing() {
                     </div>
                   </div>
                   <Button variant="ghost" onClick={() => setMenuView('main')} className={cn("w-full h-10 tracking-[0.2em] text-[10px] transition-all", isRamadan ? "text-purple-500/60 hover:text-purple-400 font-ramadan rounded-full" : "text-fuchsia-500/60 hover:text-fuchsia-500 font-mono")}><ArrowLeft className="mr-2 h-3 w-3" /> BACK TO MENU</Button>
+                </motion.div>
+              )}
+
+              {/* --- TEAM 2V2 MENU --- */}
+              {menuView === 'team' && (
+                <motion.div key="team-menu" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.2 }} className="flex flex-col items-center w-full space-y-6">
+                  
+                  <div className={cn(
+                    "w-full flex flex-col transition-all duration-700 relative space-y-6",
+                    isRamadan ? "border-2 border-blue-500/40 bg-[#0B132B]/90 backdrop-blur-xl rounded-[2.5rem] shadow-[0_0_60px_rgba(59,130,246,0.2)] p-6 md:p-8" : ""
+                  )}>
+                    {isRamadan && (
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent animate-pulse" />
+                    )}
+
+                    {/* JOIN SECTION */}
+                    <div className={cn("flex w-full group relative transition-all", isRamadan ? "shadow-[0_0_30px_rgba(59,130,246,0.15)] rounded-xl overflow-hidden" : "shadow-[0_0_20px_rgba(6,182,212,0.05)] focus-within:shadow-[0_0_20px_rgba(6,182,212,0.15)]")}>
+                      <div className={cn("flex items-center justify-center border border-r-0 px-3", isRamadan ? "bg-blue-500/10 border-blue-500/40 text-blue-400" : "bg-cyan-500/10 border-cyan-500/40 text-cyan-500")}><Users className="w-4 h-4 opacity-50" /></div>
+                      <input type="text" inputMode="numeric" placeholder="ENTER 2V2 ROOM ID..." value={joinTeamId} onChange={(e) => setJoinTeamId(e.target.value.replace(/\D/g, ''))} onKeyDown={(e) => e.key === 'Enter' && handleJoinTeamRoom()} className={cn("flex-1 bg-black/60 border-y px-3 py-3 text-sm tracking-widest focus:outline-none focus:bg-black transition-all placeholder:opacity-30 uppercase", isRamadan ? "border-blue-500/40 text-blue-400 font-ramadan" : "border-cyan-500/40 text-cyan-500 font-mono")} />
+                      <button onClick={handleJoinTeamRoom} disabled={!joinTeamId} className={cn("px-5 py-3 font-black tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 border", isRamadan ? "bg-blue-500 text-white border-blue-500 hover:bg-blue-400 font-ramadan" : "bg-cyan-500 text-black border-cyan-500 hover:bg-cyan-400 font-mono")}>JOIN</button>
+                    </div>
+                    
+                    {/* SEPARATOR */}
+                    <div className="flex items-center gap-4 w-full opacity-30">
+                      <div className={cn("flex-1 h-px", isRamadan ? "bg-blue-500" : "bg-cyan-500")}></div>
+                      <span className={cn("text-[10px] tracking-widest", isRamadan ? "text-blue-500 font-ramadan" : "text-cyan-500 font-mono")}>OR HOST 2V2</span>
+                      <div className={cn("flex-1 h-px", isRamadan ? "bg-blue-500" : "bg-cyan-500")}></div>
+                    </div>
+
+                    {/* CLEAN HOST OPTIONS (POWERUPS SELECTED IN LOBBY) */}
+                    <div className="w-full space-y-4">
+                      <div className={cn("w-full bg-black/40 border p-3", isRamadan ? 'rounded-2xl border-blue-500/30' : 'rounded border-cyan-500/30')}>
+                         <div className={cn("flex justify-between items-center mb-3 opacity-80 border-b pb-2", isRamadan ? "border-blue-500/20" : "border-cyan-500/20")}>
+                            <div className={cn("text-[10px] text-left", isRamadan ? "font-ramadan text-blue-400" : "font-mono text-cyan-400")}>{isRamadan ? "MATCH_SETTINGS.CONF" : "MATCH_SETTINGS.EXE"}</div>
+                         </div>
+                         <div className="grid grid-cols-1 gap-1">
+                           <CyberToggle label="30s TIMER (BLITZ)" icon={<Timer className="w-3 h-3"/>} colorClass="text-orange-500" checked={customSettings.timer} onChange={(v: boolean) => togglePowerup('timer', v)} />
+                         </div>
+                      </div>
+
+                      <button 
+                        onClick={() => createTeamGame.mutate({ 
+                          settings: { 
+                            timer: customSettings.timer, 
+                            firewall: true, virus: true, bruteforce: true, changeDigit: true, swapDigits: true, 
+                            emp: true, spyware: true, honeypot: true, phishing: true, logicBomb: true 
+                          } 
+                        })} 
+                        disabled={createTeamGame.isPending} 
+                        className={cn("w-full group relative px-8 py-4 border tracking-[0.3em] uppercase transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed", isRamadan ? "bg-blue-500/10 border-blue-500/50 text-blue-400 hover:bg-blue-500/20 rounded-xl font-ramadan shadow-[0_0_15px_rgba(59,130,246,0.3)]" : "bg-cyan-500/5 border-cyan-500 text-cyan-500 hover:bg-cyan-500/20 font-mono")}
+                      >
+                        {createTeamGame.isPending ? "GENERATING..." : `HOST 2V2 TEAM BATTLE`}
+                      </button>
+                    </div>
+                  </div>
+                  <Button variant="ghost" onClick={() => setMenuView('main')} className={cn("w-full h-10 tracking-[0.2em] text-[10px] transition-all", isRamadan ? "text-blue-500/60 hover:text-blue-400 font-ramadan rounded-full" : "text-cyan-500/60 hover:text-cyan-500 font-mono")}><ArrowLeft className="mr-2 h-3 w-3" /> BACK TO MENU</Button>
                 </motion.div>
               )}
             </AnimatePresence>

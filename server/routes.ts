@@ -3,6 +3,9 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "../shared/routes";
 import { GameStateResponse } from "@shared/schema";
+import { db } from "./db";
+import { teamLogs } from "@shared/schema";
+import { eq, and, like } from "drizzle-orm";
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
 
@@ -759,6 +762,328 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
        await storage.updatePartyGame(id, updates);
        res.json({ hits, blips });
     } catch (err) { res.status(400).json({ message: 'Invalid input' }); }
+  });
+// ==========================================
+  // 2V2 TEAM MODE ROUTES
+  // ==========================================
+
+  app.post('/api/team/create', async (req, res) => {
+    const { customSettings } = req.body;
+    const game = await storage.createTeamGame(customSettings);
+    res.status(201).json({ id: game.id, roomId: game.roomId });
+  });
+
+  app.post('/api/team/join', async (req, res) => {
+    const { roomId, playerName, playerColor, team } = req.body; // team should be 'A' or 'B'
+    
+    const game = await storage.getTeamGameByRoomId(roomId);
+    if (!game) return res.status(404).json({ message: 'Room not found' });
+    if (game.status !== 'waiting') return res.status(400).json({ message: 'Game already started or finished' });
+    
+    const players = await storage.getTeamPlayers(game.id);
+    const teamPlayersCount = players.filter(p => p.team === team).length;
+    
+    if (teamPlayersCount >= 2) return res.status(400).json({ message: `Team ${team} is full` });
+    if (players.some(p => p.playerName === playerName)) return res.status(400).json({ message: 'Name already taken' });
+    
+    const player = await storage.addTeamPlayer(game.id, team, playerName, playerColor);
+    res.json({ gameId: game.id, playerId: player.id, team });
+  });
+
+  app.get('/api/team/:id', async (req, res) => {
+    const id = Number(req.params.id);
+    const game = await storage.getTeamGame(id);
+    if (!game) return res.status(404).json({ message: 'Game not found' });
+    const players = await storage.getTeamPlayers(id);
+    const guesses = await storage.getTeamGuesses(id);
+    const logs = await storage.getTeamLogs(id);
+    
+    let timeLeft = 0;
+    if (game.customTimer && game.status === 'playing') {
+        const turnStart = game.turnStartedAt ? new Date(game.turnStartedAt).getTime() : new Date().getTime();
+        const elapsed = Math.floor((new Date().getTime() - turnStart) / 1000);
+        timeLeft = Math.max(0, 30 - elapsed);
+    }
+    
+    res.json({ ...game, players, guesses, logs, timeLeft });
+  });
+
+  // 1. مسار حفظ الأرقام (Lock)
+  app.post('/api/team/:id/lock', async (req, res) => {
+    try {
+      const { playerId, partialCode, powerups } = req.body;
+      if (!partialCode || partialCode.length !== 3) return res.status(400).json({ message: 'Invalid code' });
+      if (!powerups || powerups.length !== 4) return res.status(400).json({ message: 'You must select exactly 4 abilities' });
+
+      const id = Number(req.params.id);
+      const player = await storage.getTeamPlayer(playerId);
+      
+      // --- التعديل هنا: التأكد إن اللاعب موجود ---
+      if (!player) return res.status(400).json({ message: 'Player not found' });
+
+      const allPlayers = await storage.getTeamPlayers(id);
+      const partner = allPlayers.find(p => p.team === player.team && p.id !== playerId);
+
+      // التأكد إن مفيش تكرار للقدرات مع الزميل لو هو اختار قبلك
+      if (partner && partner.equippedPowerups) {
+         const partnerPws = JSON.parse(partner.equippedPowerups);
+         const overlap = powerups.some((pw: string) => partnerPws.includes(pw));
+         if (overlap) return res.status(400).json({ message: 'Conflict! Partner already locked one of these abilities.' });
+      }
+
+      await storage.updateTeamPlayer(playerId, { partialCode, equippedPowerups: JSON.stringify(powerups) });
+      res.json({ success: true });
+    } catch (err) { res.status(400).json({ message: 'Error locking loadout' }); }
+  });
+
+  // 2. مسار الجاهزية وبدء الجيم (Ready)
+  app.post('/api/team/:id/ready', async (req, res) => {
+    try {
+      const id = Number(req.params.id); 
+      const { playerId } = req.body;
+      await storage.updateTeamPlayer(playerId, { isSetup: true });
+      
+      const game = await storage.getTeamGame(id);
+      const players = await storage.getTeamPlayers(id);
+      
+      // Check if all 4 players are setup
+      if (players.length === 4 && players.every(p => p.isSetup)) {
+          // Merge codes for Team A
+          const teamA = players.filter(p => p.team === 'A');
+          const teamACode = (teamA[0].partialCode || "000") + (teamA[1].partialCode || "000");
+          
+          // Merge codes for Team B
+          const teamB = players.filter(p => p.team === 'B');
+          const teamBCode = (teamB[0].partialCode || "000") + (teamB[1].partialCode || "000");
+
+          await storage.updateTeamGame(id, {
+             status: 'playing',
+             teamACode,
+             teamBCode,
+             turnTeam: 'A',
+             activePlayerIdA: teamA[0].id, // First player in Team A starts
+             activePlayerIdB: teamB[0].id, // First player in Team B (for their turn)
+             turnStartedAt: new Date()
+          });
+          
+          await storage.createTeamLog({ teamGameId: id, message: `SYSTEM: ALL TEAMS READY. 6-DIGIT MASTER CODES LOCKED. LET THE HACKING BEGIN!`, type: 'warning' });
+      }
+      res.json({ success: true });
+    } catch (err) { res.status(400).json({ message: 'Error in ready state' }); }
+  });
+
+  // 3. مسار الشات الخاص بالتيم (Team Chat)
+  app.post('/api/team/:id/chat', async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const { playerId, message } = req.body;
+      const player = await storage.getTeamPlayer(playerId);
+      if (player) {
+        await storage.createTeamLog({
+            teamGameId: id, 
+            type: `chat_${player.team}`, // يتم حفظه بنوع خاص بالفريق عشان الواجهة تفلتره
+            message: `${player.playerName}: ${message}`
+        });
+      }
+      res.json({ success: true });
+    } catch (err) { res.status(400).json({ message: 'Error sending message' }); }
+  });
+
+  // ==========================================
+  // 4. مسار التخمين (EXECUTE HACK)
+  // ==========================================
+  app.post('/api/team/:id/guess', async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const { attackerId, guess } = req.body; 
+      
+      const game = await storage.getTeamGame(id);
+      if (!game || game.status !== 'playing') return res.status(400).json({ message: 'Game not active' });
+      
+      const attacker = await storage.getTeamPlayer(attackerId);
+      if (!attacker) return res.status(400).json({ message: 'Attacker not found' });
+      if (game.turnTeam !== attacker.team) return res.status(400).json({ message: 'Not your team turn' });
+      
+      const activeOperatorId = attacker.team === 'A' ? game.activePlayerIdA : game.activePlayerIdB;
+      if (activeOperatorId !== attacker.id) return res.status(400).json({ message: 'Not your turn to execute!' });
+
+      const targetTeam = attacker.team === 'A' ? 'B' : 'A';
+      const targetCode = targetTeam === 'A' ? game.teamACode : game.teamBCode;
+
+      // --- LOGIC BOMB DECREMENT (خصم دور الصمت) ---
+      if (attacker.silencedTurns && attacker.silencedTurns > 0) {
+          await storage.updateTeamPlayer(attacker.id, { silencedTurns: attacker.silencedTurns - 1 });
+      }
+
+      let hits = 0; let blips = 0;
+      const guessArr = guess.split(''); const targetArr = targetCode!.split('');
+      const usedInTarget = new Array(6).fill(false); const usedInGuess = new Array(6).fill(false);
+
+      for (let i = 0; i < 6; i++) {
+        if (guessArr[i] === targetArr[i]) { hits++; usedInTarget[i] = true; usedInGuess[i] = true; }
+      }
+      for (let i = 0; i < 6; i++) {
+        if (!usedInGuess[i]) {
+          for (let j = 0; j < 6; j++) {
+            if (!usedInTarget[j] && guessArr[i] === targetArr[j]) { blips++; usedInTarget[j] = true; break; }
+          }
+        }
+      }
+
+      let displayHits = hits;
+      let displayBlips = blips;
+
+      const allPlayers = await storage.getTeamPlayers(id);
+      const isTargetHoneypoted = allPlayers.some(p => p.team === targetTeam && p.isHoneypoted);
+
+      // --- تطبيق تأثيرات الـ EMP والـ HONEYPOT ---
+      if (hits !== 6) {
+          if (attacker.isJammed) {
+              displayHits = -1; displayBlips = -1;
+              await storage.updateTeamPlayer(attacker.id, { isJammed: false });
+          } else if (isTargetHoneypoted) {
+              displayHits = hits > 0 ? 0 : 1; 
+              displayBlips = blips > 0 ? 0 : (hits === 0 ? 2 : 1);
+              // مسح الفخ من الفريق المستهدف بعد ما اشتغل
+              for (const p of allPlayers) {
+                  if (p.team === targetTeam && p.isHoneypoted) await storage.updateTeamPlayer(p.id, { isHoneypoted: false });
+              }
+          }
+      }
+
+      await storage.createTeamGuess({ teamGameId: id, attackerId: attacker.id, team: attacker.team, guess, hits: displayHits, blips: displayBlips });
+
+      let logMessage = displayHits === -1 
+        ? `[TEAM ${attacker.team}] ${attacker.playerName} HACKED ENEMY: ${guess} >> HITS: ░░ | BLIPS: ░░ [JAMMED]`
+        : `[TEAM ${attacker.team}] ${attacker.playerName} HACKED ENEMY: ${guess} >> HITS: ${displayHits} | BLIPS: ${displayBlips}`;
+
+      if (hits === 6) {
+        await storage.updateTeamGame(id, { status: 'finished', winnerTeam: attacker.team });
+        await storage.createTeamLog({ teamGameId: id, message: `CRITICAL ALERT: TEAM ${attacker.team} CRACKED THE 6-DIGIT MASTER CODE AND WON!`, type: 'success' });
+      } else {
+        const teamMembers = allPlayers.filter(p => p.team === attacker.team);
+        const nextOperator = teamMembers.find(p => p.id !== attacker.id) || attacker; 
+        
+        const updates: any = { turnTeam: targetTeam, turnCount: (game.turnCount || 0) + 1, turnStartedAt: new Date() };
+        if (attacker.team === 'A') updates.activePlayerIdA = nextOperator.id;
+        if (attacker.team === 'B') updates.activePlayerIdB = nextOperator.id;
+
+        await storage.updateTeamGame(id, updates);
+        await storage.createTeamLog({ teamGameId: id, message: logMessage, type: 'warning' });
+      }
+
+      res.json({ success: true, hits, blips });
+    } catch (err) { res.status(400).json({ message: 'Error processing hack' }); }
+  });
+
+  // ==========================================
+  // 5. مسار تفعيل الباور-أبس (POWERUPS)
+  // ==========================================
+
+  app.post('/api/team/:id/powerup', async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const { attackerId, type, targetIndex, newDigit, swapIndex1, swapIndex2 } = req.body;
+
+      const game = await storage.getTeamGame(id);
+      const attacker = await storage.getTeamPlayer(attackerId);
+      if (!game || !attacker) return res.status(400).json({ message: 'Invalid data' });
+
+      const activeOperatorId = attacker.team === 'A' ? game.activePlayerIdA : game.activePlayerIdB;
+      if (game.turnTeam !== attacker.team || activeOperatorId !== attacker.id) {
+          return res.status(400).json({ message: 'Not your turn to use powerups!' });
+      }
+
+      // --- 🔴 التعديل هنا: منع القدرات لو اللاعب مضروب بـ Logic Bomb ---
+      if (attacker.silencedTurns && attacker.silencedTurns > 0) {
+          return res.status(400).json({ message: 'SYSTEM JAMMED: You are SILENCED and cannot use abilities!' });
+      }
+
+      // التأكد إن القدرة دي موجودة في اللود-أوت بتاع اللاعب
+      const equipped = attacker.equippedPowerups ? JSON.parse(attacker.equippedPowerups) : [];
+      if (!equipped.includes(type)) {
+          return res.status(400).json({ message: 'Ability not equipped in your loadout!' });
+      }
+
+      let logMessage = "";
+      const targetTeam = attacker.team === 'A' ? 'B' : 'A';
+      const myCode = attacker.team === 'A' ? game.teamACode : game.teamBCode;
+      const targetCode = targetTeam === 'A' ? game.teamACode : game.teamBCode;
+      const allPlayers = await storage.getTeamPlayers(id);
+      
+      const gameUpdates: any = {};
+      const attackerUpdates: any = {};
+
+      if (type === 'firewall') {
+          if (attacker.firewallUsed) return res.status(400).json({ message: 'Already used' });
+          attackerUpdates.firewallUsed = true;
+          logMessage = `🛡️ SYSTEM: TEAM ${attacker.team} ACTIVATED FIREWALL!`;
+      } else if (type === 'timeHack') {
+          if (attacker.timeHackUsed) return res.status(400).json({ message: 'Already used' });
+          attackerUpdates.timeHackUsed = true;
+          gameUpdates.turnStartedAt = new Date(Date.now() - 20000);
+          logMessage = `⏱️ SYSTEM: TEAM ${attacker.team} LAUNCHED DDOS ATTACK! ENEMY TIME REDUCED BY 20S.`;
+      } else if (type === 'virus') {
+          if (attacker.virusUsed) return res.status(400).json({ message: 'Already used' });
+          attackerUpdates.virusUsed = true;
+          await db.update(teamLogs).set({ isCorrupted: true }).where(and(eq(teamLogs.teamGameId, id), like(teamLogs.message, `%>> HITS:%`), like(teamLogs.message, `%[TEAM ${targetTeam}]%`)));
+          logMessage = `🦠 SYSTEM: TEAM ${attacker.team} DEPLOYED VIRUS! ENEMY HACK HISTORY CORRUPTED.`;
+      } else if (type === 'bruteforce') {
+          if (attacker.bruteforceUsed) return res.status(400).json({ message: 'Already used' });
+          attackerUpdates.bruteforceUsed = true;
+          logMessage = `⚡ SYSTEM: TEAM ${attacker.team} USED BRUTEFORCE. 1ST ENEMY DIGIT IS [${targetCode![0]}].`;
+      } else if (type === 'emp') {
+          if (attacker.empUsed) return res.status(400).json({ message: 'Already used' });
+          attackerUpdates.empUsed = true;
+          for (const p of allPlayers) { if (p.team === targetTeam) await storage.updateTeamPlayer(p.id, { isJammed: true }); }
+          logMessage = `📡 SYSTEM: TEAM ${attacker.team} TRIGGERED EMP! ENEMY TEAM SIGNAL JAMMED.`;
+      } else if (type === 'spyware') {
+          if (attacker.spywareUsed) return res.status(400).json({ message: 'Already used' });
+          attackerUpdates.spywareUsed = true;
+          const codeSum = targetCode!.split('').reduce((acc, curr) => acc + parseInt(curr), 0);
+          logMessage = `👁️ SYSTEM: TEAM ${attacker.team} DEPLOYED SPYWARE. ENEMY CODE SUM = ${codeSum}`;
+      } else if (type === 'changeDigit') {
+          if (attacker.changeDigitUsed) return res.status(400).json({ message: 'Already used' });
+          attackerUpdates.changeDigitUsed = true;
+          let codeArr = myCode!.split(''); codeArr[targetIndex] = newDigit.toString();
+          if (attacker.team === 'A') gameUpdates.teamACode = codeArr.join(''); else gameUpdates.teamBCode = codeArr.join('');
+          logMessage = `✍️ SYSTEM: TEAM ${attacker.team} MUTATED THEIR MASTER CODE!`;
+      } else if (type === 'swapDigits') {
+          if (attacker.swapDigitsUsed) return res.status(400).json({ message: 'Already used' });
+          attackerUpdates.swapDigitsUsed = true;
+          let codeArr = myCode!.split(''); const temp = codeArr[swapIndex1]; codeArr[swapIndex1] = codeArr[swapIndex2]; codeArr[swapIndex2] = temp;
+          if (attacker.team === 'A') gameUpdates.teamACode = codeArr.join(''); else gameUpdates.teamBCode = codeArr.join('');
+          logMessage = `🔀 SYSTEM: TEAM ${attacker.team} SHUFFLED THEIR MASTER CODE!`;
+      } else if (type === 'logicBomb') {
+          if (attacker.logicBombUsed) return res.status(400).json({ message: 'Already used' });
+          attackerUpdates.logicBombUsed = true;
+          // إسكات كل لاعبي الفريق التاني
+          for (const p of allPlayers) { if (p.team === targetTeam) await storage.updateTeamPlayer(p.id, { silencedTurns: 2 }); }
+          logMessage = `💣 [LOGIC BOMB] TEAM ${attacker.team} THREW A LOGIC BOMB! ENEMY TEAM SILENCED FOR 2 TURNS!`;
+      } else if (type === 'phishing') {
+          if (attacker.phishingUsed) return res.status(400).json({ message: 'Already used' });
+          attackerUpdates.phishingUsed = true;
+          const enemyPlayers = allPlayers.filter(p => p.team === targetTeam);
+          let allEnemyEquipped: string[] = [];
+          enemyPlayers.forEach(ep => { if (ep.equippedPowerups) allEnemyEquipped.push(...JSON.parse(ep.equippedPowerups).filter((pw:string) => !(ep as any)[`${pw}Used`])); });
+          if (allEnemyEquipped.length === 0) { logMessage = `🎣 SYSTEM: TEAM ${attacker.team} LAUNCHED PHISHING, BUT ENEMY ARSENAL IS EMPTY!`; } 
+          else {
+              const stolenType = allEnemyEquipped[Math.floor(Math.random() * allEnemyEquipped.length)];
+              const victim = enemyPlayers.find(ep => ep.equippedPowerups && JSON.parse(ep.equippedPowerups).includes(stolenType));
+              if (victim) await storage.updateTeamPlayer(victim.id, { [`${stolenType}Used`]: true });
+              attackerUpdates[`${stolenType}Used`] = false; 
+              equipped.push(stolenType);
+              attackerUpdates.equippedPowerups = JSON.stringify(equipped);
+              logMessage = `🎣 SYSTEM: TEAM ${attacker.team} DEPLOYED PHISHING AND STOLE [${stolenType.toUpperCase()}]!`;
+          }
+      }
+
+      await storage.updateTeamPlayer(attackerId, attackerUpdates);
+      if (Object.keys(gameUpdates).length > 0) await storage.updateTeamGame(id, gameUpdates);
+      await storage.createTeamLog({ teamGameId: id, message: logMessage, type: 'warning' });
+      res.json({ success: true });
+
+    } catch (err) { res.status(400).json({ message: 'Error using powerup' }); }
   });
 
   return httpServer;
