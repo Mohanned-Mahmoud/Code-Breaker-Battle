@@ -117,6 +117,7 @@ export default function HowToPlay() {
               : (activeTab === 'powerups' ? "bg-emerald-500/20 border-emerald-500 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.2)]" : "border-emerald-500/20 text-emerald-500/50 hover:border-emerald-500/50")
           )}>
             <Zap className="w-4 h-4" /> ARSENAL
+            <NotificationDot /> {/* ADDED RED DOT HERE FOR ROOTKIT UPDATE */}
           </button>
         </div>
 
@@ -298,6 +299,20 @@ export default function HowToPlay() {
                     <div>
                       <h4 className="font-bold text-zinc-400 text-sm pr-6">LOGIC BOMB (SILENCE)</h4>
                       <p className="text-[10px] text-zinc-300/70 mt-1">Throws a logic bomb that completely disables the enemy's ability to use ANY powerups for 2 turns!</p>
+                    </div>
+                  </div>
+
+                  {/* --- NEW ROOTKIT ENTRY --- */}
+                  <div className={cn("p-3 border flex gap-3 relative", isRamadan ? "rounded-xl border-red-600/50 bg-black/40" : "border-red-600/50 bg-red-950/20")}>
+                    <Skull className="w-8 h-8 text-red-600 shrink-0" />
+                    <div>
+                      <h4 className="font-bold text-red-600 text-sm flex items-center gap-2">
+                        ROOTKIT (REVERT)
+                        <span className="text-[8px] bg-red-600 text-white px-1.5 py-0.5 rounded tracking-widest font-black animate-pulse">NEW</span>
+                      </h4>
+                      <p className="text-[10px] text-red-300/80 mt-1">
+                        Reverts the enemy's code to their original Day-1 setup. Sacrifices 2 of your unused powerups, or completely restores the enemy's arsenal if you don't have enough to sacrifice! Ends your turn.
+                      </p>
                     </div>
                   </div>
 

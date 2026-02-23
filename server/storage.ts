@@ -79,6 +79,7 @@ export class DatabaseStorage implements IStorage {
         insertData.allowHoneypot = customSettings.honeypot;
         insertData.allowPhishing = customSettings.phishing; 
         insertData.allowLogicBomb = customSettings.logicBomb; // NEW: Logic Bomb
+        insertData.allowRootkit = customSettings.rootkit; // NEW: Rootkit
     }
     const [game] = await db.insert(games).values(insertData).returning(); return game;
   }
@@ -107,8 +108,8 @@ export class DatabaseStorage implements IStorage {
     await db.update(games).set({ 
         status: 'waiting', turn: 'p1', winner: null, turnCount: 0, nextGlitchTurn: Math.floor(Math.random() * 6) + 3, 
         isFirewallActive: false, isTimeHackActive: false, p1Jammed: false, p2Jammed: false, p1Honeypoted: false, p2Honeypoted: false, 
-        p1Code: null, p1Setup: false, p1FirewallUsed: false, p1TimeHackUsed: false, p1VirusUsed: false, p1BruteforceUsed: false, p1ChangeDigitUsed: false, p1SwapDigitsUsed: false, p1EmpUsed: false, p1SpywareUsed: false, p1HoneypotUsed: false, p1PhishingUsed: false, p1LogicBombUsed: false, p1SilencedTurns: 0,
-        p2Code: null, p2Setup: false, p2FirewallUsed: false, p2TimeHackUsed: false, p2VirusUsed: false, p2BruteforceUsed: false, p2ChangeDigitUsed: false, p2SwapDigitsUsed: false, p2EmpUsed: false, p2SpywareUsed: false, p2HoneypotUsed: false, p2PhishingUsed: false, p2LogicBombUsed: false, p2SilencedTurns: 0
+        p1Code: null, p1Setup: false, p1FirewallUsed: false, p1TimeHackUsed: false, p1VirusUsed: false, p1BruteforceUsed: false, p1ChangeDigitUsed: false, p1SwapDigitsUsed: false, p1EmpUsed: false, p1SpywareUsed: false, p1HoneypotUsed: false, p1PhishingUsed: false, p1LogicBombUsed: false, p1SilencedTurns: 0, p1RootkitUsed: false,
+        p2Code: null, p2Setup: false, p2FirewallUsed: false, p2TimeHackUsed: false, p2VirusUsed: false, p2BruteforceUsed: false, p2ChangeDigitUsed: false, p2SwapDigitsUsed: false, p2EmpUsed: false, p2SpywareUsed: false, p2HoneypotUsed: false, p2PhishingUsed: false, p2LogicBombUsed: false, p2SilencedTurns: 0, p2RootkitUsed: false
     }).where(eq(games.id, gameId));
   }
 
