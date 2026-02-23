@@ -42,7 +42,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   
   app.get('/api/games/:id/code/:player', async (req, res) => { const game = await storage.getGame(Number(req.params.id)); if (!game) return res.status(404).json({ message: 'Not found' }); res.json({ code: req.params.player === 'p1' ? game.p1Code : game.p2Code }); });
   
-  app.post(api.games.setup.path, async (req, res) => { try { const id = Number(req.params.id); const { player, code } = api.games.setup.input.parse(req.body); const game = await storage.getGame(id); if (!game) return res.status(404).json({ message: 'Not found' }); const updates: any = {}; if (player === 'p1') { updates.p1Code = code; updates.p1Setup = true; } else { updates.p2Code = code; updates.p2Setup = true; } const isP1Ready = player === 'p1' ? true : game.p1Setup; const isP2Ready = player === 'p2' ? true : game.p2Setup; if (isP1Ready && isP2Ready) { updates.status = 'playing'; updates.turn = 'p1'; updates.turnStartedAt = new Date(); } await storage.updateGame(id, updates); res.json({ success: true }); } catch (err) { res.status(400).json({ message: 'Invalid input' }); } });
+  app.post(api.games.setup.path, async (req, res) => { try { const id = Number(req.params.id); const { player, code } = api.games.setup.input.parse(req.body); const game = await storage.getGame(id); if (!game) return res.status(404).json({ message: 'Not found' }); const updates: any = {}; if (player === 'p1') { updates.p1Code = code; updates.p1OriginalCode = code; updates.p1Setup = true; } else { updates.p2Code = code; updates.p2OriginalCode = code; updates.p2Setup = true; } const isP1Ready = player === 'p1' ? true : game.p1Setup; const isP2Ready = player === 'p2' ? true : game.p2Setup; if (isP1Ready && isP2Ready) { updates.status = 'playing'; updates.turn = 'p1'; updates.turnStartedAt = new Date(); } await storage.updateGame(id, updates); res.json({ success: true }); } catch (err) { res.status(400).json({ message: 'Invalid input' }); } });
   
   // ==========================================
   // UPDATED GUESS ROUTE (WITH RANDOM GLITCHES)
@@ -103,8 +103,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
             await storage.createLog({ gameId: id, message: `[GLITCH] SYSTEM REBOOT: ALL MASTER CODES SHUFFLED!`, type: 'error' }); 
             
           } else if (glitchType === 1) { 
-            updates.p1FirewallUsed = false; updates.p1TimeHackUsed = false; updates.p1VirusUsed = false; updates.p1BruteforceUsed = false; updates.p1ChangeDigitUsed = false; updates.p1SwapDigitsUsed = false; updates.p1EmpUsed = false; updates.p1SpywareUsed = false; updates.p1HoneypotUsed = false; updates.p1PhishingUsed = false; updates.p1LogicBombUsed = false; updates.p1SilencedTurns = 0;
-            updates.p2FirewallUsed = false; updates.p2TimeHackUsed = false; updates.p2VirusUsed = false; updates.p2BruteforceUsed = false; updates.p2ChangeDigitUsed = false; updates.p2SwapDigitsUsed = false; updates.p2EmpUsed = false; updates.p2SpywareUsed = false; updates.p2HoneypotUsed = false; updates.p2PhishingUsed = false; updates.p2LogicBombUsed = false; updates.p2SilencedTurns = 0;
+            updates.p1FirewallUsed = false; updates.p1TimeHackUsed = false; updates.p1VirusUsed = false; updates.p1BruteforceUsed = false; updates.p1ChangeDigitUsed = false; updates.p1SwapDigitsUsed = false; updates.p1EmpUsed = false; updates.p1SpywareUsed = false; updates.p1HoneypotUsed = false; updates.p1PhishingUsed = false; updates.p1LogicBombUsed = false; updates.p1SilencedTurns = 0; updates.p1RootkitUsed = false;
+            updates.p2FirewallUsed = false; updates.p2TimeHackUsed = false; updates.p2VirusUsed = false; updates.p2BruteforceUsed = false; updates.p2ChangeDigitUsed = false; updates.p2SwapDigitsUsed = false; updates.p2EmpUsed = false; updates.p2SpywareUsed = false; updates.p2HoneypotUsed = false; updates.p2PhishingUsed = false; updates.p2LogicBombUsed = false; updates.p2SilencedTurns = 0; updates.p2RootkitUsed = false;
             await storage.createLog({ gameId: id, message: `[GLITCH] FIREWALL DOWN: ALL POWERUPS RESTORED!`, type: 'success' }); 
             
           } else if (glitchType === 2) { 
@@ -206,6 +206,74 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           logMessage = `[LOGIC BOMB] ${playerLabel} THREW A LOGIC BOMB! OPPONENT IS SILENCED FOR 2 TURNS!`; 
       }
       
+      // --- ROOTKIT LOGIC (1v1) ---
+      else if (type === 'rootkit') {
+          const targetPrefix = player === 'p1' ? 'p2' : 'p1';
+          const myPrefix = player === 'p1' ? 'p1' : 'p2';
+          
+          updates[`${myPrefix}RootkitUsed`] = true;
+          
+          const originalCode = player === 'p1' ? game.p2OriginalCode : game.p1OriginalCode;
+          updates[`${targetPrefix}Code`] = originalCode;
+          
+          // First, we must identify which powerups are actually enabled in this specific match
+          const isCustom = game.mode === 'custom';
+          const isGlitch = game.mode === 'glitch';
+          const isBlitz = game.mode === 'blitz';
+          const isTimed = isBlitz || (isCustom && String(game.customTimer) === 'true');
+
+          const showFirewallOrDdos = isCustom ? String(game.allowFirewall) !== 'false' : true; 
+          const showVirus = isCustom ? String(game.allowVirus) !== 'false' : (isGlitch || game.mode === 'normal'); 
+          const showBruteforce = isCustom ? String(game.allowBruteforce) !== 'false' : true;
+          const showChangeDigit = isCustom ? String(game.allowChangeDigit) !== 'false' : true;
+          const showSwapDigits = isCustom ? String(game.allowSwapDigits) !== 'false' : true;
+          const showEmp = isCustom ? String(game.allowEmp) === 'true' : isGlitch;
+          const showSpyware = isCustom ? String(game.allowSpyware) === 'true' : isGlitch;
+          const showHoneypot = isCustom ? String(game.allowHoneypot) === 'true' : isGlitch;
+          const showLogicBomb = isCustom ? String(game.allowLogicBomb) === 'true' : isGlitch;
+
+          const availablePowerups = [
+              { id: 'Firewall', name: 'FIREWALL', enabled: !isTimed && showFirewallOrDdos },
+              { id: 'TimeHack', name: 'DDOS ATTACK', enabled: isTimed && showFirewallOrDdos },
+              { id: 'Virus', name: 'VIRUS', enabled: showVirus },
+              { id: 'Bruteforce', name: 'BRUTEFORCE', enabled: showBruteforce },
+              { id: 'ChangeDigit', name: 'CHANGE DIGIT', enabled: showChangeDigit },
+              { id: 'SwapDigits', name: 'SWAP DIGITS', enabled: showSwapDigits },
+              { id: 'Emp', name: 'EMP JAMMER', enabled: showEmp },
+              { id: 'Spyware', name: 'SPYWARE', enabled: showSpyware },
+              { id: 'Honeypot', name: 'HONEYPOT', enabled: showHoneypot },
+              { id: 'LogicBomb', name: 'LOGIC BOMB', enabled: showLogicBomb }
+          ];
+          
+          // Filter to find powerups that are ENABLED in this match AND UNUSED by the attacker
+          const myUnused = availablePowerups.filter(p => p.enabled && !(game as any)[`${myPrefix}${p.id}Used`]);
+          
+          if (myUnused.length >= 2) {
+              // Sacrifice 2 random available powerups
+              const sacrificed = myUnused.sort(() => 0.5 - Math.random()).slice(0, 2);
+              
+              sacrificed.forEach(p => {
+                  updates[`${myPrefix}${p.id}Used`] = true; // Attacker loses it
+                  updates[`${targetPrefix}${p.id}Used`] = false; // Defender gains it
+              });
+              
+              const sacrificedNames = sacrificed.map(p => p.name).join(" and ");
+              logMessage = `[ROOTKIT] ${playerLabel} REVERTED ENEMY CODE TO DAY-1! SACRIFICED [ ${sacrificedNames} ] TO OPPONENT. TURN ENDED.`;
+          } else {
+              // Punish attacker: Restore all enabled enemy powerups (Rootkit is naturally excluded)
+              availablePowerups.forEach(p => {
+                  if (p.enabled) {
+                      updates[`${targetPrefix}${p.id}Used`] = false; 
+                  }
+              });
+              logMessage = `[ROOTKIT] ${playerLabel} EXECUTED ROOTKIT BUT LACKED SACRIFICES! ENEMY SYSTEMS COMPLETELY REBOOTED (ALL POWERUPS RESTORED). TURN ENDED.`;
+          }
+          
+          // Rootkit instantly ends the turn!
+          updates.turn = targetPrefix;
+          updates.turnCount = (game.turnCount || 0) + 1;
+      }
+
       // --- PERFECTLY SYNCED PHISHING ATTACK LOGIC (1v1) ---
       else if (type === 'phishing') {
           const playerUsedProp = player === 'p1' ? 'p1PhishingUsed' : 'p2PhishingUsed';

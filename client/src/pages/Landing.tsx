@@ -53,7 +53,7 @@ export default function Landing() {
 
   const [customSettings, setCustomSettings] = useState({
       timer: false, firewall: true, virus: false, bruteforce: true, changeDigit: true, swapDigits: true,
-      emp: false, spyware: false, honeypot: false, phishing: false, logicBomb: false
+      emp: false, spyware: false, honeypot: false, phishing: false, logicBomb: false, rootkit: false
   });
 
   const activePowerupsCount = [
@@ -62,8 +62,9 @@ export default function Landing() {
   ].filter(Boolean).length;
 
   const togglePowerup = (key: keyof typeof customSettings, value: boolean) => {
-    if (menuView === '1v1' && key !== 'timer' && value && activePowerupsCount >= 4) {
-      toast({ title: "MAXIMUM CAPACITY", description: "You can only equip up to 4 powerups in 1v1 matches.", variant: "destructive" });
+    // 2. Add `key !== 'rootkit'` to bypass the block
+    if (menuView === '1v1' && key !== 'timer' && key !== 'rootkit' && value && activePowerupsCount >= 4) {
+      toast({ title: "MAXIMUM CAPACITY", description: "You can only equip up to 4 standard powerups in 1v1 matches.", variant: "destructive" });
       return;
     }
     setCustomSettings(p => ({ ...p, [key]: value }));
@@ -237,6 +238,7 @@ export default function Landing() {
                         ? "bg-amber-500/10 border-amber-500/50 text-amber-400 hover:bg-amber-500/20 shadow-[0_0_30px_rgba(251,191,36,0.1)] rounded-2xl" 
                         : "bg-primary/10 border-primary text-primary hover:bg-primary/20 shadow-[0_0_20px_rgba(0,255,0,0.1)]"
                     )}>
+                      <span className="absolute top-4 right-4 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
                        <User className="w-8 h-8 mb-3 opacity-80 group-hover:opacity-100 transition-opacity" />
                        <span className={cn("font-black tracking-[0.2em] text-xl uppercase", isRamadan ? "font-ramadan" : "font-mono")}>1V1 BATTLE</span>
                        <span className={cn("text-[10px] opacity-50 mt-1 tracking-widest uppercase", isRamadan ? "font-ramadan" : "font-mono")}>Tactical Duel</span>
@@ -325,9 +327,10 @@ export default function Landing() {
                           { id: 'normal', label: 'NORMAL', icon: <Terminal className="w-5 h-5 mb-2" />, color: isRamadan ? 'border-amber-500 bg-amber-500/20 text-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.2)]' : 'border-primary bg-primary/20 text-primary shadow-[0_0_15px_rgba(0,255,0,0.2)]' },
                           { id: 'blitz', label: 'BLITZ (30s)', icon: <Timer className="w-5 h-5 mb-2" />, color: 'border-red-500 bg-red-500/20 text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]' },
                           { id: 'glitch', label: 'GLITCH', icon: <Zap className="w-5 h-5 mb-2" />, color: 'border-purple-500 bg-purple-500/20 text-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.2)]' },
-                          { id: 'custom', label: 'CUSTOM', icon: <Settings2 className="w-5 h-5 mb-2" />, color: 'border-blue-500 bg-blue-500/20 text-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.2)]' }
-                        ].map(m => (
-                          <button key={m.id} onClick={() => setMode(m.id as any)} className={cn("flex flex-col items-center p-3 border transition-all", theme === 'ramadan' ? 'rounded-xl' : 'rounded', mode === m.id ? m.color : (isRamadan ? "border-amber-500/20 text-amber-400/50" : "border-primary/20 text-primary/50 opacity-50 hover:opacity-100"))}>
+                          { id: 'custom', label: 'CUSTOM', icon: <Settings2 className="w-5 h-5 mb-2" />, color: 'border-blue-500 bg-blue-500/20 text-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.2)]', isNew: true }                       
+                         ].map(m => (
+                          <button key={m.id} onClick={() => setMode(m.id as any)} className={cn("flex flex-col items-center p-3 border transition-all relative", theme === 'ramadan' ? 'rounded-xl' : 'rounded', mode === m.id ? m.color : (isRamadan ? "border-amber-500/20 text-amber-400/50" : "border-primary/20 text-primary/50 opacity-50 hover:opacity-100"))}>
+                            {m.isNew && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" />}
                             {m.icon}<span className={cn("text-[10px] font-bold tracking-wider", isRamadan ? "font-ramadan" : "font-mono")}>{m.label}</span>
                           </button>
                         ))}
@@ -341,6 +344,7 @@ export default function Landing() {
                              </div>
                              <div className="grid grid-cols-1 gap-1">
                                <CyberToggle label="30s TIMER (BLITZ)" icon={<Timer className="w-3 h-3"/>} colorClass="text-red-400" checked={customSettings.timer} onChange={(v: boolean) => togglePowerup('timer', v)} />
+                               <CyberToggle label={<span className="flex items-center gap-1.5">ROOTKIT (DAY-1 REVERT) <span className="bg-red-500/20 text-red-500 border border-red-500/50 text-[7px] px-1 py-0.5 rounded animate-pulse">NEW</span></span>} icon={<Skull className="w-3 h-3"/>} colorClass="text-red-600" checked={customSettings.rootkit} onChange={(v: boolean) => togglePowerup('rootkit', v)}/>
                                <div className={cn("w-full h-px my-1 mx-auto", isRamadan ? "bg-amber-500/10" : "bg-blue-500/10")} />
                                <CyberToggle label={customSettings.timer ? "DDOS ATTACK (-20S)" : "FIREWALL (EXTRA TURN)"} icon={customSettings.timer ? <Timer className="w-3 h-3"/> : <Shield className="w-3 h-3"/>} colorClass={customSettings.timer ? "text-orange-500" : "text-yellow-400"} checked={customSettings.firewall} onChange={(v: boolean) => togglePowerup('firewall', v)} />
                                <CyberToggle label="BRUTEFORCE" icon={<Zap className="w-3 h-3"/>} colorClass="text-red-500" checked={customSettings.bruteforce} onChange={(v: boolean) => togglePowerup('bruteforce', v)} />

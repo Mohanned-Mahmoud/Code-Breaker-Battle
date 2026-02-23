@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
-  Loader2, Share2, Lock, Shield, Zap, Terminal, Info, Edit2, Shuffle, Timer, Settings2, Bug, Eye, EyeOff, Ghost, Radio, Copy, Anchor, FileDown, Bomb
+  Loader2, Share2, Lock, Shield, Zap, Terminal, Info, Edit2, Shuffle, Timer, Settings2, Bug, Eye, EyeOff, Ghost, Radio, Copy, Anchor, FileDown, Bomb, Skull // <--- ADD SKULL HERE
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -243,6 +243,7 @@ export default function GameRoom() {
   const showHoneypot = isCustom ? g?.allowHoneypot : false;
   const showPhishing = isCustom ? g?.allowPhishing : isGlitch; // NEW
   const showLogicBomb = isCustom ? g?.allowLogicBomb : isGlitch; // NEW
+  const showRootkit = isCustom ? g?.allowRootkit : false; // ONLY in Custom Mode
 
   useEffect(() => {
     if (isTimed && game?.status === 'playing' && isMyTurn) {
@@ -324,8 +325,8 @@ export default function GameRoom() {
     );
   }
 
-  const p1Powerups = { firewall: game.p1FirewallUsed ?? false, timeHack: g.p1TimeHackUsed ?? false, virus: g.p1VirusUsed ?? false, bruteforce: game.p1BruteforceUsed ?? false, changeDigit: g.p1ChangeDigitUsed ?? false, swapDigits: g.p1SwapDigitsUsed ?? false, emp: g.p1EmpUsed ?? false, spyware: g.p1SpywareUsed ?? false, honeypot: g.p1HoneypotUsed ?? false, phishing: g.p1PhishingUsed ?? false, logicBomb: g.p1LogicBombUsed ?? false };
-  const p2Powerups = { firewall: game.p2FirewallUsed ?? false, timeHack: g.p2TimeHackUsed ?? false, virus: g.p2VirusUsed ?? false, bruteforce: game.p2BruteforceUsed ?? false, changeDigit: g.p2ChangeDigitUsed ?? false, swapDigits: g.p2SwapDigitsUsed ?? false, emp: g.p2EmpUsed ?? false, spyware: g.p2SpywareUsed ?? false, honeypot: g.p2HoneypotUsed ?? false, phishing: g.p2PhishingUsed ?? false, logicBomb: g.p2LogicBombUsed ?? false };
+  const p1Powerups = { firewall: game.p1FirewallUsed ?? false, timeHack: g.p1TimeHackUsed ?? false, virus: g.p1VirusUsed ?? false, bruteforce: game.p1BruteforceUsed ?? false, changeDigit: g.p1ChangeDigitUsed ?? false, swapDigits: g.p1SwapDigitsUsed ?? false, emp: g.p1EmpUsed ?? false, spyware: g.p1SpywareUsed ?? false, honeypot: g.p1HoneypotUsed ?? false, phishing: g.p1PhishingUsed ?? false, logicBomb: g.p1LogicBombUsed ?? false, rootkit: g.p1RootkitUsed ?? false };
+  const p2Powerups = { firewall: game.p2FirewallUsed ?? false, timeHack: g.p2TimeHackUsed ?? false, virus: g.p2VirusUsed ?? false, bruteforce: game.p2BruteforceUsed ?? false, changeDigit: g.p2ChangeDigitUsed ?? false, swapDigits: g.p2SwapDigitsUsed ?? false, emp: g.p2EmpUsed ?? false, spyware: g.p2SpywareUsed ?? false, honeypot: g.p2HoneypotUsed ?? false, phishing: g.p2PhishingUsed ?? false, logicBomb: g.p2LogicBombUsed ?? false, rootkit: g.p2RootkitUsed ?? false };
   const myPowerups = myRole === 'p1' ? p1Powerups : p2Powerups;
   
   // Logic Bomb Status Tracker
@@ -427,6 +428,12 @@ export default function GameRoom() {
                             <span className="text-[10px] block opacity-70">Silences enemy powerups for 2 turns.</span>
                           </div>
                         )}
+                        {showRootkit && (
+                            <div className="border border-red-900/50 p-2 rounded bg-red-950/20">
+                              <strong className="text-red-500 block mb-1 flex items-center gap-1"><Skull className="w-3 h-3"/> ROOTKIT</strong>
+                              <span className="text-[10px] block text-red-400/80">Reverts enemy code to Day-1. Sacrifices 2 powerups or restores all enemy powerups. Ends turn.</span>
+                            </div>
+                          )}
                       </div>
                     </div>
 
@@ -555,6 +562,7 @@ export default function GameRoom() {
                           {showHoneypot && <Button variant="outline" className="w-full border-indigo-500/50 text-indigo-500 hover:bg-indigo-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.honeypot || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'honeypot' })}><Ghost className="w-3 h-3 mr-1" /> HONEYPOT</Button>}
                           {showPhishing && <Button variant="outline" className="w-full border-pink-500/50 text-pink-400 hover:bg-pink-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.phishing || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'phishing' })}><Anchor className="w-3 h-3 mr-1" /> PHISHING</Button>}                  
                           {showLogicBomb && <Button variant="outline" className="w-full border-zinc-500/50 text-zinc-400 hover:bg-zinc-500/10 text-[10px]" disabled={!isMyTurn || myPowerups.logicBomb || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'logicBomb' })}><Bomb className="w-3 h-3 mr-1" /> LOGIC BOMB</Button>}
+                          {showRootkit && <Button variant="outline" className="w-full border-red-600/50 text-red-600 hover:bg-red-600/20 text-[10px]" disabled={!isMyTurn || myPowerups.rootkit || powerupMutation.isPending} onClick={() => powerupMutation.mutate({ type: 'rootkit' })}><Skull className="w-3 h-3 mr-1" /> ROOTKIT</Button>}
                       </div>
                   </div>
                 )}

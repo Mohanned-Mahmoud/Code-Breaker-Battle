@@ -33,11 +33,13 @@ export const games = pgTable("games", {
   allowHoneypot: boolean("allow_honeypot").default(false), 
   allowPhishing: boolean("allow_phishing").default(false), 
   allowLogicBomb: boolean("allow_logic_bomb").default(false), // NEW
+  allowRootkit: boolean("allow_rootkit").default(false), // NEW
 
   createdAt: timestamp("created_at").defaultNow(),
 
   // Player 1
   p1Code: text("p1_code"),
+  p1OriginalCode: text("p1_original_code"), // NEW: To remember Day-1 setup
   p1Setup: boolean("p1_setup").default(false),
   p1FirewallUsed: boolean("p1_firewall_used").default(false),
   p1TimeHackUsed: boolean("p1_time_hack_used").default(false),
@@ -51,9 +53,11 @@ export const games = pgTable("games", {
   p1PhishingUsed: boolean("p1_phishing_used").default(false), 
   p1LogicBombUsed: boolean("p1_logic_bomb_used").default(false), // NEW
   p1SilencedTurns: integer("p1_silenced_turns").default(0), // NEW
+  p1RootkitUsed: boolean("p1_rootkit_used").default(false), // NEW
 
   // Player 2
   p2Code: text("p2_code"),
+  p2OriginalCode: text("p2_original_code"), // NEW: To remember Day-1 setup
   p2Setup: boolean("p2_setup").default(false),
   p2FirewallUsed: boolean("p2_firewall_used").default(false),
   p2TimeHackUsed: boolean("p2_time_hack_used").default(false),
@@ -67,6 +71,7 @@ export const games = pgTable("games", {
   p2PhishingUsed: boolean("p2_phishing_used").default(false), 
   p2LogicBombUsed: boolean("p2_logic_bomb_used").default(false), // NEW
   p2SilencedTurns: integer("p2_silenced_turns").default(0), // NEW
+  p2RootkitUsed: boolean("p2_rootkit_used").default(false), // NEW
 
   // --- STEALTH EFFECTS STATE ---
   p1Jammed: boolean("p1_jammed").default(false),
